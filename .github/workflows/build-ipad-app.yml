@@ -56,6 +56,6 @@ jobs:
         with:
           tag_name: latest
           name: iPad Display app (latest build)
-          body: Download IPadDisplay.ipa below and install it with Sideloadly. See USB-C.md.
+          body: Download IPadDisplay.ipa below and install it with iLoader (or SideStore). See USB-C.md.
           files: IPadDisplay.ipa
           make_latest: true
