@@ -31,6 +31,11 @@ final class Relay {
     private var idle: [Tunnel] = []              // spare tunnels, oldest first
     private var waiting: [NWConnection] = []     // viewer connections waiting for a tunnel
     private var listeners: [NWListener] = []
+    /// Called on the main thread when the laptop opens a tunnel (a cable PC is there).
+    var onTunnel: (() -> Void)?
+
+    /// True if a laptop is reachable over the cable right now. Call from the main thread.
+    func hasTunnel() -> Bool { queue.sync { !idle.isEmpty } }
 
     func start() {
         queue.async { self.startListeners() }
@@ -98,6 +103,7 @@ final class Relay {
             idle.append(t)
             while idle.count > Relay.maxSpare { close(idle.removeFirst()) }
         }
+        DispatchQueue.main.async { [weak self] in self?.onTunnel?() }
     }
 
     /// Laptop -> viewer. Runs for the tunnel's whole life, paired or not.

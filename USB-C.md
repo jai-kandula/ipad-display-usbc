@@ -60,6 +60,16 @@ Controls are the same as before: tap, drag, hold for right click, two-finger scr
 - **Apple Pencil** works as a real Windows pen: pressure and tilt reach drawing and note apps such as OneNote, Krita and Photoshop. Turn it off with **☰ > Pencil pressure** to use the Pencil as a plain mouse. (The USB-C Apple Pencil has no pressure, but tilt still works.)
 - **Magic Keyboard trackpad**: two-finger scrolling scrolls on the laptop, and clicking works as a mouse.
 
+## Wi-Fi, and more than one PC
+
+The app uses the cable whenever a laptop is plugged in. It can also connect over Wi-Fi, for example when the cable is somewhere else, or to a second PC:
+
+1. On that PC, run start.bat (or set up auto-start). Its window shows an address like `http://192.168.1.20:8765   (Wi-Fi)`.
+2. In the iPad app, on the "Waiting for your PC" screen, type that address under **Or over Wi-Fi** and tap **Add**, then **Connect**. Enter the PC's PIN the first time. The first time, iPadOS also asks to find devices on your local network: tap **Allow**.
+3. To switch PCs later, use **☰ > Switch PC**. It lists the cable and your saved PCs.
+
+With **Use the last Wi-Fi PC when the cable isn't plugged in** ticked (the default), opening the app without the cable connects to the last Wi-Fi PC by itself, and plugging the cable in switches back to it. Wi-Fi is slower than the cable, so Fast or Balanced quality works best there. If it can't connect, allow "Python" on Private networks in Windows Firewall.
+
 ## Shared clipboard
 
 Copy something on the laptop (text or a picture) and paste it on the iPad, or the other way round. It works while the iPad Display app is connected.

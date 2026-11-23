@@ -47,4 +47,5 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: iPad Display connects to your PC over Wi-Fi when the USB-C cable isn't plugged in.
     scheme: {}
