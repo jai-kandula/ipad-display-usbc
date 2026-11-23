@@ -54,6 +54,13 @@ After the first time it connects by itself whenever you open the app.
 
 Controls are the same as before: tap, drag, hold for right click, two-finger scroll, Apple Pencil, and the ☰ menu.
 
+## PC sound on the iPad
+
+Whatever the laptop plays also comes out of the iPad's speakers, about 50 ms behind. Turn it on or off with **☰ > PC sound**.
+- It starts by itself in the iPad Display app. In Safari, tap the screen once first.
+- The laptop keeps playing the sound too. Turn the laptop's volume down if you only want it on the iPad. If the iPad goes quiet when the laptop is muted, leave the laptop at a low volume instead.
+- start.bat installs the small `soundcard` package for this. If the menu says "not available", run start.bat again with an internet connection.
+
 ## Turn the iPad screen on and off automatically (optional, once)
 
 Normally the virtual screen stays plugged in to Windows even when the iPad isn't, so windows and your mouse can get lost on it. To have it appear only while you use the iPad:
