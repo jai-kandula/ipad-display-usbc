@@ -163,6 +163,10 @@
   #wins .w .t b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #wins .w button { width: auto; flex: none; padding: 8px 10px; font-size: 13px; margin: 0; }
   #wins .w button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  /* the PC is asleep or off: go dark until it's back */
+  #sleep { position: fixed; inset: 0; z-index: 35; display: none; align-items: center; justify-content: center;
+    background: #000; color: #5d6470; font-size: 15px; text-align: center; padding: 24px; }
+  body.asleep #sleep { display: flex; }
   #kbd { position: fixed; left: -1000px; top: 0; width: 10px; height: 10px; opacity: 0; }
 </style>
 </head>
@@ -175,6 +179,7 @@
 <div id="night"></div>
 <div id="hud"></div>
 <div id="toast"></div>
+<div id="sleep">The PC is asleep or off.<br>The screen comes back by itself when it wakes. Tap to brighten.</div>
 
 <div id="setup">
   <div class="card">
@@ -1430,6 +1435,26 @@
     closeMenu(); $('wins').textContent = 'Loading…'; openSheet('win'); send({ t: 'windows' });
   });
   $('win-close').addEventListener('click', closeSheet);
+
+
+  // ---------------------------------------------------------------- PC asleep: dim
+  // When the PC has been unreachable for 15 s (asleep, lid closed, shut down),
+  // go black and ask the app to dim the iPad. Back to normal as soon as it answers.
+  let lostSince = 0, asleep = false;
+  function setAsleep(on) {
+    if (on === asleep) return;
+    asleep = on;
+    document.body.classList.toggle('asleep', on);
+    const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.screen;
+    if (h) h.postMessage({ dim: on });
+  }
+  setInterval(() => {
+    const down = (live && (!ws || ws.readyState !== 1) && document.body.classList.contains('waiting')) || (inDeck && offline);
+    if (!down) { lostSince = 0; setAsleep(false); return; }
+    if (!lostSince) lostSince = performance.now();
+    if (performance.now() - lostSince > 15000) setAsleep(true);
+  }, 1000);
+  $('sleep').addEventListener('click', () => { setAsleep(false); lostSince = performance.now(); });
 
   if (IN_APP) noPin = true;              // try without a PIN; the server says if one is needed
   if (noPin || pinEl.value.length === 6) loadMonitors().then(() => {
