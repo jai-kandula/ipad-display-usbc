@@ -45,19 +45,51 @@
     background: rgba(20,22,28,.9); padding: 14px 20px; border-radius: 12px; font-size: 15px; }
   body.live.waiting #status { display: block; }
 
-  #fab { position: fixed; left: calc(6px + env(safe-area-inset-left)); top: calc(6px + env(safe-area-inset-top));
-    width: 34px; height: 34px; border-radius: 17px; border: 0; padding: 0; display: none;
-    background: rgba(60,64,75,.45); color: #fff; font-size: 18px; line-height: 34px; }
+  /* menu button: small, fades out of the way while you work */
+  #fab { position: fixed; left: calc(8px + env(safe-area-inset-left)); top: calc(8px + env(safe-area-inset-top));
+    width: 36px; height: 36px; border-radius: 18px; border: 0; padding: 0; display: none; z-index: 20;
+    background: rgba(30,32,40,.55); color: #fff; font-size: 17px; line-height: 36px;
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); transition: opacity .4s; }
   body.live #fab { display: block; }
-  #menu { position: fixed; left: calc(6px + env(safe-area-inset-left)); top: calc(46px + env(safe-area-inset-top));
-    background: rgba(20,22,28,.95); border: 1px solid #2a2e37; border-radius: 14px; padding: 10px; display: none; width: 270px; }
-  #menu.open { display: block; }
-  #menu button { margin: 4px 0; padding: 10px; background: #22262f; border: 0; text-align: left; }
-  #menu .row { display: flex; gap: 6px; flex-wrap: wrap; }
-  #menu .row button { flex: 1 1 28%; text-align: center; padding: 9px 4px; font-size: 14px; }
-  #menu .row button.on { background: var(--accent); }
-  #modes button { flex-basis: 20%; }
-  #menu .stats { font-size: 12px; color: #8a93a3; padding: 4px 2px 2px; line-height: 1.5; }
+  body.idle #fab:not(.open) { opacity: .25; }
+
+  /* side sheet */
+  #menu { position: fixed; z-index: 19; left: 0; top: 0; bottom: 0; width: 300px; box-sizing: border-box;
+    padding: calc(54px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+    background: rgba(18,20,26,.82); -webkit-backdrop-filter: blur(24px) saturate(1.4); backdrop-filter: blur(24px) saturate(1.4);
+    border-right: 1px solid rgba(255,255,255,.08); overflow-y: auto;
+    transform: translateX(-105%); transition: transform .22s ease; }
+  #menu.open { transform: none; }
+  #menu h3 { margin: 16px 2px 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: #8a93a3; }
+  #menu h3:first-child { margin-top: 0; }
+  #menu button { margin: 0; padding: 11px 12px; background: rgba(255,255,255,.06); border: 0;
+    border-radius: 10px; text-align: left; font-size: 15px; color: #eee; }
+  #menu button:active { background: rgba(255,255,255,.14); }
+  #menu .row { display: flex; gap: 6px; margin: 6px 0; }
+  #menu .row button { flex: 1; text-align: center; padding: 10px 2px; font-size: 14px; }
+  #menu .seg { display: flex; padding: 3px; gap: 3px; background: rgba(255,255,255,.06); border-radius: 11px; margin: 6px 0; }
+  #menu .seg button { flex: 1; background: transparent; text-align: center; padding: 8px 2px; font-size: 13px; border-radius: 8px; }
+  #menu .seg button.on { background: var(--accent); color: #fff; }
+  #menu .tog { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
+  #menu .tog::after { content: ''; width: 38px; height: 22px; border-radius: 11px; flex: none;
+    background: #3a3f4b radial-gradient(circle at 11px 11px, #fff 8px, transparent 8.5px); transition: background .2s; }
+  #menu .tog.on::after { background: var(--ok) radial-gradient(circle at 27px 11px, #fff 8px, transparent 8.5px); }
+  #menu .tog.na { opacity: .45; }
+  #menu .tog small { display: block; color: #8a93a3; font-size: 12px; margin-top: 2px; }
+  #menu #m-disc { width: 100%; margin-top: 18px; color: #ff8a8a; text-align: center; }
+  #menu .stats { font-size: 12px; color: #8a93a3; padding: 10px 2px 2px; line-height: 1.5; }
+
+  /* corner status overlay */
+  #hud { position: fixed; z-index: 18; right: calc(8px + env(safe-area-inset-right)); top: calc(8px + env(safe-area-inset-top));
+    display: none; padding: 5px 10px; border-radius: 12px; font: 12px ui-monospace, Menlo, monospace; color: #dfe4ec;
+    background: rgba(20,22,28,.55); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); pointer-events: none; }
+  body.live.hud #hud { display: block; }
+
+  /* night mode: a warm tint over the picture */
+  #night { position: fixed; inset: 0; z-index: 5; pointer-events: none; display: none;
+    background: rgba(255,140,40,.22); mix-blend-mode: multiply; }
+  body.live.night #night { display: block; }
   #kbd { position: fixed; left: -1000px; top: 0; width: 10px; height: 10px; opacity: 0; }
 </style>
 </head>
@@ -67,6 +99,8 @@
   <svg id="cursor" viewBox="0 0 14 22"><path d="M1 1v17l4.2-4 2.9 6.6 2.7-1.2-2.8-6.4H14z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
 </div>
 <div id="status">Connecting…</div>
+<div id="night"></div>
+<div id="hud"></div>
 
 <div id="setup">
   <div class="card">
@@ -95,22 +129,32 @@
 
 <button id="fab" aria-label="Menu">☰</button>
 <div id="menu">
-  <button id="m-kbd">⌨️  Keyboard</button>
+  <h3>Type</h3>
+  <button id="m-kbd" style="width:100%">⌨️  Show keyboard</button>
   <div class="row">
     <button data-key="Escape">Esc</button><button data-key="Tab">Tab</button><button data-key="Delete">Del</button>
+  </div>
+  <div class="row">
     <button data-combo="Control+c">Copy</button><button data-combo="Control+v">Paste</button><button data-combo="Control+z">Undo</button>
   </div>
-  <div class="row" id="modes">
+
+  <h3>Picture</h3>
+  <div class="seg" id="modes">
     <button data-mode="fast">Fast</button><button data-mode="balanced">Balanced</button><button data-mode="sharp">Sharp</button><button data-mode="wired">Wired</button>
   </div>
-  <button id="m-video">🎞  Video mode: on</button>
-  <button id="m-sound">🔊  PC sound: on</button>
-  <div class="row">
-    <button id="m-zoom">Fit whole screen</button>
-  </div>
-  <div class="row" id="dispmode">
+  <button class="tog" id="m-video" style="width:100%"><span>Video mode<small>Smooth scrolling and dragging</small></span></button>
+  <button class="tog" id="m-night" style="width:100%"><span>Night mode<small>Warmer colours</small></span></button>
+  <button id="m-zoom" style="width:100%;margin-top:6px">Fit whole screen</button>
+
+  <h3>Screen</h3>
+  <div class="seg" id="dispmode">
     <button data-display="extend">Extend</button><button data-display="clone">Mirror laptop</button>
   </div>
+
+  <h3>More</h3>
+  <button class="tog" id="m-sound" style="width:100%"><span>PC sound<small>Play the laptop's sound here</small></span></button>
+  <button class="tog" id="m-hud" style="width:100%"><span>Status corner<small>Updates per second, delay, battery</small></span></button>
+
   <button id="m-disc">Disconnect</button>
   <div class="stats" id="stats"></div>
 </div>
@@ -363,7 +407,7 @@
     if (ws) { ws.onclose = null; ws.close(); ws = null; }
     soundStop();
     document.body.classList.remove('live', 'waiting');
-    $('menu').classList.remove('open');
+    $('menu').classList.remove('open'); $('fab').classList.remove('open');
     if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   }
 
@@ -397,6 +441,8 @@
           // Copied on the PC: the iPad app puts it on the iPad clipboard.
           const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.clip;
           if (h) h.postMessage(m.png ? { png: m.png } : { text: m.text || '' });
+        } else if (m.type === 'pong') {
+          hudRtt = Math.round(performance.now() - m.c); drawHud();
         } else if (m.type === 'cursor') {
           if (!touchActive) { cursor = { x: m.x, y: m.y, v: m.v }; drawCursor(); }
         }
@@ -447,6 +493,7 @@
       const secs = (now - lastStat) / 1000;
       $('stats').textContent = `${img.w}×${img.h} · ${Math.round(frames / secs)} updates/s · ` +
         `${(bytes * 8 / 1e6 / secs).toFixed(1)} Mbit/s · decode ${frames ? (decodeMs / frames).toFixed(1) : 0} ms`;
+      hudFps = Math.round(frames / secs); drawHud();
       frames = 0; bytes = 0; decodeMs = 0; lastStat = now;
     }
   }
@@ -502,7 +549,7 @@
     aws.binaryType = 'arraybuffer';
     aws.onmessage = ev => {
       if (typeof ev.data === 'string') {
-        if (ev.data.includes('nosound')) { noSound = true; $('m-sound').textContent = '🔇  PC sound: not available'; }
+        if (ev.data.includes('nosound')) { noSound = true; markSound(); }
         return;
       }
       player.port.postMessage(ev.data, [ev.data]);
@@ -510,10 +557,24 @@
     aws.onclose = () => { aws = null; if (soundOn && live && !noSound) setTimeout(soundConnect, 2000); };
   }
   function soundStop() { if (aws) { aws.onclose = null; aws.close(); aws = null; } }
-  function markSound() { $('m-sound').textContent = soundOn ? '🔊  PC sound: on' : '🔇  PC sound: off'; }
+  function markSound() { $('m-sound').classList.toggle('on', soundOn && !noSound); $('m-sound').classList.toggle('na', noSound); }
 
   // Called by the iPad app when something new was copied on the iPad.
   window.ipadClip = o => send({ t: 'clip', ...o });
+  // ---------------------------------------------------------------- status corner
+  let hudFps = 0, hudRtt = null, battery = null;
+  function drawHud() {
+    if (!document.body.classList.contains('hud')) return;
+    const parts = [`${hudFps} fps`];
+    if (hudRtt !== null) parts.push(`${hudRtt} ms`);
+    if (battery) parts.push(`${battery.charging ? '⚡' : '🔋'} ${Math.round(battery.level * 100)}%`);
+    $('hud').textContent = parts.join('  ·  ');
+  }
+  // The iPad app reports the battery (Safari doesn't let web pages read it).
+  window.ipadBattery = (level, charging) => { if (level >= 0) battery = { level, charging }; drawHud(); };
+  setInterval(() => { if (live && ws && ws.readyState === 1) send({ t: 'ping', c: performance.now() }); }, 2000);
+  setInterval(() => { if (!frames) { hudFps = 0; drawHud(); } }, 1500);   // still screen: show 0
+
   function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 
   // Watchdog: the PC sends something at least every 1.5 s. If nothing arrives
@@ -584,7 +645,7 @@
   stage.addEventListener('pointerdown', e => {
     e.preventDefault();
     if (soundOn && (!actx || actx.state !== 'running' || !aws)) soundUnlock();
-    $('menu').classList.remove('open');
+    $('menu').classList.remove('open'); $('fab').classList.remove('open');
     stage.setPointerCapture(e.pointerId);
     touchActive = true;
     localCursor(e.clientX, e.clientY);
@@ -723,13 +784,22 @@
   function markMode() {
     document.querySelectorAll('#modes [data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === store.get('mode', 'balanced')));
   }
-  $('fab').addEventListener('click', () => $('menu').classList.toggle('open'));
-  $('m-kbd').addEventListener('click', () => { $('menu').classList.remove('open'); kbd.focus(); kbd.setSelectionRange(2, 2); });
+  $('fab').addEventListener('click', () => { $('fab').classList.toggle('open', $('menu').classList.toggle('open')); });
+  // Fade the menu button after a few seconds without touching it.
+  let idleTimer = null;
+  function poke() { document.body.classList.remove('idle'); clearTimeout(idleTimer); idleTimer = setTimeout(() => document.body.classList.add('idle'), 3000); }
+  addEventListener('pointerdown', poke, true); poke();
+  function markFlag(id, key, cls) { const on = store.get(key, '0') === '1'; $(id).classList.toggle('on', on); document.body.classList.toggle(cls, on); }
+  markFlag('m-night', 'night', 'night');
+  markFlag('m-hud', 'hud', 'hud');
+  $('m-night').addEventListener('click', () => { store.set('night', store.get('night', '0') === '1' ? '0' : '1'); markFlag('m-night', 'night', 'night'); });
+  $('m-hud').addEventListener('click', () => { store.set('hud', store.get('hud', '0') === '1' ? '0' : '1'); markFlag('m-hud', 'hud', 'hud'); });
+  $('m-kbd').addEventListener('click', () => { $('menu').classList.remove('open'); $('fab').classList.remove('open'); kbd.focus(); kbd.setSelectionRange(2, 2); });
   $('m-disc').addEventListener('click', () => { store.set('auto', '0'); stop(); });
   function markVideo() {
     videoCheck.then(ok => {
-      $('m-video').textContent = !ok ? '🎞  Video mode: not supported here'
-        : store.get('video', '1') === '1' ? '🎞  Video mode: on' : '🎞  Video mode: off';
+      $('m-video').classList.toggle('na', !ok);
+      $('m-video').classList.toggle('on', ok && store.get('video', '1') === '1');
     });
   }
   markVideo();
@@ -742,10 +812,10 @@
     soundOn = !soundOn; store.set('sound', soundOn ? '1' : '0'); markSound();
     if (soundOn) soundUnlock(); else soundStop();
   });
-  $('m-zoom').addEventListener('click', () => { setZoom(1); $('menu').classList.remove('open'); });
+  $('m-zoom').addEventListener('click', () => { setZoom(1); $('menu').classList.remove('open'); $('fab').classList.remove('open'); });
   document.querySelectorAll('#dispmode [data-display]').forEach(b => b.addEventListener('click', () => {
     send({ t: 'display', mode: b.dataset.display });
-    $('menu').classList.remove('open');
+    $('menu').classList.remove('open'); $('fab').classList.remove('open');
   }));
   document.querySelectorAll('#menu [data-key]').forEach(b => b.addEventListener('click', () => send({ t: 'key', k: b.dataset.key })));
   document.querySelectorAll('#menu [data-combo]').forEach(b => b.addEventListener('click', () => {
