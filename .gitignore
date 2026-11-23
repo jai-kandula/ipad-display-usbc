@@ -11,3 +11,4 @@ host.log
 host.log.old
 profiles.json
 profiles.json.tmp
+pins.json
