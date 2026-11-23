@@ -56,6 +56,9 @@ After the first time it connects by itself whenever you open the app.
 Controls are the same as before: tap, drag, hold for right click, two-finger scroll, Apple Pencil, and the ☰ menu. Also:
 - **Pinch** with two fingers to zoom in on small text, and pinch out to go back. Tapping still clicks exactly where you tap. **☰ > Fit whole screen** resets the zoom.
 - **☰ > Mirror laptop** makes the iPad show a copy of the laptop screen. **☰ > Extend** makes it a separate screen again. Windows may change the laptop's resolution while mirroring.
+- **Three-finger swipe** left or right throws the window you last clicked to the next screen. Swipe up to see all windows, down to show the desktop.
+- **Apple Pencil** works as a real Windows pen: pressure and tilt reach drawing and note apps such as OneNote, Krita and Photoshop. Turn it off with **☰ > Pencil pressure** to use the Pencil as a plain mouse. (The USB-C Apple Pencil has no pressure, but tilt still works.)
+- **Magic Keyboard trackpad**: two-finger scrolling scrolls on the laptop, and clicking works as a mouse.
 
 ## Shared clipboard
 

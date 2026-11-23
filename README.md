@@ -152,7 +152,10 @@ Run **`autostart-setup.bat`** once (after start.bat has run at least once). From
 | Two-finger drag | Scroll |
 | Pinch | Zoom in on the iPad (☰ > Fit whole screen to reset). Taps still land exactly. |
 | ☰ > Mirror laptop / Extend | Show a copy of the laptop screen, or use the iPad as its own screen |
-| Apple Pencil | Precise mouse (hover moves the pointer on iPads that support it) |
+| Three-finger swipe left / right | Throw the active window to the next screen |
+| Three-finger swipe up / down | All windows (Task view) / show the desktop |
+| Apple Pencil | A real Windows pen with pressure and tilt (☰ > Pencil pressure turns it into a plain mouse) |
+| Magic Keyboard trackpad | Mouse, and two-finger scrolling |
 | ☰ button (top left) | Keyboard, Esc / Tab / Del, Copy / Paste / Undo, quality, disconnect |
 
 With a Magic Keyboard or Bluetooth keyboard, open the keyboard from the ☰ menu once and type normally. Cmd+C/V/Z act as Ctrl+C/V/Z.

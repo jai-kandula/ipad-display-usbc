@@ -51,6 +51,7 @@ import pcaudio  # noqa: E402  (PC sound on the iPad)
 import clip  # noqa: E402  (shared clipboard)
 import deck  # noqa: E402  (profiles and the button deck)
 import screenshape  # noqa: E402  (portrait, resolution and text size)
+import pen  # noqa: E402  (Apple Pencil pressure and tilt)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -303,6 +304,7 @@ class Input:
 
 
 INPUT = Input()
+PEN = pen.Pen()
 ENCODERS = ThreadPoolExecutor(max_workers=max(2, min(6, (os.cpu_count() or 4) - 1)),
                               thread_name_prefix="jpeg")
 
@@ -789,7 +791,7 @@ def make_app(cfg):
     async def monitors(request):
         if not authorized(request):
             return web.json_response({"error": "bad pin"}, status=403)
-        return web.json_response({"monitors": list_monitors(), "input": INPUT.ok,
+        return web.json_response({"monitors": list_monitors(), "input": INPUT.ok, "pen": PEN.ok,
                                   "fastjpeg": simplejpeg is not None,
                                   "wired": is_wired(request.remote),
                                   "usb": request.remote == "127.0.0.1"})
@@ -934,6 +936,16 @@ def make_app(cfg):
                         if "x" in m:
                             INPUT.move(*to_screen(m))
                         INPUT.button(int(m.get("b", 0)), False)
+                    elif t == "pen":
+                        # Apple Pencil with pressure and tilt; a mouse if Windows can't take pens.
+                        x, y = to_screen(m)
+                        st = m.get("s")
+                        if not PEN.send(st, x, y, float(m.get("p", 0.5)),
+                                        float(m.get("tx", 0)), float(m.get("ty", 0))):
+                            if st in ("down", "move", "hover", "up"):
+                                INPUT.move(x, y)
+                            if st in ("down", "up"):
+                                INPUT.button(0, st == "down")
                     elif t == "click":
                         INPUT.move(*to_screen(m))
                         b = int(m.get("b", 0))
