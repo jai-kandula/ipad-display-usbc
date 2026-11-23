@@ -26,6 +26,7 @@ import secrets
 import socket
 import struct
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -328,6 +329,57 @@ def tiles_to_rects(mask):
 # --------------------------------------------------------------------------
 # One streaming session (capture thread state)
 # --------------------------------------------------------------------------
+class _Grabber(threading.Thread):
+    """Copies frames off the GPU on its own thread, so the next frame is being
+    fetched while the previous one is compared and encoded. Only this thread
+    touches the dxcam camera once it is running."""
+
+    def __init__(self, cam):
+        super().__init__(daemon=True, name="gpu-grab")
+        self.cam = cam
+        self.cond = threading.Condition()
+        self.frame = None
+        self.err = None
+        self.stopping = False
+        self.cap_t, self.n = 0.0, 0
+
+    def run(self):
+        while not self.stopping:
+            t0 = time.perf_counter()
+            try:
+                f = self.cam.grab(new_frame_only=True)
+            except Exception as e:      # display mode changed, driver reset, ...
+                with self.cond:
+                    self.err = e
+                    self.cond.notify_all()
+                return
+            if f is None:
+                time.sleep(0.001)
+                continue
+            dt = time.perf_counter() - t0
+            with self.cond:
+                self.frame = f          # newest frame wins; older ones are dropped
+                self.cap_t += dt
+                self.n += 1
+                self.cond.notify_all()
+
+    def take(self, timeout):
+        """Newest new frame (or None after timeout), plus grab stats since last call."""
+        with self.cond:
+            if self.frame is None and self.err is None:
+                self.cond.wait(timeout)
+            if self.err is not None:
+                raise self.err
+            f, self.frame = self.frame, None
+            st = (self.cap_t, self.n)
+            self.cap_t, self.n = 0.0, 0
+            return f, st
+
+    def stop(self):
+        self.stopping = True
+        self.join(timeout=1.0)
+
+
 class Session:
     def __init__(self, monitor_index, profile):
         self.monitor_index = monitor_index
@@ -342,6 +394,8 @@ class Session:
         self.adapt = 0             # quality drop (0..30) when the link is slow
         self.dx = None             # dxcam camera (GPU capture) if available
         self.dx_tried = False
+        self.grab = None           # _Grabber thread feeding GPU frames
+        self.wait = 1 / 60         # how long a step waits for a new GPU frame
         self.backend = "GDI"
         self.last = None           # last captured (array, colourspace)
         self.stats = {"frames": 0, "cap": 0.0, "enc": 0.0, "bytes": 0}
@@ -381,12 +435,8 @@ class Session:
         if self.sct is not None:
             self.sct.close()
         self.sct = _MSS()
-        if self.dx is not None:
-            try:
-                self.dx.release()
-            except Exception:
-                pass
-        self.dx, self.dx_tried, self.backend = None, False, "GDI"
+        self._release_dx()
+        self.dx_tried, self.backend = False, "GDI"
         self.last = None
         self.reset = True
 
@@ -408,6 +458,8 @@ class Session:
                         self.dx = dxcam.create(device_idx=d, output_idx=o,
                                                output_color="BGRA",
                                                processor_backend="numpy")
+                        self.grab = _Grabber(self.dx)
+                        self.grab.start()
                         self.backend = "GPU"
                         return
         except Exception as e:
@@ -418,22 +470,25 @@ class Session:
         """Returns (array, colourspace), or None if the screen hasn't changed."""
         if IS_WINDOWS and not self.dx_tried:
             self._open_dxgi()
-        if self.dx is not None:
+        if self.grab is not None:
             try:
-                frame = self.dx.grab(new_frame_only=True)
+                tw = time.perf_counter()
+                frame, (t, n) = self.grab.take(self.wait)
+                self.stats["idle"] = self.stats.get("idle", 0.0) + time.perf_counter() - tw
             except Exception as e:      # display mode changed, driver reset, ...
                 print("GPU capture stopped, switching to GDI:", e)
-                try:
-                    self.dx.release()
-                except Exception:
-                    pass
-                self.dx, self.backend = None, "GDI"
-                frame = None
+                self._release_dx()
+                self.backend = "GDI"
             else:
-                if frame is None:
-                    return None
-                return frame, "BGRA"
+                self.stats["cap"] += t
+                self.stats["caps"] = self.stats.get("caps", 0) + n
+                self.stats["new"] = self.stats.get("new", 0) + n
+                return None if frame is None else (frame, "BGRA")
+        t0 = time.perf_counter()
         shot = self.sct.grab(self.mon)
+        self.stats["cap"] += time.perf_counter() - t0
+        self.stats["caps"] = self.stats.get("caps", 0) + 1
+        self.stats["new"] = self.stats.get("new", 0) + 1
         w, h = shot.size
         return np.frombuffer(shot.raw, dtype=np.uint8).reshape(h, w, 4), "BGRA"
 
@@ -444,18 +499,14 @@ class Session:
             return self._step(force)
         finally:
             self.stats["work"] = self.stats.get("work", 0.0) + time.perf_counter() - t0
+            self.stats["steps"] = self.stats.get("steps", 0) + 1
 
     def _step(self, force=False):
         if self.mon is None:
             self.monitor()
         self._check_geometry()
-        t0 = time.perf_counter()
         cap = self._capture()
-        self.stats["cap"] += time.perf_counter() - t0
-        self.stats["caps"] = self.stats.get("caps", 0) + 1
         unchanged = cap is None
-        if not unchanged:
-            self.stats["new"] = self.stats.get("new", 0) + 1
         if unchanged:
             if self.last is None:
                 return None, self.dims
@@ -464,7 +515,9 @@ class Session:
         arr, cs = cap
         h, w = arr.shape[:2]
         self.scale = w / self.mon["width"]
-        cur = arr.view(np.uint32).reshape(h, w)
+        # Compare two pixels at a time when the width allows (half the work).
+        px = 2 if w % 2 == 0 else 1
+        cur = arr.reshape(h, w * 4).view(np.uint64 if px == 2 else np.uint32)
         now = time.perf_counter()
         prof = self.profile
         lo = max(35, prof["lo"] - self.adapt)
@@ -475,7 +528,7 @@ class Session:
             self.reset, force = False, True
         if force or self.prev is None or self.prev.shape != cur.shape:
             self.dims = (w, h)
-            self.prev = cur.copy()
+            self.prev = cur
             self.blurry = np.zeros((trows, tcols), bool)
             self.last_change = now
             return self._pack(arr, cs, self._stripes(w, h), hi, prof["hi_sub"], key=True), self.dims
@@ -504,8 +557,8 @@ class Session:
         self.last_change = now
         mask = np.logical_or.reduceat(
             np.logical_or.reduceat(diff, np.arange(0, h, TILE), axis=0),
-            np.arange(0, w, TILE), axis=1)
-        np.copyto(self.prev, cur)
+            np.arange(0, w // px, TILE // px), axis=1)
+        self.prev = cur        # every capture is a new array, so no copy is needed
         frac = mask.mean()
 
         lo_sub = prof.get("lo_sub", "420")
@@ -552,13 +605,19 @@ class Session:
             head.append(struct.pack("<HHHHI", x, y, rw, rh, len(data)))
         return b"".join(head + parts)
 
-    def close(self):
+    def _release_dx(self):
+        if self.grab is not None:
+            self.grab.stop()
+            self.grab = None
         if self.dx is not None:
             try:
                 self.dx.release()
             except Exception:
                 pass
             self.dx = None
+
+    def close(self):
+        self._release_dx()
         if self.sct is not None:
             self.sct.close()
             self.sct = None
@@ -690,6 +749,7 @@ def make_app(cfg):
 
         async def writer():
             interval = 1.0 / fps
+            sess.wait = interval
             last_cursor = None
             last_dims = None
             next_report = time.perf_counter() + 5
@@ -703,7 +763,7 @@ def make_app(cfg):
                     print(f"[speed] {st.get('new', 0) / secs:4.0f} screen fps | "
                           f"{st['frames'] / secs:4.0f} updates/s | "
                           f"capture {st['cap'] * 1000 / max(1, st.get('caps', 0)):4.1f} ms ({sess.backend}) | "
-                          f"work {st.get('work', 0) * 1000 / max(1, st.get('caps', 0)):4.1f} ms | "
+                          f"work {(st.get('work', 0) - st.get('idle', 0)) * 1000 / max(1, st.get('steps', 0)):4.1f} ms | "
                           f"encode {st['enc'] * 1000 / n:4.1f} ms | "
                           f"{st['bytes'] / n / 1024:5.0f} KB/update | "
                           f"{st['bytes'] * 8 / 1e6 / secs:5.1f} Mbit/s | "
@@ -753,6 +813,8 @@ def make_app(cfg):
                     await ws.send_bytes(struct.pack("<I", seq) + packet)
                 # Sleep until the next tick, but wake early when input arrives
                 # so the result of a tap shows up as soon as possible.
+                if sess.grab is not None:
+                    continue           # paced by the screen: the step waits for its next frame
                 remaining = interval - (time.perf_counter() - start)
                 if remaining > 0:
                     wake.clear()
