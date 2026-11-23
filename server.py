@@ -854,6 +854,8 @@ def main():
     ap = argparse.ArgumentParser(description="Stream a Windows monitor to an iPad")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--new-pin", action="store_true", help="generate a new pairing PIN")
+    ap.add_argument("--keep-screen", action="store_true",
+                    help="don't turn the iPad's virtual screen on/off automatically")
     args = ap.parse_args()
 
     if sys.version_info < (3, 10):
@@ -873,6 +875,16 @@ def main():
     if not any(is_wired(a) for a in addrs):
         print("   (No cable link found. For a wired connection, see WIRED.md.)")
     print(f"\n Pairing PIN:  {cfg['pin']}")
+    if IS_WINDOWS and not args.keep_screen:
+        import vdd
+        if vdd.available():
+            print("\n Turning on the iPad's virtual screen (it turns off when you close this window)...")
+            res = vdd.turn_on(lambda: len(list_monitors()))
+            if res == "failed":
+                print("   It didn't appear. Check vdd.log in this folder, or turn it on in Device Manager.")
+        else:
+            print("\n Tip: run display-setup.bat once, so the iPad's virtual screen turns on")
+            print("      with this window and off when you close it.")
     print("\n Screens found:")
     for m in list_monitors():
         print(f"   #{m['index']}: {m['width']}x{m['height']} at ({m['left']},{m['top']})")

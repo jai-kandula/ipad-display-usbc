@@ -5,3 +5,5 @@ ios/build/
 ios/Payload/
 ios/*.xcodeproj/
 *.ipa
+
+vdd.log

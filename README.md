@@ -81,6 +81,15 @@ Put the whole `ipad-display` folder somewhere like `Documents\ipad-display`.
 3. Enter the PIN. Check **Your iPad** shows the right model, and pick the virtual screen under **Screen to show**. Then tap **Connect**.
 4. **Full screen (do this once):** tap Share, then **Add to Home Screen**. From now on open "iPad Display" from your home screen. It's full screen and reconnects by itself.
 
+## Turn the iPad screen on and off automatically (optional, once)
+
+Normally the virtual screen stays plugged in to Windows even when the iPad isn't, so windows and your mouse can get lost on it. To have it appear only while you use the iPad:
+
+1. Double-click **`display-setup.bat`** in this folder and click **Yes** on the Windows admin prompt. It turns the screen off and on once as a test.
+2. From now on, **`start.bat` turns the virtual screen on**, and **closing the start.bat window turns it off** (the X button or Ctrl+C both work). Windows remembers its resolution and position, and moves any windows on it back to your laptop screen.
+
+It also switches off when the laptop restarts. If you move this folder, run `display-setup.bat` again. To undo it, run `display-setup.bat remove`. To leave the screen alone for one session, run `start.bat --keep-screen`. If it doesn't switch, look in `vdd.log` in this folder.
+
 ## Controls on the iPad
 
 | Do this | Laptop gets |
