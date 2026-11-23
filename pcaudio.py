@@ -4,6 +4,10 @@ WebSocket at /audio. 48 kHz stereo is about 1.5 Mbit/s, tiny for the cable."""
 import asyncio
 import sys
 import threading
+import warnings
+
+# A short gap in the PC's sound (e.g. nothing playing) is normal; don't fill the log with it.
+warnings.filterwarnings("ignore", message="data discontinuity")
 
 RATE = 48000
 CHANNELS = 2

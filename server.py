@@ -71,6 +71,8 @@ try:
 except Exception:
     pass
 
+_DX_LOCK = threading.Lock()      # re-listing dxcam's screens
+
 # GPU capture (DXGI Desktop Duplication) via dxcam: much faster than GDI and it
 # tells us when nothing on screen changed. Optional: we fall back to GDI.
 try:
@@ -480,27 +482,46 @@ class Session:
         """Find the DXGI output for this screen and open a duplication on it."""
         self.dx_tried = True
         if dxcam is None:
+            if not getattr(Session, "_said_no_dxcam", False):
+                Session._said_no_dxcam = True
+                print("GPU capture unavailable (the dxcam package isn't installed), using GDI. "
+                      "Run start.bat once with internet to install it.")
             return
         try:
             fac = getattr(dxcam, "__factory")
-            m = self.mon
-            for d, outs in enumerate(fac.outputs):
-                for o, out in enumerate(outs):
-                    out.update_desc()
-                    rc = out.desc.DesktopCoordinates
-                    if ((rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top)
-                            == (m["left"], m["top"], m["width"], m["height"])
-                            and out.rotation_angle == 0):
-                        self.dx = dxcam.create(device_idx=d, output_idx=o,
-                                               output_color="BGRA",
-                                               processor_backend="numpy")
-                        self.grab = _Grabber(self.dx)
-                        self.grab.start()
-                        self.backend = "GPU"
-                        return
+            for attempt in (1, 2):
+                found = self._find_output(fac)
+                if found:
+                    d, o = found
+                    self.dx = dxcam.create(device_idx=d, output_idx=o,
+                                           output_color="BGRA",
+                                           processor_backend="numpy")
+                    self.grab = _Grabber(self.dx)
+                    self.grab.start()
+                    self.backend = "GPU"
+                    return
+                if attempt == 1:
+                    # dxcam lists the screens once, when it loads. A screen added
+                    # since (the iPad's virtual screen being switched on) isn't in
+                    # that list, so look again.
+                    with _DX_LOCK:
+                        fac.__init__()
+            print(f"GPU capture couldn't find this screen ({self.mon['width']}x{self.mon['height']} at "
+                  f"{self.mon['left']},{self.mon['top']}), using GDI.")
         except Exception as e:
             print("GPU capture unavailable, using GDI:", e)
         self.dx = None
+
+    def _find_output(self, fac):
+        m = self.mon
+        for d, outs in enumerate(fac.outputs):
+            for o, out in enumerate(outs):
+                out.update_desc()
+                rc = out.desc.DesktopCoordinates
+                if ((rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top)
+                        == (m["left"], m["top"], m["width"], m["height"])):
+                    return d, o           # (dxcam turns portrait screens upright itself)
+        return None
 
     def _capture(self):
         """Returns (array, colourspace), or None if the screen hasn't changed."""
