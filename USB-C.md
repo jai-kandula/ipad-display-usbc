@@ -72,6 +72,18 @@ Whatever the laptop plays also comes out of the iPad's speakers, about 50 ms beh
 - The laptop keeps playing the sound too. Turn the laptop's volume down if you only want it on the iPad. If the iPad goes quiet when the laptop is muted, leave the laptop at a low volume instead.
 - start.bat installs the small `soundcard` package for this. If the menu says "not available", run start.bat again with an internet connection.
 
+## Portrait, screen size and text size
+
+In **☰ > Screen** you can change the iPad's screen in Windows without opening Windows settings:
+
+- **Sharp**: the iPad's full resolution at 200% text size. Pixel-perfect, with text the size you'd expect on an iPad.
+- **Roomy**: full resolution at 150%. Still sharp, with smaller text and more room.
+- **Max space**: full resolution at 100%. Tiny text, the most room.
+- **Fast**: half the resolution at 100%. A quarter of the pixels to send, so it's the quickest, and a little softer. It's faded out if the Virtual Display Driver doesn't offer that resolution; add it in the driver's settings to use it.
+- **Turn with the iPad**: hold the iPad upright and the screen turns portrait in Windows; turn it back and it goes landscape again.
+
+Only the iPad's screen is changed. The laptop's main screen is always left alone.
+
 ## Profiles and the button deck (Work and Gaming)
 
 A **profile** says what the iPad is for right now. Switch with **☰ > Profile**, or the buttons along the top of the deck. Two come ready to use:

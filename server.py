@@ -50,6 +50,7 @@ import video  # noqa: E402  (H.264 for moving content)
 import pcaudio  # noqa: E402  (PC sound on the iPad)
 import clip  # noqa: E402  (shared clipboard)
 import deck  # noqa: E402  (profiles and the button deck)
+import screenshape  # noqa: E402  (portrait, resolution and text size)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -692,6 +693,27 @@ class Session:
             self.sct = None
 
 
+def screen_change(mon, m):
+    """{rotate: portrait|landscape} / {res: [w, h]} / {scale: %} / {get: 1}, on the
+    streamed screen. Returns its new state, or the reason it didn't work."""
+    try:
+        if "rotate" in m:
+            screenshape.rotate(mon, m["rotate"] == "portrait")
+            print(f"[screen] turned {m['rotate']}", flush=True)
+        if "res" in m:
+            w, h = (int(v) for v in m["res"])
+            screenshape.resize(mon, w, h)
+            print(f"[screen] resolution {w}x{h}", flush=True)
+        if "scale" in m:
+            screenshape.scale(mon, int(m["scale"]))
+            print(f"[screen] text size {m['scale']}%", flush=True)
+        return {"ok": True, **screenshape.info(mon)}
+    except Exception as e:
+        if "get" not in m:
+            print(f"[screen] couldn't change it: {e}", flush=True)
+        return {"ok": False, "error": str(e)}
+
+
 def list_monitors():
     with _MSS() as sct:
         return [{"index": i, "left": m["left"], "top": m["top"],
@@ -951,6 +973,10 @@ def make_app(cfg):
                             import subprocess
                             subprocess.Popen([os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
                                              "System32", "DisplaySwitch.exe"), mode])
+                    elif t == "screen":
+                        # Turn the iPad's screen portrait, or change its resolution or text size.
+                        res = await loop.run_in_executor(None, screen_change, dict(sess.mon), m)
+                        await ws.send_str(json.dumps({"type": "screen", **res}))
                     wake.set()
                 except Exception as e:  # never let a bad event kill the session
                     print("input error:", e)

@@ -217,6 +217,13 @@
   <div class="seg" id="dispmode">
     <button data-display="extend">Extend</button><button data-display="clone">Mirror laptop</button>
   </div>
+  <div id="m-shape">
+    <div class="seg" id="m-sizes">
+      <button data-size="sharp">Sharp</button><button data-size="roomy">Roomy</button><button data-size="space">Max space</button><button data-size="fast">Fast</button>
+    </div>
+    <button class="tog" id="m-rotate" style="width:100%"><span>Turn with the iPad<small>Hold the iPad upright for a portrait screen</small></span></button>
+    <div class="stats" id="m-scrmsg"></div>
+  </div>
 
   <h3>More</h3>
   <button class="tog" id="m-sound" style="width:100%"><span>PC sound<small>Play the laptop's sound here</small></span></button>
@@ -540,7 +547,7 @@
     lastMsg = performance.now();
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
-    ws.onopen = () => { retry = 0; lastMsg = performance.now(); };
+    ws.onopen = () => { retry = 0; lastMsg = performance.now(); followRotation(); };
     ws.onmessage = ev => {
       lastMsg = performance.now();
       if (typeof ev.data === 'string') {
@@ -559,6 +566,8 @@
           // Copied on the PC: the iPad app puts it on the iPad clipboard.
           const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.clip;
           if (h) h.postMessage(m.png ? { png: m.png } : { text: m.text || '' });
+        } else if (m.type === 'screen') {
+          onScreenMsg(m);
         } else if (m.type === 'pong') {
           hudRtt = Math.round(performance.now() - m.c); drawHud();
         } else if (m.type === 'cursor') {
@@ -1248,6 +1257,65 @@
   }));
   $('ep-cancel').addEventListener('click', closeSheet);
   $('sheetbg').addEventListener('click', e => { if (e.target === $('sheetbg')) closeSheet(); });
+
+
+  // ---------------------------------------------------------------- screen shape
+  // Resolution and text-size presets for the iPad's screen in Windows, and
+  // turning it portrait when the iPad is held upright.
+  const SIZES = {
+    sharp: { half: false, scale: 200, tip: 'pixel-perfect, iPad-sized text' },
+    roomy: { half: false, scale: 150, tip: 'sharp, smaller text, more room' },
+    space: { half: false, scale: 100, tip: 'tiny text, the most room' },
+    fast:  { half: true,  scale: 100, tip: 'half the pixels to send, a little softer' },
+  };
+  let shape = null;
+  function sizeRes(k) { const m = model(), d = SIZES[k].half ? 2 : 1; return [Math.round(m.w / d), Math.round(m.h / d)]; }
+  function markShape() {
+    $('m-rotate').classList.toggle('on', store.get('rotate', '0') === '1');
+    const ok = shape && shape.ok;
+    $('m-rotate').classList.toggle('na', !!shape && !ok);
+    document.querySelectorAll('#m-sizes [data-size]').forEach(b => {
+      const k = b.dataset.size, [w, h] = sizeRes(k);
+      const lw = ok ? Math.max(shape.width, shape.height) : 0, lh = ok ? Math.min(shape.width, shape.height) : 0;
+      const has = ok && shape.modes.some(([mw, mh]) => mw === w && mh === h);
+      b.classList.toggle('on', ok && lw === w && lh === h && shape.scale === SIZES[k].scale);
+      b.style.opacity = !ok || has ? '' : '.4';
+    });
+    if (!shape) $('m-scrmsg').textContent = '';
+    else if (!ok) $('m-scrmsg').textContent = shape.error ? `Screen size: ${shape.error}.` : '';
+    else $('m-scrmsg').textContent = `Now ${shape.width}×${shape.height}` + (shape.scale ? ` at ${shape.scale}%` : '') +
+      (shape.portrait ? ', portrait' : '');
+  }
+  function onScreenMsg(m) {
+    const err = !m.ok && shape && shape.ok ? m.error : null;   // a change failed: keep the old state, show why
+    if (err) { $('m-scrmsg').textContent = `Couldn't change it: ${err}.`; return; }
+    shape = m; markShape();
+  }
+  document.querySelectorAll('#m-sizes [data-size]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.size, [w, h] = sizeRes(k);
+    if (shape && shape.ok && !shape.modes.some(([mw, mh]) => mw === w && mh === h)) {
+      $('m-scrmsg').textContent = `The virtual screen has no ${w}×${h} mode. Add it in the Virtual Display Driver's settings first.`;
+      return;
+    }
+    $('m-scrmsg').textContent = `Switching to ${w}×${h} at ${SIZES[k].scale}%: ${SIZES[k].tip}…`;
+    send({ t: 'screen', res: [w, h], scale: SIZES[k].scale });
+  }));
+  const portraitNow = () => innerHeight > innerWidth;
+  let wasPortrait = portraitNow();
+  function followRotation() {
+    if (store.get('rotate', '0') === '1') send({ t: 'screen', rotate: portraitNow() ? 'portrait' : 'landscape' });
+  }
+  addEventListener('resize', () => {
+    const p = portraitNow();
+    if (p !== wasPortrait) { wasPortrait = p; if (live) followRotation(); }
+  });
+  $('m-rotate').addEventListener('click', () => {
+    const on = store.get('rotate', '0') !== '1';
+    store.set('rotate', on ? '1' : '0'); markShape();
+    send({ t: 'screen', rotate: on && portraitNow() ? 'portrait' : 'landscape' });
+  });
+  $('fab').addEventListener('click', () => { if ($('menu').classList.contains('open')) send({ t: 'screen', get: 1 }); });
+  markShape();
 
   if (IN_APP) noPin = true;              // try without a PIN; the server says if one is needed
   if (noPin || pinEl.value.length === 6) loadMonitors().then(() => {
