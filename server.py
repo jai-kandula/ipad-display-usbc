@@ -102,6 +102,7 @@ CONFIG_PATH = os.path.join(HERE, "config.json")
 TILE = 64                     # change-detection grid, multiple of 16 for clean JPEG blocks
 SMALL_CHANGE = 0.08           # < 8% of the screen changed: send straight at high quality
 FULL_FRAME = 0.45             # > 45% changed: send the whole screen as stripes
+REPORT_SECS = 2          # how often the [speed] line is printed and sent to the iPad
 SETTLE_SECONDS = 0.12         # screen still for this long: sharpen blurry tiles
 MAX_IN_FLIGHT = 2             # frames sent but not yet shown on the iPad
 SHARPEN_CHUNK = 0.2           # sharpen at most this share of the screen per update,
@@ -1111,28 +1112,39 @@ def make_app(cfg):
             sess.wait = interval
             last_cursor = None
             last_dims = None
-            next_report = time.perf_counter() + 5
+            next_report = time.perf_counter() + REPORT_SECS
             while not ws.closed:
                 await can_send.wait()
                 start = time.perf_counter()
                 if start >= next_report:       # live speed readout in the PC window
                     st, n = sess.stats, max(1, sess.stats["frames"])
-                    secs = start - next_report + 5
+                    secs = start - next_report + REPORT_SECS
                     acks = max(1, state["acks"])
-                    print(f"[speed] {st.get('new', 0) / secs:4.0f} screen fps | "
-                          f"{st['frames'] / secs:4.0f} updates/s ({st.get('vid', 0) / secs:.0f} video) | "
-                          f"capture {st['cap'] * 1000 / max(1, st.get('caps', 0)):4.1f} ms ({sess.backend}) | "
-                          f"work {(st.get('work', 0) - st.get('idle', 0)) * 1000 / max(1, st.get('steps', 0)):4.1f} ms | "
-                          f"encode {st['enc'] * 1000 / n:4.1f} ms | "
-                          f"{st['bytes'] / n / 1024:5.0f} KB/update | "
-                          f"{st['bytes'] * 8 / 1e6 / secs:5.1f} Mbit/s | "
-                          f"round trip {state['rtt_sum'] * 1000 / acks:4.0f} ms | "
-                          f"quality {st.get('q', '-')} | "
-                          f"touch moves {state.get('moves', 0) / secs:3.0f}/s", flush=True)
+                    sp = {"screen": st.get('new', 0) / secs, "updates": st['frames'] / secs,
+                          "video": st.get('vid', 0) / secs,
+                          "cap": st['cap'] * 1000 / max(1, st.get('caps', 0)), "backend": sess.backend,
+                          "work": (st.get('work', 0) - st.get('idle', 0)) * 1000 / max(1, st.get('steps', 0)),
+                          "enc": st['enc'] * 1000 / n, "kb": st['bytes'] / n / 1024,
+                          "mbit": st['bytes'] * 8 / 1e6 / secs,
+                          "rtt": state['rtt_sum'] * 1000 / acks, "q": st.get('q', '-'),
+                          "moves": state.get('moves', 0) / secs,
+                          "encoder": sess.video.name if sess.video is not None else None}
+                    print(f"[speed] {sp['screen']:4.0f} screen fps | "
+                          f"{sp['updates']:4.0f} updates/s ({sp['video']:.0f} video) | "
+                          f"capture {sp['cap']:4.1f} ms ({sp['backend']}) | "
+                          f"work {sp['work']:4.1f} ms | "
+                          f"encode {sp['enc']:4.1f} ms | "
+                          f"{sp['kb']:5.0f} KB/update | "
+                          f"{sp['mbit']:5.1f} Mbit/s | "
+                          f"round trip {sp['rtt']:4.0f} ms | "
+                          f"quality {sp['q']} | "
+                          f"touch moves {sp['moves']:3.0f}/s", flush=True)
+                    # The same numbers for the iPad's status corner.
+                    await ws.send_str(json.dumps({"type": "speed", **sp}))
                     state["moves"] = 0
                     sess.stats = {"frames": 0, "cap": 0.0, "enc": 0.0, "bytes": 0}
                     state["rtt_sum"], state["acks"] = 0.0, 0
-                    next_report = start + 5
+                    next_report = start + REPORT_SECS
                 force, state["force"] = state["force"], False
                 try:
                     packet, dims = await loop.run_in_executor(cap_pool, sess.step, force)
