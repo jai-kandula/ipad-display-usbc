@@ -22,6 +22,8 @@ if not exist ".venv\Scripts\python.exe" (
 )
 ".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check -r requirements.txt
 if errorlevel 1 ( echo Could not install the required packages. & pause & exit /b 1 )
+rem Optional: GPU screen capture (faster). Skipped quietly if it can't install.
+".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check "dxcam>=0.3.0" >nul 2>nul
 
 ".venv\Scripts\python.exe" server.py %*
 pause

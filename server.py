@@ -54,6 +54,27 @@ except Exception:
 
 _MSS = getattr(mss, "MSS", None) or mss.mss
 
+# GDI capture: CAPTUREBLT forces Windows to re-compose layered windows on every
+# grab, which makes BitBlt several times slower. We don't need it.
+try:
+    import mss.windows.gdi as _mss_gdi  # type: ignore
+    _mss_gdi.CAPTUREBLT = 0
+except Exception:
+    pass
+
+# GPU capture (DXGI Desktop Duplication) via dxcam: much faster than GDI and it
+# tells us when nothing on screen changed. Optional: we fall back to GDI.
+try:
+    if IS_WINDOWS:
+        import logging as _logging
+        _logging.getLogger("dxcam").setLevel(_logging.ERROR)
+        _logging.getLogger("comtypes").setLevel(_logging.ERROR)
+        import dxcam  # type: ignore
+    else:
+        dxcam = None
+except Exception:
+    dxcam = None
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(HERE, "web")
 CONFIG_PATH = os.path.join(HERE, "config.json")
@@ -73,8 +94,11 @@ PROFILES = {
     "sharp":    {"lo": 80, "hi": 95, "hi_sub": "444"},
     # Cable (Ethernet) link: bandwidth is plentiful, so send almost everything
     # at full quality with full colour detail and sharpen almost instantly.
-    "wired":    {"lo": 88, "hi": 96, "hi_sub": "444", "lo_sub": "444",
-                 "small": 0.35, "settle": 0.04},
+    # USB-C / Ethernet. Sized for a USB 2 iPad (~30 MB/s through Apple's USB
+    # service): crisp 4:4:4 for small changes and once things settle, lighter
+    # 4:2:0 frames while things move so frames never pile up in the cable.
+    "wired":    {"lo": 70, "hi": 92, "hi_sub": "444", "lo_sub": "420",
+                 "small": 0.15, "settle": 0.06},
 }
 
 # Address ranges that mean "connected by cable" (see WIRED.md):
@@ -313,7 +337,12 @@ class Session:
         self.last_change = 0.0
         self.dims = (0, 0)
         self.scale = 1.0
-        self.adapt = 0             # quality drop (0..25) when the link is slow
+        self.adapt = 0             # quality drop (0..30) when the link is slow
+        self.dx = None             # dxcam camera (GPU capture) if available
+        self.dx_tried = False
+        self.backend = "GDI"
+        self.last = None           # last captured (array, colourspace)
+        self.stats = {"frames": 0, "cap": 0.0, "enc": 0.0, "bytes": 0}
 
     def set_profile(self, name):
         self.profile = PROFILES.get(name, PROFILES["balanced"])
@@ -327,7 +356,49 @@ class Session:
         self.mon = dict(mons[idx])
         return self.mon
 
+    def _open_dxgi(self):
+        """Find the DXGI output for this screen and open a duplication on it."""
+        self.dx_tried = True
+        if dxcam is None:
+            return
+        try:
+            fac = getattr(dxcam, "__factory")
+            m = self.mon
+            for d, outs in enumerate(fac.outputs):
+                for o, out in enumerate(outs):
+                    out.update_desc()
+                    rc = out.desc.DesktopCoordinates
+                    if ((rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top)
+                            == (m["left"], m["top"], m["width"], m["height"])
+                            and out.rotation_angle == 0):
+                        self.dx = dxcam.create(device_idx=d, output_idx=o,
+                                               output_color="BGRA",
+                                               processor_backend="numpy")
+                        self.backend = "GPU"
+                        return
+        except Exception as e:
+            print("GPU capture unavailable, using GDI:", e)
+        self.dx = None
+
     def _capture(self):
+        """Returns (array, colourspace), or None if the screen hasn't changed."""
+        if IS_WINDOWS and not self.dx_tried:
+            self._open_dxgi()
+        if self.dx is not None:
+            try:
+                frame = self.dx.grab(new_frame_only=True)
+            except Exception as e:      # display mode changed, driver reset, ...
+                print("GPU capture stopped, switching to GDI:", e)
+                try:
+                    self.dx.release()
+                except Exception:
+                    pass
+                self.dx, self.backend = None, "GDI"
+                frame = None
+            else:
+                if frame is None:
+                    return None
+                return frame, "BGRA"
         shot = self.sct.grab(self.mon)
         w, h = shot.size
         return np.frombuffer(shot.raw, dtype=np.uint8).reshape(h, w, 4), "BGRA"
@@ -336,7 +407,17 @@ class Session:
         """Capture once. Returns (packet bytes | None, (w, h))."""
         if self.mon is None:
             self.monitor()
-        arr, cs = self._capture()
+        t0 = time.perf_counter()
+        cap = self._capture()
+        self.stats["cap"] += time.perf_counter() - t0
+        self.stats["caps"] = self.stats.get("caps", 0) + 1
+        unchanged = cap is None
+        if unchanged:
+            if self.last is None:
+                return None, self.dims
+            cap = self.last
+        self.last = cap
+        arr, cs = cap
         h, w = arr.shape[:2]
         self.scale = w / self.mon["width"]
         cur = arr.view(np.uint32).reshape(h, w)
@@ -355,8 +436,8 @@ class Session:
             self.last_change = now
             return self._pack(arr, cs, self._stripes(w, h), hi, prof["hi_sub"], key=True), self.dims
 
-        diff = cur != self.prev
-        if not diff.any():
+        diff = None if unchanged else (cur != self.prev)
+        if diff is None or not diff.any():
             # Nothing moved. If something was sent blurry, sharpen it now.
             if self.blurry.any() and now - self.last_change >= prof.get("settle", SETTLE_SECONDS):
                 rects = self._px(tiles_to_rects(self.blurry), w, h)
@@ -397,6 +478,15 @@ class Session:
         return [(0, y, w, min(step, h - y)) for y in range(0, h, step)]
 
     def _pack(self, arr, cs, rects, quality, sub, key=False):
+        t0 = time.perf_counter()
+        data = self._pack_inner(arr, cs, rects, quality, sub, key)
+        self.stats["enc"] += time.perf_counter() - t0
+        self.stats["frames"] += 1
+        self.stats["bytes"] += len(data)
+        self.stats["q"] = quality
+        return data
+
+    def _pack_inner(self, arr, cs, rects, quality, sub, key=False):
         # Encode rectangles in parallel (libjpeg-turbo releases the GIL).
         futs = [ENCODERS.submit(encode, arr[y:y + rh, x:x + rw], quality, sub, cs)
                 for x, y, rw, rh in rects]
@@ -407,6 +497,12 @@ class Session:
         return b"".join(head + parts)
 
     def close(self):
+        if self.dx is not None:
+            try:
+                self.dx.release()
+            except Exception:
+                pass
+            self.dx = None
         if self.sct is not None:
             self.sct.close()
             self.sct = None
@@ -447,7 +543,7 @@ def make_app(cfg):
     async def ws_handler(request):
         if not authorized(request):
             return web.Response(status=403, text="bad pin")
-        ws = web.WebSocketResponse(heartbeat=10, max_msg_size=1 << 20, compress=False)
+        ws = web.WebSocketResponse(heartbeat=30, max_msg_size=1 << 20, compress=False)
         await ws.prepare(request)
         sock = request.transport.get_extra_info("socket") if request.transport else None
         if sock is not None:
@@ -465,7 +561,8 @@ def make_app(cfg):
         print(f"[+] iPad connected from {request.remote} -> screen "
               f"{mon['width']}x{mon['height']} at ({mon['left']},{mon['top']})")
 
-        state = {"in_flight": 0, "force": True, "seq": 0, "sent": {}, "rtt": 0.05}
+        state = {"in_flight": 0, "force": True, "seq": 0, "sent": {}, "rtt": 0.03,
+                 "rtt_sum": 0.0, "acks": 0}
         can_send = asyncio.Event()
         can_send.set()
         wake = asyncio.Event()       # input arrived: capture again right away
@@ -490,9 +587,13 @@ def make_app(cfg):
                             rtt = time.perf_counter() - sent_at
                             state["rtt"] = 0.8 * state["rtt"] + 0.2 * rtt
                             # Slow link: lighten frames. Fast link: restore quality.
-                            if state["rtt"] > 0.09:
-                                sess.adapt = min(25, sess.adapt + 2)
-                            elif state["rtt"] < 0.04:
+                            state["rtt_sum"] += rtt
+                            state["acks"] += 1
+                            # Frames taking long to arrive = the link is full:
+                            # lighten frames fast, restore quality slowly.
+                            if state["rtt"] > 0.06:
+                                sess.adapt = min(30, sess.adapt + 3)
+                            elif state["rtt"] < 0.03:
                                 sess.adapt = max(0, sess.adapt - 1)
                         state["in_flight"] = max(0, state["in_flight"] - 1)
                         if state["in_flight"] < MAX_IN_FLIGHT:
@@ -534,9 +635,24 @@ def make_app(cfg):
             interval = 1.0 / fps
             last_cursor = None
             last_dims = None
+            next_report = time.perf_counter() + 5
             while not ws.closed:
                 await can_send.wait()
                 start = time.perf_counter()
+                if start >= next_report:       # live speed readout in the PC window
+                    st, n = sess.stats, max(1, sess.stats["frames"])
+                    secs = start - next_report + 5
+                    acks = max(1, state["acks"])
+                    print(f"[speed] {st['frames'] / secs:4.0f} updates/s | "
+                          f"capture {st['cap'] * 1000 / max(1, st.get('caps', 0)):4.1f} ms ({sess.backend}) | "
+                          f"encode {st['enc'] * 1000 / n:4.1f} ms | "
+                          f"{st['bytes'] / n / 1024:5.0f} KB/update | "
+                          f"{st['bytes'] * 8 / 1e6 / secs:5.1f} Mbit/s | "
+                          f"round trip {state['rtt_sum'] * 1000 / acks:4.0f} ms | "
+                          f"quality {st.get('q', '-')}", flush=True)
+                    sess.stats = {"frames": 0, "cap": 0.0, "enc": 0.0, "bytes": 0}
+                    state["rtt_sum"], state["acks"] = 0.0, 0
+                    next_report = start + 5
                 force, state["force"] = state["force"], False
                 try:
                     packet, dims = await loop.run_in_executor(cap_pool, sess.step, force)
@@ -642,7 +758,13 @@ def main():
     app = make_app(cfg)
     import usb_bridge
     usb_bridge.start(app, args.port)
-    web.run_app(app, host="0.0.0.0", port=args.port, print=None)
+    try:
+        web.run_app(app, host="0.0.0.0", port=args.port, print=None)
+    except OSError as e:
+        if getattr(e, "errno", None) in (10048, 98, 48):
+            sys.exit("\n The host is already running in another window. Close that "
+                     "window first (or end 'Python' in Task Manager), then run start.bat again.")
+        raise
 
 
 if __name__ == "__main__":

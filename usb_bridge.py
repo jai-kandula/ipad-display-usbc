@@ -76,7 +76,7 @@ async def _connect_device(device_id, port):
 async def _pipe(reader, writer):
     try:
         while True:
-            data = await reader.read(1 << 16)
+            data = await reader.read(1 << 20)
             if not data:
                 break
             writer.write(data)

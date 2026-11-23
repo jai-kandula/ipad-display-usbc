@@ -115,7 +115,7 @@ final class Relay {
     }
 
     private func pump(from: NWConnection, to: NWConnection) {
-        from.receive(minimumIncompleteLength: 1, maximumLength: 1 << 16) { [weak self] data, _, isComplete, error in
+        from.receive(minimumIncompleteLength: 1, maximumLength: 1 << 20) { [weak self] data, _, isComplete, error in
             if let data, !data.isEmpty {
                 to.send(content: data, completion: .contentProcessed { sendError in
                     if sendError != nil {
