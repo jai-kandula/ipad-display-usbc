@@ -248,6 +248,7 @@
   <button id="m-apps" style="width:100%;margin-bottom:6px">🪟  Apps on the iPad</button>
   <button class="tog" id="m-hud" style="width:100%"><span>Status corner<small>Updates per second, delay, battery</small></span></button>
 
+  <button id="m-pc" style="width:100%;margin-top:6px;display:none">💻  Switch PC</button>
   <button id="m-disc">Disconnect</button>
   <div class="stats" id="stats"></div>
 </div>
@@ -1435,6 +1436,11 @@
     closeMenu(); $('wins').textContent = 'Loading…'; openSheet('win'); send({ t: 'windows' });
   });
   $('win-close').addEventListener('click', closeSheet);
+
+  // In the app: back to its list of PCs (the cable, or PCs over Wi-Fi).
+  const pcHandler = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pc;
+  if (pcHandler) $('m-pc').style.display = '';
+  $('m-pc').addEventListener('click', () => { stop(); pcHandler.postMessage({ pick: true }); });
 
 
   // ---------------------------------------------------------------- PC asleep: dim
