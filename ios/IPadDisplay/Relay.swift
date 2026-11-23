@@ -9,17 +9,28 @@ import Network
 /// http://127.0.0.1:8767/; each of its connections is paired with a spare
 /// tunnel and bytes are copied both ways. To the web page it looks exactly like
 /// talking to the laptop's web server, only over the cable.
+///
+/// Every tunnel is read from the moment it arrives, so a tunnel the laptop has
+/// closed (or recycled) is noticed and dropped right away instead of being
+/// handed to the viewer later. The newest spare tunnel is always used first.
 final class Relay {
     static let tunnelPort: UInt16 = 8766
     static let viewerPort: UInt16 = 8767
+    private static let chunk = 1 << 20
+    private static let maxSpare = 8
+
+    /// One laptop tunnel and, once paired, the viewer connection it serves.
+    private final class Tunnel {
+        let conn: NWConnection
+        var viewer: NWConnection?
+        var closed = false
+        init(_ conn: NWConnection) { self.conn = conn }
+    }
 
     private let queue = DispatchQueue(label: "relay", qos: .userInteractive)
-    private var idle: [NWConnection] = []        // laptop tunnels not in use yet
+    private var idle: [Tunnel] = []              // spare tunnels, oldest first
     private var waiting: [NWConnection] = []     // viewer connections waiting for a tunnel
     private var listeners: [NWListener] = []
-
-    /// Number of tunnels ready right now (used to show "connected" state).
-    private(set) var readyTunnels = 0
 
     func start() {
         queue.async { self.startListeners() }
@@ -29,9 +40,8 @@ final class Relay {
     /// are probably dead). The laptop notices and opens fresh ones.
     func reset() {
         queue.async {
-            self.idle.forEach { $0.cancel() }
+            self.idle.forEach { self.close($0) }
             self.idle.removeAll()
-            self.readyTunnels = 0
             if self.listeners.isEmpty { self.startListeners() }
         }
     }
@@ -71,32 +81,55 @@ final class Relay {
         return listener
     }
 
-    // MARK: - Pairing
+    // MARK: - Tunnels
 
     private func gotTunnel(_ conn: NWConnection) {
-        conn.stateUpdateHandler = { [weak self, weak conn] state in
+        let t = Tunnel(conn)
+        conn.stateUpdateHandler = { [weak self] state in
             switch state {
-            case .failed, .cancelled:
-                guard let self, let conn else { return }
-                self.idle.removeAll { $0 === conn }
-                self.readyTunnels = self.idle.count
-            default:
-                break
+            case .failed, .cancelled: self?.close(t)
+            default: break
             }
         }
+        readTunnel(t)                       // watch it from the start
         if !waiting.isEmpty {
-            pair(viewer: waiting.removeFirst(), tunnel: conn)
+            pair(viewer: waiting.removeFirst(), tunnel: t)
         } else {
-            idle.append(conn)
-            readyTunnels = idle.count
+            idle.append(t)
+            while idle.count > Relay.maxSpare { close(idle.removeFirst()) }
         }
     }
 
+    /// Laptop -> viewer. Runs for the tunnel's whole life, paired or not.
+    private func readTunnel(_ t: Tunnel) {
+        t.conn.receive(minimumIncompleteLength: 1, maximumLength: Relay.chunk) { [weak self] data, _, done, error in
+            guard let self else { return }
+            if let data, !data.isEmpty, let viewer = t.viewer {
+                viewer.send(content: data, completion: .contentProcessed { err in
+                    if err != nil { self.close(t) }
+                    else if done || error != nil { self.close(t) }
+                    else { self.readTunnel(t) }
+                })
+                return
+            }
+            if done || error != nil { self.close(t); return }
+            self.readTunnel(t)   // (data before pairing never happens; ignore it)
+        }
+    }
+
+    private func close(_ t: Tunnel) {
+        guard !t.closed else { return }
+        t.closed = true
+        idle.removeAll { $0 === t }
+        t.conn.cancel()
+        t.viewer?.cancel()
+    }
+
+    // MARK: - Viewer
+
     private func gotViewer(_ conn: NWConnection) {
-        if !idle.isEmpty {
-            let tunnel = idle.removeFirst()
-            readyTunnels = idle.count
-            pair(viewer: conn, tunnel: tunnel)
+        if let t = idle.popLast() {          // newest spare tunnel: least likely to be stale
+            pair(viewer: conn, tunnel: t)
             return
         }
         waiting.append(conn)
@@ -108,28 +141,30 @@ final class Relay {
         }
     }
 
-    private func pair(viewer: NWConnection, tunnel: NWConnection) {
-        tunnel.stateUpdateHandler = nil
-        pump(from: viewer, to: tunnel)
-        pump(from: tunnel, to: viewer)
+    private func pair(viewer: NWConnection, tunnel t: Tunnel) {
+        t.viewer = viewer
+        viewer.stateUpdateHandler = { [weak self] state in
+            switch state {
+            case .failed, .cancelled: self?.close(t)
+            default: break
+            }
+        }
+        readViewer(t, viewer)
     }
 
-    private func pump(from: NWConnection, to: NWConnection) {
-        from.receive(minimumIncompleteLength: 1, maximumLength: 1 << 16) { [weak self] data, _, isComplete, error in
+    /// Viewer -> laptop.
+    private func readViewer(_ t: Tunnel, _ viewer: NWConnection) {
+        viewer.receive(minimumIncompleteLength: 1, maximumLength: Relay.chunk) { [weak self] data, _, done, error in
+            guard let self else { return }
             if let data, !data.isEmpty {
-                to.send(content: data, completion: .contentProcessed { sendError in
-                    if sendError != nil {
-                        from.cancel(); to.cancel()
-                    } else if isComplete || error != nil {
-                        from.cancel(); to.cancel()
-                    } else {
-                        self?.pump(from: from, to: to)
-                    }
+                t.conn.send(content: data, completion: .contentProcessed { err in
+                    if err != nil || done || error != nil { self.close(t) }
+                    else { self.readViewer(t, viewer) }
                 })
-            } else if isComplete || error != nil {
-                from.cancel(); to.cancel()
+            } else if done || error != nil {
+                self.close(t)
             } else {
-                self?.pump(from: from, to: to)
+                self.readViewer(t, viewer)
             }
         }
     }
