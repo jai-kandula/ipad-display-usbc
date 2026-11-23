@@ -97,6 +97,15 @@ Whatever the laptop plays also comes out of the iPad's speakers, about 50 ms beh
 - The laptop keeps playing the sound too. Turn the laptop's volume down if you only want it on the iPad. If the iPad goes quiet when the laptop is muted, leave the laptop at a low volume instead.
 - start.bat installs the small `soundcard` package for this. If the menu says "not available", run start.bat again with an internet connection.
 
+## Start automatically (optional, once)
+
+Run **`autostart-setup.bat`** once (after start.bat has run at least once). From then on the host runs in the background whenever you log in to Windows. There's no window, so you never have to open start.bat: **just plug in the iPad and open the app.**
+
+- If you also ran `display-setup.bat`, the virtual screen turns **on when you plug the iPad in** and **off when you unplug it**.
+- The host's messages, including the `[speed]` lines, go to **`host.log`** in this folder.
+- If Windows Firewall asks about "pythonw", allow it on Private networks. It only matters for Wi-Fi.
+- To turn auto-start off, run `autostart-setup.bat remove`. That also stops the background host.
+
 ## Controls on the iPad
 
 | Do this | Laptop gets |
@@ -106,6 +115,8 @@ Whatever the laptop plays also comes out of the iPad's speakers, about 50 ms beh
 | Press and hold | Right click |
 | Two-finger tap | Right click |
 | Two-finger drag | Scroll |
+| Pinch | Zoom in on the iPad (☰ > Fit whole screen to reset). Taps still land exactly. |
+| ☰ > Mirror laptop / Extend | Show a copy of the laptop screen, or use the iPad as its own screen |
 | Apple Pencil | Precise mouse (hover moves the pointer on iPads that support it) |
 | ☰ button (top left) | Keyboard, Esc / Tab / Del, Copy / Paste / Undo, quality, disconnect |
 
