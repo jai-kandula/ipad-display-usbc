@@ -90,6 +90,18 @@ Normally the virtual screen stays plugged in to Windows even when the iPad isn't
 
 It also switches off when the laptop restarts. If you move this folder, run `display-setup.bat` again. To undo it, run `display-setup.bat remove`. To leave the screen alone for one session, run `start.bat --keep-screen`. If it doesn't switch, look in `vdd.log` in this folder.
 
+## Portrait, screen size and text size
+
+In **☰ > Screen** you can change the iPad's screen in Windows without opening Windows settings:
+
+- **Sharp**: the iPad's full resolution at 200% text size. Pixel-perfect, with text the size you'd expect on an iPad.
+- **Roomy**: full resolution at 150%. Still sharp, with smaller text and more room.
+- **Max space**: full resolution at 100%. Tiny text, the most room.
+- **Fast**: half the resolution at 100%. A quarter of the pixels to send, so it's the quickest, and a little softer. It's faded out if the Virtual Display Driver doesn't offer that resolution; add it in the driver's settings to use it.
+- **Turn with the iPad**: hold the iPad upright and the screen turns portrait in Windows; turn it back and it goes landscape again.
+
+Only the iPad's screen is changed. The laptop's main screen is always left alone.
+
 ## Profiles and the button deck (Work and Gaming)
 
 A **profile** says what the iPad is for right now. Switch with **☰ > Profile**, or the buttons along the top of the deck. Two come ready to use:
