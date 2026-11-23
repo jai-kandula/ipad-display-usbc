@@ -26,6 +26,8 @@ rem Optional: GPU screen capture (faster). Skipped quietly if it can't install.
 ".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check "dxcam>=0.3.0" >nul 2>nul
 rem Optional: H.264 video for smooth scrolling and dragging (uses the graphics card).
 ".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check "av>=14" >nul 2>nul
+rem Optional: PC sound on the iPad.
+".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check "soundcard>=0.4.6" >nul 2>nul
 
 ".venv\Scripts\python.exe" server.py %*
 pause

@@ -92,8 +92,9 @@ async def _pipe(reader, writer):
 
 
 class Bridge:
-    def __init__(self, web_port):
+    def __init__(self, web_port, on_change=None):
         self.web_port = web_port
+        self.on_change = on_change    # called with True/False when an iPad is plugged in / out
         self.idle = {}            # device_id -> number of idle tunnels
         self.devices = {}         # device_id -> serial
         self.warned = False
@@ -184,14 +185,20 @@ class Bridge:
                     _log("iPad unplugged.")
                     self.idle.pop(dev_id, None)
                     self.app_missing.discard(dev_id)
+            if self.on_change and bool(current) != bool(self.devices):
+                try:
+                    self.on_change(bool(current))
+                except Exception as e:
+                    _log("plug handler failed:", e)
             self.devices = current
             await asyncio.sleep(POLL_SECONDS)
 
 
-def start(app, web_port):
-    """Hook the bridge into the aiohttp app's lifecycle."""
+def start(app, web_port, on_change=None):
+    """Hook the bridge into the aiohttp app's lifecycle. on_change(plugged) is
+    called when the first iPad is plugged in (True) or the last one unplugged (False)."""
     async def on_startup(app):
-        app["usb_bridge"] = asyncio.create_task(Bridge(web_port).run())
+        app["usb_bridge"] = asyncio.create_task(Bridge(web_port, on_change).run())
 
     async def on_cleanup(app):
         t = app.get("usb_bridge")

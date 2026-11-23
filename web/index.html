@@ -16,7 +16,7 @@
   html, body { margin: 0; height: 100%; background: #000; color: #eee;
     font: 16px -apple-system, system-ui, sans-serif; overflow: hidden;
     -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  #stage { position: fixed; inset: 0; touch-action: none; display: none; }
+  #stage { position: fixed; inset: 0; touch-action: none; display: none; overflow: hidden; }
   body.live #stage { display: block; }
   #screen { position: absolute; image-rendering: auto; }
   #cursor { position: absolute; left: 0; top: 0; width: 14px; height: 22px; pointer-events: none;
@@ -104,6 +104,13 @@
     <button data-mode="fast">Fast</button><button data-mode="balanced">Balanced</button><button data-mode="sharp">Sharp</button><button data-mode="wired">Wired</button>
   </div>
   <button id="m-video">🎞  Video mode: on</button>
+  <button id="m-sound">🔊  PC sound: on</button>
+  <div class="row">
+    <button id="m-zoom">Fit whole screen</button>
+  </div>
+  <div class="row" id="dispmode">
+    <button data-display="extend">Extend</button><button data-display="clone">Mirror laptop</button>
+  </div>
   <button id="m-disc">Disconnect</button>
   <div class="stats" id="stats"></div>
 </div>
@@ -318,11 +325,19 @@
   let frames = 0, bytes = 0, decodeMs = 0, lastStat = performance.now();
   let wakeLock = null, chain = Promise.resolve();
 
+  // Pinch zoom: the picture is scaled by view.z around a pan offset (view.x, view.y).
+  // Touch input maps through `fit`, so clicks still land where you tap.
+  let view = { z: 1, x: 0, y: 0 };
   function layout() {
     if (!img.w) return;
     const vw = innerWidth, vh = innerHeight;
-    const s = Math.min(vw / img.w, vh / img.h);
-    fit = { w: img.w * s, h: img.h * s, x: (vw - img.w * s) / 2, y: (vh - img.h * s) / 2 };
+    const s0 = Math.min(vw / img.w, vh / img.h), s = s0 * view.z;
+    const w = img.w * s, h = img.h * s;
+    // Keep the zoomed picture covering the screen (no gaps at the edges).
+    const cx = (vw - w) / 2, cy = (vh - h) / 2;
+    view.x = w <= vw ? 0 : Math.max(cx, Math.min(-cx, view.x));
+    view.y = h <= vh ? 0 : Math.max(cy, Math.min(-cy, view.y));
+    fit = { w, h, x: cx + view.x, y: cy + view.y };
     Object.assign(canvas.style, { left: fit.x + 'px', top: fit.y + 'px', width: fit.w + 'px', height: fit.h + 'px' });
     const cs = Math.max(0.8, Math.min(1.6, s * dpr));     // cursor about real-PC size
     cursorEl.style.width = 14 * cs + 'px'; cursorEl.style.height = 22 * cs + 'px';
@@ -339,12 +354,14 @@
     document.body.classList.add('live', 'waiting');
     requestWakeLock();
     connect();
+    soundUnlock();                 // works right away in the app; in Safari after the first tap
     markMode();
   }
   function stop() {
     live = false;
     clearTimeout(retryTimer);
     if (ws) { ws.onclose = null; ws.close(); ws = null; }
+    soundStop();
     document.body.classList.remove('live', 'waiting');
     $('menu').classList.remove('open');
     if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
@@ -376,6 +393,10 @@
         } else if (m.type === 'vconfig') {
           if (worker) worker.postMessage({ vconfig: { codec: m.codec,
             desc: Uint8Array.from(atob(m.desc), c => c.charCodeAt(0)) } });
+        } else if (m.type === 'clip') {
+          // Copied on the PC: the iPad app puts it on the iPad clipboard.
+          const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.clip;
+          if (h) h.postMessage(m.png ? { png: m.png } : { text: m.text || '' });
         } else if (m.type === 'cursor') {
           if (!touchActive) { cursor = { x: m.x, y: m.y, v: m.v }; drawCursor(); }
         }
@@ -429,6 +450,70 @@
       frames = 0; bytes = 0; decodeMs = 0; lastStat = now;
     }
   }
+  // ---------------------------------------------------------------- PC sound
+  // 16-bit stereo PCM at 48 kHz arrives on /audio and is played through an
+  // AudioWorklet ring buffer kept around 40-60 ms deep (dropping the excess if
+  // it grows, so sound never drifts behind the picture).
+  const SOUND_WORKLET = `
+    class PcPlayer extends AudioWorkletProcessor {
+      constructor() {
+        super();
+        this.buf = new Float32Array(48000 * 2);    // 1 s stereo ring
+        this.r = 0; this.w = 0; this.n = 0; this.primed = false;
+        this.port.onmessage = e => {
+          const s = new Int16Array(e.data), len = this.buf.length;
+          for (let i = 0; i < s.length; i++) { this.buf[this.w] = s[i] / 32768; this.w = (this.w + 1) % len; }
+          this.n = Math.min(len, this.n + s.length);
+          const max = 2 * 48 * 120;                // over 120 ms queued: skip ahead to 50 ms
+          if (this.n > max) { const drop = this.n - 2 * 48 * 50; this.r = (this.r + drop) % len; this.n -= drop; }
+        };
+      }
+      process(_, outputs) {
+        const L = outputs[0][0], R = outputs[0][1] || outputs[0][0], len = this.buf.length;
+        if (!this.primed) { if (this.n < 2 * 48 * 30) return true; this.primed = true; }
+        for (let i = 0; i < L.length; i++) {
+          if (this.n < 2) { this.primed = false; L[i] = R[i] = 0; continue; }
+          L[i] = this.buf[this.r]; R[i] = this.buf[(this.r + 1) % len];
+          this.r = (this.r + 2) % len; this.n -= 2;
+        }
+        return true;
+      }
+    }
+    registerProcessor('pc-player', PcPlayer);`;
+  let noSound = false;                       // the PC said it can't send sound
+  let actx = null, player = null, aws = null, soundOn = store.get('sound', '1') === '1';
+  async function soundUnlock() {             // must run inside a tap the first time
+    if (!soundOn || !live) return;
+    try {
+      if (!actx) {
+        actx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000, latencyHint: 'interactive' });
+        await actx.audioWorklet.addModule(URL.createObjectURL(new Blob([SOUND_WORKLET], { type: 'text/javascript' })));
+        player = new AudioWorkletNode(actx, 'pc-player', { outputChannelCount: [2] });
+        player.connect(actx.destination);
+      }
+      if (actx.state !== 'running') await actx.resume();
+      soundConnect();
+    } catch (e) { console.log('sound unavailable', e); }
+  }
+  function soundConnect() {
+    if (aws || !soundOn || !live || !player) return;
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    aws = new WebSocket(`${proto}://${location.host}/audio?pin=${encodeURIComponent(store.get('pin', ''))}`);
+    aws.binaryType = 'arraybuffer';
+    aws.onmessage = ev => {
+      if (typeof ev.data === 'string') {
+        if (ev.data.includes('nosound')) { noSound = true; $('m-sound').textContent = '🔇  PC sound: not available'; }
+        return;
+      }
+      player.port.postMessage(ev.data, [ev.data]);
+    };
+    aws.onclose = () => { aws = null; if (soundOn && live && !noSound) setTimeout(soundConnect, 2000); };
+  }
+  function soundStop() { if (aws) { aws.onclose = null; aws.close(); aws = null; } }
+  function markSound() { $('m-sound').textContent = soundOn ? '🔊  PC sound: on' : '🔇  PC sound: off'; }
+
+  // Called by the iPad app when something new was copied on the iPad.
+  window.ipadClip = o => send({ t: 'clip', ...o });
   function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 
   // Watchdog: the PC sends something at least every 1.5 s. If nothing arrives
@@ -485,6 +570,12 @@
   // display frame); waiting for an animation frame only added delay.
   function queueMove(p) { pendingMove = null; send({ t: 'move', ...p }); }
   function flushMove() { if (pendingMove) { send({ t: 'move', ...pendingMove }); pendingMove = null; } }
+  let pinch0 = null;
+  function spread() {
+    const p = [...touches.values()];
+    return p.length < 2 ? 1 : Math.max(1, Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y));
+  }
+  function setZoom(z) { view = { z, x: 0, y: 0 }; layout(); }
   function centroid() {
     let x = 0, y = 0; touches.forEach(t => { x += t.x; y += t.y; });
     return { x: x / touches.size, y: y / touches.size };
@@ -492,6 +583,7 @@
 
   stage.addEventListener('pointerdown', e => {
     e.preventDefault();
+    if (soundOn && (!actx || actx.state !== 'running' || !aws)) soundUnlock();
     $('menu').classList.remove('open');
     stage.setPointerCapture(e.pointerId);
     touchActive = true;
@@ -514,9 +606,9 @@
     } else if (touches.size === 2) {
       clearTimeout(longTimer);
       if (gesture === 'drag') send({ t: 'up', b: 0 });
-      gesture = 'scroll';
+      gesture = 'two';                         // becomes 'scroll' or 'zoom' once it moves
       scrollRef = centroid(); scrollOrigin = scrollRef; moved = 0; scrollAcc = { x: 0, y: 0 };
-      send({ t: 'move', ...norm(scrollRef.x, scrollRef.y) });
+      pinch0 = { d: spread(), z: view.z, c: scrollRef, vx: view.x, vy: view.y };
     }
   }, { passive: false });
 
@@ -538,6 +630,21 @@
         send({ t: 'down', b: 0, ...norm(startPt.x, startPt.y) });
       }
       if (gesture === 'drag') { localCursor(t.x, t.y); queueMove(norm(t.x, t.y)); }
+    } else if (gesture === 'two') {
+      const c = centroid();
+      const dSpread = Math.abs(spread() - pinch0.d), dMove = Math.hypot(c.x - scrollOrigin.x, c.y - scrollOrigin.y);
+      moved = Math.max(moved, dMove, dSpread);
+      if (dSpread > 30 && dSpread > dMove) gesture = 'zoom';
+      else if (dMove > 12) { gesture = 'scroll'; scrollRef = c; send({ t: 'move', ...norm(c.x, c.y) }); }
+    } else if (gesture === 'zoom') {
+      const c = centroid();
+      const z = Math.max(1, Math.min(6, pinch0.z * spread() / pinch0.d));
+      // Keep the point under the fingers' starting centre under their current centre.
+      const k = z / pinch0.z, vw = innerWidth / 2, vh = innerHeight / 2;
+      view.z = z;
+      view.x = (pinch0.vx - (pinch0.c.x - vw)) * k + (pinch0.c.x - vw) + (c.x - pinch0.c.x);
+      view.y = (pinch0.vy - (pinch0.c.y - vh)) * k + (pinch0.c.y - vh) + (c.y - pinch0.c.y);
+      layout();
     } else if (gesture === 'scroll') {
       const c = centroid();
       moved = Math.max(moved, Math.hypot(c.x - scrollOrigin.x, c.y - scrollOrigin.y));
@@ -576,7 +683,9 @@
       if (now - lastTap.t < 400 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 30) p = { x: lastTap.x, y: lastTap.y };
       send({ t: 'click', b: 0, ...norm(p.x, p.y) });
       lastTap = { t: now, x: p.x, y: p.y };
-    } else if (gesture === 'scroll' && moved < TAP_SLOP && dur < 350) {
+    } else if (gesture === 'zoom') {
+      if (view.z < 1.08) setZoom(1);          // snap back to the whole screen
+    } else if ((gesture === 'scroll' || gesture === 'two') && moved < TAP_SLOP && dur < 350) {
       send({ t: 'click', b: 2, ...norm(startPt.x, startPt.y) });   // two-finger tap = right click
     }
     gesture = null;
@@ -628,6 +737,16 @@
     store.set('video', store.get('video', '1') === '1' ? '0' : '1'); markVideo();
     if (ws) ws.close();                  // reconnect with the new setting
   });
+  markSound();
+  $('m-sound').addEventListener('click', () => {
+    soundOn = !soundOn; store.set('sound', soundOn ? '1' : '0'); markSound();
+    if (soundOn) soundUnlock(); else soundStop();
+  });
+  $('m-zoom').addEventListener('click', () => { setZoom(1); $('menu').classList.remove('open'); });
+  document.querySelectorAll('#dispmode [data-display]').forEach(b => b.addEventListener('click', () => {
+    send({ t: 'display', mode: b.dataset.display });
+    $('menu').classList.remove('open');
+  }));
   document.querySelectorAll('#menu [data-key]').forEach(b => b.addEventListener('click', () => send({ t: 'key', k: b.dataset.key })));
   document.querySelectorAll('#menu [data-combo]').forEach(b => b.addEventListener('click', () => {
     const parts = b.dataset.combo.split('+'); send({ t: 'key', k: parts.pop(), mods: parts });

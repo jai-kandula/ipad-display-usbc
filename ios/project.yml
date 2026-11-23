@@ -1,5 +1,5 @@
 # XcodeGen project description. The GitHub workflow turns this into an Xcode
-# project and builds an unsigned .ipa that Sideloadly signs with your Apple ID.
+# project and builds an unsigned .ipa that iLoader or SideStore signs with your Apple ID.
 name: IPadDisplay
 options:
   bundleIdPrefix: com.ipaddisplay
