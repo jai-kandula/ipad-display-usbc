@@ -24,6 +24,8 @@ if not exist ".venv\Scripts\python.exe" (
 if errorlevel 1 ( echo Could not install the required packages. & pause & exit /b 1 )
 rem Optional: GPU screen capture (faster). Skipped quietly if it can't install.
 ".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check "dxcam>=0.3.0" >nul 2>nul
+rem Optional: H.264 video for smooth scrolling and dragging (uses the graphics card).
+".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check "av>=14" >nul 2>nul
 
 ".venv\Scripts\python.exe" server.py %*
 pause

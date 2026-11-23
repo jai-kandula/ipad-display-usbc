@@ -90,6 +90,14 @@ Normally the virtual screen stays plugged in to Windows even when the iPad isn't
 
 It also switches off when the laptop restarts. If you move this folder, run `display-setup.bat` again. To undo it, run `display-setup.bat remove`. To leave the screen alone for one session, run `start.bat --keep-screen`. If it doesn't switch, look in `vdd.log` in this folder.
 
+## Video mode (smoother scrolling and dragging)
+
+While things move, the picture is sent as **H.264 video**, encoded by the laptop's graphics card (NVIDIA, AMD or Intel) and decoded by the iPad's video chip. That needs far less data than pictures, so scrolling, dragging windows and videos stay smooth. Typing and small changes are still sent as sharp pictures straight away, and once things stop moving, the moved areas are re-sent at full sharpness, exactly as before.
+
+- It's on by default. Turn it off or on with **☰ > Video mode** to compare.
+- The laptop window says which encoder it uses, for example `[video] H.264 encoding on the NVIDIA GPU`. The `[speed]` line shows how many updates per second are video.
+- start.bat installs the `av` package for this. If it isn't installed, or the iPad can't decode it, everything works as before without video.
+
 ## Controls on the iPad
 
 | Do this | Laptop gets |

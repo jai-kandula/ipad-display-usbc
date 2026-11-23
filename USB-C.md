@@ -54,6 +54,14 @@ After the first time it connects by itself whenever you open the app.
 
 Controls are the same as before: tap, drag, hold for right click, two-finger scroll, Apple Pencil, and the ☰ menu.
 
+## Video mode (smoother scrolling and dragging)
+
+While things move, the picture is sent as **H.264 video**, encoded by the laptop's graphics card (NVIDIA, AMD or Intel) and decoded by the iPad's video chip. That needs far less data than pictures, so scrolling, dragging windows and videos stay smooth. Typing and small changes are still sent as sharp pictures straight away, and once things stop moving, the moved areas are re-sent at full sharpness, exactly as before.
+
+- It's on by default. Turn it off or on with **☰ > Video mode** to compare.
+- The laptop window says which encoder it uses, for example `[video] H.264 encoding on the NVIDIA GPU`. The `[speed]` line shows how many updates per second are video.
+- start.bat installs the `av` package for this. If it isn't installed, or the iPad can't decode it, everything works as before without video.
+
 ## Turn the iPad screen on and off automatically (optional, once)
 
 Normally the virtual screen stays plugged in to Windows even when the iPad isn't, so windows and your mouse can get lost on it. To have it appear only while you use the iPad:

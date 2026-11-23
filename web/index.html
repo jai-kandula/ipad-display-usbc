@@ -103,6 +103,7 @@
   <div class="row" id="modes">
     <button data-mode="fast">Fast</button><button data-mode="balanced">Balanced</button><button data-mode="sharp">Sharp</button><button data-mode="wired">Wired</button>
   </div>
+  <button id="m-video">🎞  Video mode: on</button>
   <button id="m-disc">Disconnect</button>
   <div class="stats" id="stats"></div>
 </div>
@@ -224,10 +225,39 @@
   // input is never stuck behind picture work on the main thread.
   const WORKER_SRC = `
     let cv = null, ctx = null, chain = Promise.resolve();
+    // H.264 for moving content. Each decoded frame is the whole screen.
+    let dec = null, pend = [], vts = 0;
+    function vconfig(c) {
+      if (!dec || dec.state === 'closed') {
+        dec = new VideoDecoder({
+          output: f => { ctx.drawImage(f, 0, 0, cv.width, cv.height); f.close(); const r = pend.shift(); if (r) r(true); },
+          error: e => { dec = null; while (pend.length) pend.shift()(false); postMessage({ verr: String(e) }); }
+        });
+      }
+      dec.configure({ codec: c.codec, description: c.desc, optimizeForLatency: true });
+    }
+    async function drawVideo(buf, seq, t0) {
+      let ok = false;
+      try {
+        if (dec && dec.state === 'configured') {
+          const key = new DataView(buf).getUint8(5) & 1;
+          const done = new Promise(res => { pend.push(res); setTimeout(() => res(false), 300); });
+          dec.decode(new EncodedVideoChunk({ type: key ? 'key' : 'delta', timestamp: (vts++) * 16667,
+                                             data: new Uint8Array(buf, 8) }));
+          ok = await done;
+          if (!ok) postMessage({ verr: 'no picture from the decoder' });
+        } else {
+          postMessage({ verr: 'decoder not ready' });
+        }
+      } finally {
+        postMessage({ seq, ok, ms: performance.now() - t0, bytes: buf.byteLength });
+      }
+    }
     async function draw(buf) {
       const t0 = performance.now();
       const dv = new DataView(buf);
       const seq = dv.getUint32(0, true), n = dv.getUint16(6, true);
+      if (dv.getUint8(4) === 0x56) return drawVideo(buf, seq, t0);
       let off = 8 + n * 12;
       const rects = [];
       for (let i = 0; i < n; i++) {
@@ -249,9 +279,19 @@
       const m = e.data;
       if (m.canvas) { cv = m.canvas; ctx = cv.getContext('2d', { alpha: false }); }
       else if (m.size) { cv.width = m.size[0]; cv.height = m.size[1]; }
+      else if (m.vconfig) { chain = chain.then(() => { try { vconfig(m.vconfig); } catch (e) { postMessage({ verr: String(e) }); } }); }
       else if (m.buf) { chain = chain.then(() => draw(m.buf)).catch(() => {}); }
     };`;
-  let worker = null, ctx = null;
+  let worker = null, ctx = null, lastVkey = 0;
+  // Can this iPad decode H.264 in the drawing thread? (iPadOS 16.4 and newer.)
+  const videoCheck = (async () => {
+    try {
+      if (typeof VideoDecoder === 'undefined' || !canvas.transferControlToOffscreen) return false;
+      const r = await VideoDecoder.isConfigSupported({ codec: 'avc1.640033', codedWidth: 2752, codedHeight: 2064 });
+      return !!r.supported;
+    } catch (e) { return false; }
+  })();
+  let videoOK = false;
   try {
     if (canvas.transferControlToOffscreen && typeof OffscreenCanvas !== 'undefined') {
       worker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' })));
@@ -259,6 +299,11 @@
       worker.postMessage({ canvas: off }, [off]);
       worker.onmessage = e => {
         const r = e.data;
+        if (r.verr) {                       // decoder hiccup: ask for a fresh start
+          const now = performance.now();
+          if (now - lastVkey > 1000) { lastVkey = now; send({ t: 'vkey' }); console.log('video:', r.verr); }
+          return;
+        }
         send({ t: 'ack', seq: r.seq });
         if (r.ok) document.body.classList.remove('waiting');
         countFrame(r.bytes, r.ms);
@@ -305,10 +350,12 @@
     if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   }
 
-  function connect() {
+  async function connect() {
+    videoOK = (await videoCheck) && !!worker;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const url = `${proto}://${location.host}/ws?pin=${encodeURIComponent(store.get('pin', ''))}` +
-      `&monitor=${store.get('monitor', '-1')}&mode=${store.get('mode', 'balanced')}&fps=60`;
+      `&monitor=${store.get('monitor', '-1')}&mode=${store.get('mode', 'balanced')}&fps=60` +
+      `&video=${videoOK && store.get('video', '1') === '1' ? 1 : 0}`;
     $('status').textContent = retry ? 'Reconnecting…' : 'Connecting…';
     document.body.classList.add('waiting');
     lastMsg = performance.now();
@@ -326,6 +373,9 @@
             else { canvas.width = m.width; canvas.height = m.height; }
             layout();
           }
+        } else if (m.type === 'vconfig') {
+          if (worker) worker.postMessage({ vconfig: { codec: m.codec,
+            desc: Uint8Array.from(atob(m.desc), c => c.charCodeAt(0)) } });
         } else if (m.type === 'cursor') {
           if (!touchActive) { cursor = { x: m.x, y: m.y, v: m.v }; drawCursor(); }
         }
@@ -567,6 +617,17 @@
   $('fab').addEventListener('click', () => $('menu').classList.toggle('open'));
   $('m-kbd').addEventListener('click', () => { $('menu').classList.remove('open'); kbd.focus(); kbd.setSelectionRange(2, 2); });
   $('m-disc').addEventListener('click', () => { store.set('auto', '0'); stop(); });
+  function markVideo() {
+    videoCheck.then(ok => {
+      $('m-video').textContent = !ok ? '🎞  Video mode: not supported here'
+        : store.get('video', '1') === '1' ? '🎞  Video mode: on' : '🎞  Video mode: off';
+    });
+  }
+  markVideo();
+  $('m-video').addEventListener('click', () => {
+    store.set('video', store.get('video', '1') === '1' ? '0' : '1'); markVideo();
+    if (ws) ws.close();                  // reconnect with the new setting
+  });
   document.querySelectorAll('#menu [data-key]').forEach(b => b.addEventListener('click', () => send({ t: 'key', k: b.dataset.key })));
   document.querySelectorAll('#menu [data-combo]').forEach(b => b.addEventListener('click', () => {
     const parts = b.dataset.combo.split('+'); send({ t: 'key', k: parts.pop(), mods: parts });

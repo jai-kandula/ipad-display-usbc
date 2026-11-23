@@ -19,6 +19,7 @@ Run with:  start.bat   (or: python server.py [--port 8765])
 """
 import argparse
 import asyncio
+import base64
 import ctypes
 import json
 import os
@@ -45,6 +46,7 @@ if IS_WINDOWS:
 
 import mss  # noqa: E402
 import numpy as np  # noqa: E402
+import video  # noqa: E402  (H.264 for moving content)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -400,6 +402,10 @@ class Session:
         self.last = None           # last captured (array, colourspace)
         self.stats = {"frames": 0, "cap": 0.0, "enc": 0.0, "bytes": 0}
         self._diff = None          # reused buffer for the changed-pixel mask
+        self.video_wanted = False  # the iPad can decode H.264 and asked for it
+        self.video = None          # video.Encoder for moving content
+        self.video_key = False     # next video frame must be a key frame
+        self.video_failed = False
 
     def set_profile(self, name):
         self.profile = PROFILES.get(name, PROFILES["balanced"])
@@ -566,6 +572,16 @@ class Session:
             self.blurry &= ~mask
             return self._pack(arr, cs, self._px(tiles_to_rects(mask), w, h),
                               hi, prof["hi_sub"]), self.dims
+        # Bigger changes (scrolling, dragging, video): H.264 when the iPad can
+        # decode it. It is far smaller than JPEG for motion, and the areas it
+        # touched are re-sent as sharp JPEG once things settle, as before.
+        packet = self._video(arr, cs)
+        if packet is not None:
+            if frac > FULL_FRAME:
+                self.blurry[:] = True
+            else:
+                self.blurry |= mask
+            return packet, self.dims
         if frac > FULL_FRAME:             # scrolling / video: whole screen, fast
             self.blurry[:] = True
             return self._pack(arr, cs, self._stripes(w, h), lo, lo_sub), self.dims
@@ -616,7 +632,36 @@ class Session:
                 pass
             self.dx = None
 
+    def _video(self, arr, cs):
+        if not self.video_wanted or self.video_failed or cs != "BGRA":
+            return None
+        h, w = arr.shape[:2]
+        try:
+            if self.video is None or (self.video.w, self.video.h) != (w, h):
+                if self.video is not None:
+                    self.video.close()
+                self.video = video.Encoder(w, h)
+                self.video_key = True
+            t0 = time.perf_counter()
+            body, is_key = self.video.encode(np.ascontiguousarray(arr), key=self.video_key)
+            self.stats["enc"] += time.perf_counter() - t0
+        except Exception as e:
+            print("[video] turned off, using pictures instead:", e)
+            self.video_failed = True
+            return None
+        if body is None:
+            return None
+        self.video_key = False
+        data = struct.pack("<BBH", 0x56, 1 if is_key else 0, 0) + body
+        self.stats["frames"] += 1
+        self.stats["bytes"] += len(data)
+        self.stats["vid"] = self.stats.get("vid", 0) + 1
+        return data
+
     def close(self):
+        if self.video is not None:
+            self.video.close()
+            self.video = None
         self._release_dx()
         if self.sct is not None:
             self.sct.close()
@@ -670,6 +715,7 @@ def make_app(cfg):
         q = request.query
         sess = Session(int(q.get("monitor", "-1")), q.get("mode", "balanced"))
         fps = max(10, min(60, int(q.get("fps", "60"))))
+        sess.video_wanted = q.get("video") == "1" and video.AVAILABLE
         loop = asyncio.get_running_loop()
         cap_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="capture")  # mss is per-thread
         mon = await loop.run_in_executor(cap_pool, sess.monitor)
@@ -744,6 +790,11 @@ def make_app(cfg):
                         state["force"] = True
                     elif t == "refresh":
                         state["force"] = True
+                    elif t == "vkey":
+                        # The iPad's video decoder restarted: send its setup and a key frame.
+                        sess.video_key = True
+                        state["vcfg"] = None
+                        state["force"] = True
                     wake.set()
                 except Exception as e:  # never let a bad event kill the session
                     print("input error:", e)
@@ -762,7 +813,7 @@ def make_app(cfg):
                     secs = start - next_report + 5
                     acks = max(1, state["acks"])
                     print(f"[speed] {st.get('new', 0) / secs:4.0f} screen fps | "
-                          f"{st['frames'] / secs:4.0f} updates/s | "
+                          f"{st['frames'] / secs:4.0f} updates/s ({st.get('vid', 0) / secs:.0f} video) | "
                           f"capture {st['cap'] * 1000 / max(1, st.get('caps', 0)):4.1f} ms ({sess.backend}) | "
                           f"work {(st.get('work', 0) - st.get('idle', 0)) * 1000 / max(1, st.get('steps', 0)):4.1f} ms | "
                           f"encode {st['enc'] * 1000 / n:4.1f} ms | "
@@ -785,6 +836,11 @@ def make_app(cfg):
                     continue
                 if ws.closed:
                     break
+                if sess.video is not None and sess.video.config and sess.video.config != state.get("vcfg"):
+                    state["vcfg"] = sess.video.config
+                    codec, desc = sess.video.config
+                    await ws.send_str(json.dumps({"type": "vconfig", "codec": codec,
+                                                  "desc": base64.b64encode(desc).decode()}))
                 if dims != last_dims:
                     last_dims = dims
                     await ws.send_str(json.dumps({"type": "info", "width": dims[0],
