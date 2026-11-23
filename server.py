@@ -356,6 +356,37 @@ class Session:
         self.mon = dict(mons[idx])
         return self.mon
 
+    def _check_geometry(self):
+        """Every 2 s, notice if Windows moved or resized this screen (new
+        resolution, scale or arrangement) and follow it."""
+        now = time.perf_counter()
+        if now < getattr(self, "_next_geo", 0):
+            return
+        self._next_geo = now + 2.0
+        try:
+            with _MSS() as fresh:
+                mons = fresh.monitors
+            idx = self.monitor_index if 0 < self.monitor_index < len(mons) else len(mons) - 1
+            new = dict(mons[idx])
+        except Exception:
+            return
+        if all(new[k] == self.mon[k] for k in ("left", "top", "width", "height")):
+            return
+        print(f"[screen] changed to {new['width']}x{new['height']} at "
+              f"({new['left']},{new['top']}), following it.")
+        self.mon = new
+        if self.sct is not None:
+            self.sct.close()
+        self.sct = _MSS()
+        if self.dx is not None:
+            try:
+                self.dx.release()
+            except Exception:
+                pass
+        self.dx, self.dx_tried, self.backend = None, False, "GDI"
+        self.last = None
+        self.reset = True
+
     def _open_dxgi(self):
         """Find the DXGI output for this screen and open a duplication on it."""
         self.dx_tried = True
@@ -407,6 +438,7 @@ class Session:
         """Capture once. Returns (packet bytes | None, (w, h))."""
         if self.mon is None:
             self.monitor()
+        self._check_geometry()
         t0 = time.perf_counter()
         cap = self._capture()
         self.stats["cap"] += time.perf_counter() - t0
@@ -568,6 +600,7 @@ def make_app(cfg):
         wake = asyncio.Event()       # input arrived: capture again right away
 
         def to_screen(m):
+            mon = sess.mon                 # current geometry (follows resolution/scale changes)
             return (mon["left"] + max(0.0, min(1.0, float(m["x"]))) * (mon["width"] - 1),
                     mon["top"] + max(0.0, min(1.0, float(m["y"]))) * (mon["height"] - 1))
 
@@ -666,18 +699,23 @@ def make_app(cfg):
                 if dims != last_dims:
                     last_dims = dims
                     await ws.send_str(json.dumps({"type": "info", "width": dims[0],
-                                                  "height": dims[1], "monitor": mon}))
+                                                  "height": dims[1], "monitor": sess.mon}))
                 cur = INPUT.cursor()
                 if cur is not None:
-                    cx = (cur[0] - mon["left"]) * sess.scale
-                    cy = (cur[1] - mon["top"]) * sess.scale
+                    cx = (cur[0] - sess.mon["left"]) * sess.scale
+                    cy = (cur[1] - sess.mon["top"]) * sess.scale
                     vis = 0 <= cx < dims[0] and 0 <= cy < dims[1]
                     c = (round(cx), round(cy), vis)
                     if c != last_cursor:
                         last_cursor = c
                         await ws.send_str(json.dumps({"type": "cursor", "x": c[0],
                                                       "y": c[1], "v": vis}))
+                if packet is None and time.perf_counter() - state.get("last_tx", 0) > 1.5:
+                    # Keep-alive so the iPad can tell a still screen from a dead link.
+                    await ws.send_str('{"type":"ping"}')
+                    state["last_tx"] = time.perf_counter()
                 if packet is not None:
+                    state["last_tx"] = time.perf_counter()
                     state["seq"] = (state["seq"] + 1) & 0xFFFFFFFF
                     seq = state["seq"]
                     state["sent"][seq] = time.perf_counter()

@@ -19,6 +19,7 @@ import sys
 USBMUXD_HOST, USBMUXD_PORT = "127.0.0.1", 27015
 IPAD_PORT = 8766          # the iPad app listens here (loopback, via USB)
 SPARE_TUNNELS = 4         # idle tunnels kept ready for the viewer
+TUNNEL_MAX_IDLE = 30      # seconds: recycle spare tunnels so none go stale
 POLL_SECONDS = 1.5
 
 _tag = 0
@@ -97,6 +98,16 @@ class Bridge:
         self.devices = {}         # device_id -> serial
         self.warned = False
         self.app_missing = set()
+        # asyncio only keeps weak references to tasks: without this set, Python
+        # can garbage-collect a tunnel mid-stream ("Task was destroyed but it is
+        # pending!"), which drops the iPad's connection.
+        self.tasks = set()
+
+    def _spawn(self, coro):
+        task = asyncio.create_task(coro)
+        self.tasks.add(task)
+        task.add_done_callback(self.tasks.discard)
+        return task
 
     async def _tunnel(self, device_id):
         """One spare tunnel: wait for the iPad viewer to use it, then pipe it to the web server."""
@@ -116,8 +127,11 @@ class Bridge:
             _log("Connected to the iPad Display app over USB.")
         ipad_r, ipad_w = conn
         try:
-            first = await ipad_r.read(1 << 16)      # blocks until the viewer uses this tunnel
-        except (ConnectionError, OSError):
+            # Blocks until the viewer uses this tunnel. Spare tunnels are
+            # recycled every TUNNEL_MAX_IDLE seconds so a silently dead one is
+            # never handed to the viewer.
+            first = await asyncio.wait_for(ipad_r.read(1 << 20), TUNNEL_MAX_IDLE)
+        except (ConnectionError, OSError, asyncio.TimeoutError):
             first = b""
         self.idle[device_id] -= 1                    # in use (or dead): let the pool refill
         if not first:
@@ -138,7 +152,12 @@ class Bridge:
                     pass
         web_w.write(first)
         await web_w.drain()
-        await asyncio.gather(_pipe(ipad_r, web_w), _pipe(web_r, ipad_w))
+        pipes = asyncio.gather(_pipe(ipad_r, web_w), _pipe(web_r, ipad_w))
+        self.tasks.add(pipes)
+        try:
+            await pipes
+        finally:
+            self.tasks.discard(pipes)
 
     async def run(self):
         while True:
@@ -159,7 +178,7 @@ class Bridge:
                 self.idle.setdefault(dev_id, 0)
                 while self.idle[dev_id] < SPARE_TUNNELS:
                     self.idle[dev_id] += 1
-                    asyncio.create_task(self._tunnel(dev_id))
+                    self._spawn(self._tunnel(dev_id))
             for dev_id in list(self.devices):
                 if dev_id not in current:
                     _log("iPad unplugged.")

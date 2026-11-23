@@ -265,10 +265,12 @@
       `&monitor=${store.get('monitor', '-1')}&mode=${store.get('mode', 'balanced')}&fps=60`;
     $('status').textContent = retry ? 'Reconnecting…' : 'Connecting…';
     document.body.classList.add('waiting');
+    lastMsg = performance.now();
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
-    ws.onopen = () => { retry = 0; };
+    ws.onopen = () => { retry = 0; lastMsg = performance.now(); };
     ws.onmessage = ev => {
+      lastMsg = performance.now();
       if (typeof ev.data === 'string') {
         const m = JSON.parse(ev.data);
         if (m.type === 'info') {
@@ -327,6 +329,26 @@
     }
   }
   function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+
+  // Watchdog: the PC sends something at least every 1.5 s. If nothing arrives
+  // for 5 s (or the socket hangs while connecting), drop it and reconnect
+  // instead of waiting forever.
+  let lastMsg = performance.now();
+  setInterval(() => {
+    if (!live || !ws) return;
+    if (performance.now() - lastMsg > 5000) {
+      lastMsg = performance.now();
+      const dead = ws; ws = null;
+      dead.onclose = null; dead.onmessage = null;
+      try { dead.close(); } catch {}
+      chain = Promise.resolve();
+      document.body.classList.add('waiting');
+      $('status').textContent = 'Reconnecting…';
+      retry++;
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(connect, 200);
+    }
+  }, 1000);
 
   async function requestWakeLock() {
     try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch {}
