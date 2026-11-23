@@ -1,0 +1,50 @@
+# XcodeGen project description. The GitHub workflow turns this into an Xcode
+# project and builds an unsigned .ipa that Sideloadly signs with your Apple ID.
+name: IPadDisplay
+options:
+  bundleIdPrefix: com.ipaddisplay
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  IPadDisplay:
+    type: application
+    platform: iOS
+    sources:
+      - IPadDisplay
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ipaddisplay.viewer
+        PRODUCT_NAME: IPadDisplay
+        TARGETED_DEVICE_FAMILY: "2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_CFBundleDisplayName: iPad Display
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+    info:
+      path: IPadDisplay/Info.plist
+      properties:
+        CFBundleDisplayName: iPad Display
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen:
+          UIColorName: ""
+        UIRequiresFullScreen: true
+        UIStatusBarHidden: true
+        UIViewControllerBasedStatusBarAppearance: false
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    scheme: {}

@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+config.json
+ios/build/
+ios/Payload/
+ios/*.xcodeproj/
+*.ipa

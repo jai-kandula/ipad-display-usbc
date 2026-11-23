@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="iPad Display">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>iPad Display</title>
+<style>
+  :root { color-scheme: dark; --accent: #4f8cff; --ok: #5fd38d; --warn: #ffc65c; }
+  html, body { margin: 0; height: 100%; background: #000; color: #eee;
+    font: 16px -apple-system, system-ui, sans-serif; overflow: hidden;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #stage { position: fixed; inset: 0; touch-action: none; display: none; }
+  body.live #stage { display: block; }
+  #screen { position: absolute; image-rendering: auto; }
+  #cursor { position: absolute; left: 0; top: 0; width: 14px; height: 22px; pointer-events: none;
+    display: none; will-change: transform; }
+
+  /* connect screen */
+  #setup { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding: 16px; overflow-y: auto; }
+  body.live #setup { display: none; }
+  .card { width: 100%; max-width: 460px; background: #15171c; border: 1px solid #2a2e37; border-radius: 16px; padding: 24px; margin: auto; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { margin: 0 0 16px; color: #9aa3b2; font-size: 14px; }
+  label { display: block; font-size: 13px; color: #9aa3b2; margin: 14px 0 6px; }
+  input, select, button { font: inherit; width: 100%; box-sizing: border-box; border-radius: 10px;
+    border: 1px solid #2f3440; background: #0d0f13; color: #eee; padding: 12px; }
+  input#pin { letter-spacing: 6px; font-size: 22px; text-align: center; }
+  button.primary { margin-top: 20px; background: var(--accent); border: 0; font-weight: 600; color: #fff; }
+  button:disabled { opacity: .5; }
+  .err { color: #ff7a7a; font-size: 14px; min-height: 20px; margin-top: 10px; }
+  .hint { color: #7d8697; font-size: 13px; margin-top: 12px; line-height: 1.45; }
+  .res { margin-top: 10px; padding: 12px; border-radius: 10px; background: #0d0f13; border: 1px solid #2a2e37; font-size: 14px; line-height: 1.5; }
+  .res b { color: #fff; }
+  .res .ok { color: var(--ok); } .res .warn { color: var(--warn); }
+
+  #status { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); display: none;
+    background: rgba(20,22,28,.9); padding: 14px 20px; border-radius: 12px; font-size: 15px; }
+  body.live.waiting #status { display: block; }
+
+  #fab { position: fixed; left: calc(6px + env(safe-area-inset-left)); top: calc(6px + env(safe-area-inset-top));
+    width: 34px; height: 34px; border-radius: 17px; border: 0; padding: 0; display: none;
+    background: rgba(60,64,75,.45); color: #fff; font-size: 18px; line-height: 34px; }
+  body.live #fab { display: block; }
+  #menu { position: fixed; left: calc(6px + env(safe-area-inset-left)); top: calc(46px + env(safe-area-inset-top));
+    background: rgba(20,22,28,.95); border: 1px solid #2a2e37; border-radius: 14px; padding: 10px; display: none; width: 270px; }
+  #menu.open { display: block; }
+  #menu button { margin: 4px 0; padding: 10px; background: #22262f; border: 0; text-align: left; }
+  #menu .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  #menu .row button { flex: 1 1 28%; text-align: center; padding: 9px 4px; font-size: 14px; }
+  #menu .row button.on { background: var(--accent); }
+  #modes button { flex-basis: 20%; }
+  #menu .stats { font-size: 12px; color: #8a93a3; padding: 4px 2px 2px; line-height: 1.5; }
+  #kbd { position: fixed; left: -1000px; top: 0; width: 10px; height: 10px; opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="screen"></canvas>
+  <svg id="cursor" viewBox="0 0 14 22"><path d="M1 1v17l4.2-4 2.9 6.6 2.7-1.2-2.8-6.4H14z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
+</div>
+<div id="status">Connecting…</div>
+
+<div id="setup">
+  <div class="card">
+    <h1>iPad Display</h1>
+    <p class="sub">Use this iPad as a second screen for your PC.</p>
+    <label for="pin" id="pinlabel">Pairing PIN (shown in the PC window)</label>
+    <input id="pin" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••••">
+    <label for="model">Your iPad</label>
+    <select id="model"></select>
+    <label for="monitor">Screen to show</label>
+    <select id="monitor"><option value="">Enter the PIN first</option></select>
+    <div class="res" id="resinfo"></div>
+    <label for="mode">Quality</label>
+    <select id="mode">
+      <option value="fast">Fast: lowest delay, lighter picture</option>
+      <option value="balanced" selected>Balanced: low delay, sharp when still</option>
+      <option value="sharp">Sharp: best picture, needs good Wi-Fi</option>
+      <option value="wired">Wired: full quality, lowest delay (cable only)</option>
+    </select>
+    <button id="go" class="primary" disabled>Connect</button>
+    <div class="err" id="err"></div>
+    <div class="hint" id="link"></div>
+    <div class="hint" id="a2hs">Tip: tap Share, then <b>Add to Home Screen</b>, and open it from there for a true full-screen display.</div>
+  </div>
+</div>
+
+<button id="fab" aria-label="Menu">☰</button>
+<div id="menu">
+  <button id="m-kbd">⌨️  Keyboard</button>
+  <div class="row">
+    <button data-key="Escape">Esc</button><button data-key="Tab">Tab</button><button data-key="Delete">Del</button>
+    <button data-combo="Control+c">Copy</button><button data-combo="Control+v">Paste</button><button data-combo="Control+z">Undo</button>
+  </div>
+  <div class="row" id="modes">
+    <button data-mode="fast">Fast</button><button data-mode="balanced">Balanced</button><button data-mode="sharp">Sharp</button><button data-mode="wired">Wired</button>
+  </div>
+  <button id="m-disc">Disconnect</button>
+  <div class="stats" id="stats"></div>
+</div>
+<textarea id="kbd" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  };
+
+  // ---------------------------------------------------------------- iPad models
+  // Native screen resolution in landscape (pixels). Models that support iPadOS 26.
+  const IPADS = [
+    { id: 'ipad-a16',  w: 2360, h: 1640, name: 'iPad (A16) / iPad (10th gen)' },
+    { id: 'pro13-m4',  w: 2752, h: 2064, name: 'iPad Pro 13-inch (M4 and later)' },
+    { id: 'pro11-m4',  w: 2420, h: 1668, name: 'iPad Pro 11-inch (M4 and later)' },
+    { id: 'air13',     w: 2732, h: 2048, name: 'iPad Air 13-inch (M2 and later)' },
+    { id: 'air11',     w: 2360, h: 1640, name: 'iPad Air 11-inch (M2 and later)' },
+    { id: 'pro129',    w: 2732, h: 2048, name: 'iPad Pro 12.9-inch (3rd to 6th gen)' },
+    { id: 'pro11',     w: 2388, h: 1668, name: 'iPad Pro 11-inch (1st to 4th gen)' },
+    { id: 'air45',     w: 2360, h: 1640, name: 'iPad Air (4th or 5th gen)' },
+    { id: 'air3',      w: 2224, h: 1668, name: 'iPad Air (3rd gen)' },
+    { id: 'ipad89',    w: 2160, h: 1620, name: 'iPad (8th or 9th gen)' },
+    { id: 'mini7',     w: 2266, h: 1488, name: 'iPad mini (A17 Pro) / iPad mini (6th gen)' },
+    { id: 'mini5',     w: 2048, h: 1536, name: 'iPad mini (5th gen)' },
+  ];
+  const dpr = window.devicePixelRatio || 1;
+  const nativeW = Math.round(Math.max(screen.width, screen.height) * dpr);
+  const nativeH = Math.round(Math.min(screen.width, screen.height) * dpr);
+  const modelEl = $('model');
+  IPADS.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m.id; o.textContent = `${m.name}: ${m.w}×${m.h}`;
+    modelEl.appendChild(o);
+  });
+  const guess = IPADS.find(m => m.w === nativeW && m.h === nativeH);
+  modelEl.value = store.get('model', '') || (guess ? guess.id : IPADS[0].id);
+  if (!IPADS.some(m => m.id === modelEl.value)) modelEl.value = IPADS[0].id;
+  const model = () => IPADS.find(m => m.id === modelEl.value) || IPADS[0];
+
+  // ---------------------------------------------------------------- setup
+  const pinEl = $('pin'), monEl = $('monitor'), modeEl = $('mode'), goEl = $('go'), errEl = $('err');
+  let monitors = [];
+  pinEl.value = store.get('pin', '');
+  modeEl.value = store.get('mode', 'balanced');
+  modeEl.addEventListener('change', () => store.set('mode-auto', '0'));   // you chose: stop auto-picking
+
+  function showResInfo() {
+    const m = model();
+    const half = `${Math.round(m.w / 2)}×${Math.round(m.h / 2)}`;
+    let html = `For your <b>${m.name}</b>, set the PC's virtual screen to:<br>` +
+      `• <b>${m.w}×${m.h}</b> at 200% scale: sharpest, pixel-perfect<br>` +
+      `• <b>${half}</b> at 100% scale: fastest, slightly softer`;
+    const mon = monitors.find(x => String(x.index) === monEl.value);
+    if (mon) {
+      const exact = mon.width === m.w && mon.height === m.h;
+      const halfOk = mon.width === Math.round(m.w / 2) && mon.height === Math.round(m.h / 2);
+      const sameShape = Math.abs(mon.width / mon.height - m.w / m.h) < 0.02;
+      html += '<br><br>' + (exact ? `<span class="ok">✓ Screen ${mon.index} is ${mon.width}×${mon.height}: pixel-perfect.</span>`
+        : halfOk ? `<span class="ok">✓ Screen ${mon.index} is ${mon.width}×${mon.height}: fast mode resolution.</span>`
+        : sameShape ? `<span class="ok">Screen ${mon.index} is ${mon.width}×${mon.height}: right shape, fills the iPad.</span>`
+        : `<span class="warn">Screen ${mon.index} is ${mon.width}×${mon.height}, a different shape, so you'll see black bars. Change it in Windows Display settings.</span>`);
+    }
+    $('resinfo').innerHTML = html;
+  }
+  modelEl.addEventListener('change', () => { store.set('model', modelEl.value); showResInfo(); });
+  monEl.addEventListener('change', showResInfo);
+  showResInfo();
+
+  const IN_APP = /iPadDisplayApp/.test(navigator.userAgent);   // the native USB-C app
+  if (IN_APP) $('a2hs').style.display = 'none';
+  let noPin = false;
+  async function loadMonitors() {
+    errEl.textContent = '';
+    if (!noPin && pinEl.value.length < 6) { goEl.disabled = true; return; }
+    try {
+      const r = await fetch('/api/monitors?pin=' + encodeURIComponent(pinEl.value));
+      if (r.status === 403) { errEl.textContent = 'That PIN is not right.'; goEl.disabled = true; return; }
+      const j = await r.json();
+      monitors = j.monitors;
+      if (j.usb) {                       // over the USB-C cable: no PIN needed
+        noPin = true;
+        pinEl.style.display = 'none'; $('pinlabel').style.display = 'none';
+      }
+      store.set('pin', pinEl.value);
+      const saved = store.get('monitor', '');
+      monEl.innerHTML = '';
+      monitors.forEach(m => {
+        const o = document.createElement('option');
+        o.value = m.index;
+        o.textContent = `Screen ${m.index}: ${m.width}×${m.height}` + (m.left === 0 && m.top === 0 ? ' (main)' : '');
+        monEl.appendChild(o);
+      });
+      monEl.value = [...monEl.options].some(o => o.value === saved) ? saved
+        : monitors.length ? String(monitors[monitors.length - 1].index) : '';
+      goEl.disabled = !monEl.value;
+      showResInfo();
+      if (!j.input) errEl.textContent = 'Note: touch control is off (host is not Windows).';
+      $('link').innerHTML = j.wired
+        ? '<span style="color:var(--ok)">✓ Connected by cable. Wired mode picked for full quality.</span>'
+        : 'Connected over Wi-Fi. For a cable connection, see WIRED.md.';
+      if (j.wired && store.get('mode-auto', '1') === '1') modeEl.value = 'wired';
+    } catch (e) {
+      errEl.textContent = 'Can\'t reach the PC. Is the host window still open?';
+    }
+  }
+  pinEl.addEventListener('input', () => { pinEl.value = pinEl.value.replace(/\D/g, ''); loadMonitors(); });
+  goEl.addEventListener('click', () => {
+    store.set('monitor', monEl.value); store.set('mode', modeEl.value); store.set('auto', '1');
+    start();
+  });
+
+  // ---------------------------------------------------------------- stream
+  const stage = $('stage'), canvas = $('screen'), ctx = canvas.getContext('2d', { alpha: false });
+  const cursorEl = $('cursor');
+  let ws = null, live = false, retry = 0, retryTimer = null;
+  let img = { w: 0, h: 0 }, fit = { x: 0, y: 0, w: 1, h: 1 };
+  let cursor = { x: 0, y: 0, v: false };
+  let frames = 0, bytes = 0, decodeMs = 0, lastStat = performance.now();
+  let wakeLock = null, chain = Promise.resolve();
+
+  function layout() {
+    if (!img.w) return;
+    const vw = innerWidth, vh = innerHeight;
+    const s = Math.min(vw / img.w, vh / img.h);
+    fit = { w: img.w * s, h: img.h * s, x: (vw - img.w * s) / 2, y: (vh - img.h * s) / 2 };
+    Object.assign(canvas.style, { left: fit.x + 'px', top: fit.y + 'px', width: fit.w + 'px', height: fit.h + 'px' });
+    const cs = Math.max(0.8, Math.min(1.6, s * dpr));     // cursor about real-PC size
+    cursorEl.style.width = 14 * cs + 'px'; cursorEl.style.height = 22 * cs + 'px';
+    drawCursor();
+  }
+  function drawCursor() {
+    cursorEl.style.display = cursor.v && img.w ? 'block' : 'none';
+    cursorEl.style.transform = `translate(${fit.x + cursor.x * fit.w / img.w}px, ${fit.y + cursor.y * fit.h / img.h}px)`;
+  }
+  addEventListener('resize', layout);
+
+  function start() {
+    live = true;
+    document.body.classList.add('live', 'waiting');
+    requestWakeLock();
+    connect();
+    markMode();
+  }
+  function stop() {
+    live = false;
+    clearTimeout(retryTimer);
+    if (ws) { ws.onclose = null; ws.close(); ws = null; }
+    document.body.classList.remove('live', 'waiting');
+    $('menu').classList.remove('open');
+    if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+  }
+
+  function connect() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const url = `${proto}://${location.host}/ws?pin=${encodeURIComponent(store.get('pin', ''))}` +
+      `&monitor=${store.get('monitor', '-1')}&mode=${store.get('mode', 'balanced')}&fps=60`;
+    $('status').textContent = retry ? 'Reconnecting…' : 'Connecting…';
+    document.body.classList.add('waiting');
+    ws = new WebSocket(url);
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = () => { retry = 0; };
+    ws.onmessage = ev => {
+      if (typeof ev.data === 'string') {
+        const m = JSON.parse(ev.data);
+        if (m.type === 'info') {
+          if (m.width !== img.w || m.height !== img.h) {
+            img = { w: m.width, h: m.height };
+            canvas.width = m.width; canvas.height = m.height;
+            layout();
+          }
+        } else if (m.type === 'cursor') {
+          if (!touchActive) { cursor = { x: m.x, y: m.y, v: m.v }; drawCursor(); }
+        }
+        return;
+      }
+      // Decode in order: frames build on each other.
+      const buf = ev.data;
+      chain = chain.then(() => drawPacket(buf)).catch(() => {});
+    };
+    ws.onclose = () => {
+      ws = null;
+      if (!live) return;
+      document.body.classList.add('waiting');
+      $('status').textContent = 'Lost connection. Reconnecting…';
+      retry++;
+      retryTimer = setTimeout(connect, Math.min(3000, 300 * retry));
+    };
+  }
+
+  // Packet: u32 seq | u8 'F' | u8 flags | u16 n | n × (u16 x,y,w,h, u32 len) | n JPEGs
+  async function drawPacket(buf) {
+    const t0 = performance.now();
+    const dv = new DataView(buf);
+    const seq = dv.getUint32(0, true), n = dv.getUint16(6, true);
+    let off = 8 + n * 12;
+    const rects = [];
+    for (let i = 0; i < n; i++) {
+      const p = 8 + i * 12, len = dv.getUint32(p + 8, true);
+      rects.push({ x: dv.getUint16(p, true), y: dv.getUint16(p + 2, true),
+                   w: dv.getUint16(p + 4, true), h: dv.getUint16(p + 6, true),
+                   blob: new Blob([new Uint8Array(buf, off, len)], { type: 'image/jpeg' }) });
+      off += len;
+    }
+    try {
+      const bmps = await Promise.all(rects.map(r => createImageBitmap(r.blob)));
+      for (let i = 0; i < n; i++) { ctx.drawImage(bmps[i], rects[i].x, rects[i].y); bmps[i].close(); }
+      document.body.classList.remove('waiting');
+    } finally {
+      send({ t: 'ack', seq });
+    }
+    frames++; bytes += buf.byteLength; decodeMs += performance.now() - t0;
+    const now = performance.now();
+    if (now - lastStat > 1000) {
+      const secs = (now - lastStat) / 1000;
+      $('stats').textContent = `${img.w}×${img.h} · ${Math.round(frames / secs)} updates/s · ` +
+        `${(bytes * 8 / 1e6 / secs).toFixed(1)} Mbit/s · decode ${frames ? (decodeMs / frames).toFixed(1) : 0} ms`;
+      frames = 0; bytes = 0; decodeMs = 0; lastStat = now;
+    }
+  }
+  function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+
+  async function requestWakeLock() {
+    try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && live) {
+      requestWakeLock();
+      if (!ws) { clearTimeout(retryTimer); connect(); } else send({ t: 'refresh' });
+    }
+  });
+
+  // ---------------------------------------------------------------- input
+  function norm(cx, cy) {
+    return { x: Math.max(0, Math.min(1, (cx - fit.x) / fit.w)),
+             y: Math.max(0, Math.min(1, (cy - fit.y) / fit.h)) };
+  }
+  // Move the drawn pointer immediately, before the PC confirms it.
+  let touchActive = false;
+  function localCursor(cx, cy) {
+    const p = norm(cx, cy);
+    cursor = { x: p.x * img.w, y: p.y * img.h, v: true };
+    drawCursor();
+  }
+
+  const touches = new Map();
+  let gesture = null, gStart = 0, longTimer = null, startPt = null, moved = 0;
+  let lastTap = { t: 0, x: 0, y: 0 };
+  let scrollRef = null, scrollOrigin = null, scrollAcc = { x: 0, y: 0 };
+  let pendingMove = null, rafQueued = false;
+  const TAP_SLOP = 10, LONG_MS = 550;
+
+  function queueMove(p) {
+    pendingMove = p;
+    if (!rafQueued) {
+      rafQueued = true;
+      requestAnimationFrame(() => { rafQueued = false; if (pendingMove) send({ t: 'move', ...pendingMove }); pendingMove = null; });
+    }
+  }
+  function flushMove() { if (pendingMove) { send({ t: 'move', ...pendingMove }); pendingMove = null; } }
+  function centroid() {
+    let x = 0, y = 0; touches.forEach(t => { x += t.x; y += t.y; });
+    return { x: x / touches.size, y: y / touches.size };
+  }
+
+  stage.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    $('menu').classList.remove('open');
+    stage.setPointerCapture(e.pointerId);
+    touchActive = true;
+    localCursor(e.clientX, e.clientY);
+    if (e.pointerType !== 'touch') {            // Apple Pencil or trackpad: direct and precise
+      send({ t: 'down', b: e.button === 2 ? 2 : 0, ...norm(e.clientX, e.clientY) });
+      return;
+    }
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
+    if (touches.size === 1) {
+      gesture = 'tap'; gStart = performance.now(); moved = 0;
+      startPt = { x: e.clientX, y: e.clientY };
+      clearTimeout(longTimer);
+      longTimer = setTimeout(() => {          // long press = right click
+        if (gesture === 'tap' && moved < TAP_SLOP) {
+          send({ t: 'click', b: 2, ...norm(startPt.x, startPt.y) });
+          gesture = 'held';
+        }
+      }, LONG_MS);
+    } else if (touches.size === 2) {
+      clearTimeout(longTimer);
+      if (gesture === 'drag') send({ t: 'up', b: 0 });
+      gesture = 'scroll';
+      scrollRef = centroid(); scrollOrigin = scrollRef; moved = 0; scrollAcc = { x: 0, y: 0 };
+      send({ t: 'move', ...norm(scrollRef.x, scrollRef.y) });
+    }
+  }, { passive: false });
+
+  stage.addEventListener('pointermove', e => {
+    e.preventDefault();
+    if (e.pointerType !== 'touch') {            // pencil: also follows hover
+      localCursor(e.clientX, e.clientY);
+      queueMove(norm(e.clientX, e.clientY));
+      return;
+    }
+    const t = touches.get(e.pointerId);
+    if (!t) return;
+    t.x = e.clientX; t.y = e.clientY;
+    if (gesture === 'tap' || gesture === 'drag') {
+      moved = Math.max(moved, Math.hypot(t.x - t.sx, t.y - t.sy));
+      if (gesture === 'tap' && moved > TAP_SLOP) {
+        clearTimeout(longTimer);
+        gesture = 'drag';
+        send({ t: 'down', b: 0, ...norm(startPt.x, startPt.y) });
+      }
+      if (gesture === 'drag') { localCursor(t.x, t.y); queueMove(norm(t.x, t.y)); }
+    } else if (gesture === 'scroll') {
+      const c = centroid();
+      moved = Math.max(moved, Math.hypot(c.x - scrollOrigin.x, c.y - scrollOrigin.y));
+      scrollAcc.y += (c.y - scrollRef.y) * 4;     // natural scrolling; 120 = one wheel notch
+      scrollAcc.x += -(c.x - scrollRef.x) * 4;
+      scrollRef = c;
+      const dy = Math.trunc(scrollAcc.y), dx = Math.trunc(scrollAcc.x);
+      if (Math.abs(dy) >= 20 || Math.abs(dx) >= 20) {
+        send({ t: 'scroll', dx: Math.abs(dx) >= 20 ? dx : 0, dy: Math.abs(dy) >= 20 ? dy : 0 });
+        if (Math.abs(dy) >= 20) scrollAcc.y -= dy;
+        if (Math.abs(dx) >= 20) scrollAcc.x -= dx;
+      }
+    }
+  }, { passive: false });
+
+  function endPointer(e) {
+    e.preventDefault();
+    if (e.pointerType !== 'touch') {
+      flushMove();
+      send({ t: 'up', b: e.button === 2 ? 2 : 0, ...norm(e.clientX, e.clientY) });
+      touchActive = false;
+      return;
+    }
+    if (!touches.has(e.pointerId)) return;
+    touches.delete(e.pointerId);
+    clearTimeout(longTimer);
+    if (touches.size > 0) return;
+    touchActive = false;
+    const dur = performance.now() - gStart;
+    if (gesture === 'drag') {
+      flushMove();
+      send({ t: 'up', b: 0 });
+    } else if (gesture === 'tap' && e.type === 'pointerup') {
+      let p = startPt;
+      const now = performance.now();
+      if (now - lastTap.t < 400 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 30) p = { x: lastTap.x, y: lastTap.y };
+      send({ t: 'click', b: 0, ...norm(p.x, p.y) });
+      lastTap = { t: now, x: p.x, y: p.y };
+    } else if (gesture === 'scroll' && moved < TAP_SLOP && dur < 350) {
+      send({ t: 'click', b: 2, ...norm(startPt.x, startPt.y) });   // two-finger tap = right click
+    }
+    gesture = null;
+  }
+  stage.addEventListener('pointerup', endPointer, { passive: false });
+  stage.addEventListener('pointercancel', endPointer, { passive: false });
+  stage.addEventListener('contextmenu', e => e.preventDefault());
+  ['gesturestart', 'gesturechange', 'dblclick'].forEach(n => document.addEventListener(n, e => e.preventDefault(), { passive: false }));
+
+  // ---------------------------------------------------------------- keyboard
+  const kbd = $('kbd');
+  const SENTINEL = '__';
+  kbd.value = SENTINEL;
+  const SPECIAL = new Set(['Escape', 'Tab', 'Enter', 'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown']);
+  kbd.addEventListener('keydown', e => {
+    const mods = [];
+    if (e.ctrlKey || e.metaKey) mods.push('Control');   // Cmd+C on a Magic Keyboard acts as Ctrl+C
+    if (e.altKey) mods.push('Alt');
+    if (e.shiftKey && (mods.length || SPECIAL.has(e.key))) mods.push('Shift');
+    if (SPECIAL.has(e.key) || (mods.length && e.key.length === 1)) {
+      e.preventDefault();
+      send({ t: 'key', k: e.key, mods });
+    }
+  });
+  kbd.addEventListener('beforeinput', e => {
+    e.preventDefault();
+    if (e.inputType === 'insertText' || e.inputType === 'insertReplacementText') send({ t: 'text', s: e.data || '' });
+    else if (e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') send({ t: 'key', k: 'Enter' });
+    else if (e.inputType === 'deleteContentBackward') send({ t: 'key', k: 'Backspace' });
+    kbd.value = SENTINEL;
+  });
+  kbd.addEventListener('input', () => { kbd.value = SENTINEL; });
+
+  // ---------------------------------------------------------------- menu
+  function markMode() {
+    document.querySelectorAll('#modes [data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === store.get('mode', 'balanced')));
+  }
+  $('fab').addEventListener('click', () => $('menu').classList.toggle('open'));
+  $('m-kbd').addEventListener('click', () => { $('menu').classList.remove('open'); kbd.focus(); kbd.setSelectionRange(2, 2); });
+  $('m-disc').addEventListener('click', () => { store.set('auto', '0'); stop(); });
+  document.querySelectorAll('#menu [data-key]').forEach(b => b.addEventListener('click', () => send({ t: 'key', k: b.dataset.key })));
+  document.querySelectorAll('#menu [data-combo]').forEach(b => b.addEventListener('click', () => {
+    const parts = b.dataset.combo.split('+'); send({ t: 'key', k: parts.pop(), mods: parts });
+  }));
+  document.querySelectorAll('#modes [data-mode]').forEach(b => b.addEventListener('click', () => {
+    store.set('mode', b.dataset.mode); modeEl.value = b.dataset.mode; markMode();
+    send({ t: 'mode', mode: b.dataset.mode });
+  }));
+
+  if (IN_APP) noPin = true;              // try without a PIN; the server says if one is needed
+  if (noPin || pinEl.value.length === 6) loadMonitors().then(() => {
+    if (!goEl.disabled && store.get('auto', '1') === '1' && store.get('monitor', '')) start();
+  });
+})();
+</script>
+</body>
+</html>
