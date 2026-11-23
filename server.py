@@ -859,14 +859,31 @@ def make_app(cfg):
     return app
 
 
+def _log_to_file(path):
+    """Background mode has no window: send all output to a log file (kept small)."""
+    try:
+        if os.path.exists(path) and os.path.getsize(path) > 5_000_000:
+            os.replace(path, path + ".old")
+    except OSError:
+        pass
+    f = open(path, "a", buffering=1, encoding="utf-8", errors="replace")
+    sys.stdout = sys.stderr = f
+    print(f"\n--- started {time.strftime('%Y-%m-%d %H:%M:%S')} ---")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Stream a Windows monitor to an iPad")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--new-pin", action="store_true", help="generate a new pairing PIN")
+    ap.add_argument("--background", action="store_true",
+                    help="run without a window (auto-start): log to host.log, and turn the "
+                         "iPad's virtual screen on only while an iPad is plugged in")
     ap.add_argument("--keep-screen", action="store_true",
                     help="don't turn the iPad's virtual screen on/off automatically")
     args = ap.parse_args()
 
+    if args.background:
+        _log_to_file(os.path.join(HERE, "host.log"))
     if sys.version_info < (3, 10):
         sys.exit("Python 3.10 or newer is required (3.15 recommended).")
     if args.new_pin and os.path.exists(CONFIG_PATH):
@@ -884,7 +901,23 @@ def main():
     if not any(is_wired(a) for a in addrs):
         print("   (No cable link found. For a wired connection, see WIRED.md.)")
     print(f"\n Pairing PIN:  {cfg['pin']}")
-    if IS_WINDOWS and not args.keep_screen:
+    on_plug = None
+    if IS_WINDOWS and not args.keep_screen and args.background:
+        import vdd
+        if vdd.available():
+            print("\n The iPad's virtual screen turns on while an iPad is plugged in over USB-C.")
+
+            def on_plug(plugged):
+                # Switching takes a few seconds; do it off the event loop.
+                def work():
+                    if plugged:
+                        print("[screen] iPad plugged in: turning the virtual screen on.", flush=True)
+                        vdd.turn_on(lambda: len(list_monitors()))
+                    else:
+                        print("[screen] iPad unplugged: turning the virtual screen off.", flush=True)
+                        vdd.turn_off()
+                threading.Thread(target=work, daemon=True).start()
+    elif IS_WINDOWS and not args.keep_screen:
         import vdd
         if vdd.available():
             print("\n Turning on the iPad's virtual screen (it turns off when you close this window)...")
@@ -907,13 +940,15 @@ def main():
     print("=" * 62)
     app = make_app(cfg)
     import usb_bridge
-    usb_bridge.start(app, args.port)
+    usb_bridge.start(app, args.port, on_plug)
     try:
         web.run_app(app, host="0.0.0.0", port=args.port, print=None)
     except OSError as e:
         if getattr(e, "errno", None) in (10048, 98, 48):
-            sys.exit("\n The host is already running in another window. Close that "
-                     "window first (or end 'Python' in Task Manager), then run start.bat again.")
+            sys.exit("\n The host is already running, either in another window or in the "
+                     "background (auto-start).\n If you set up auto-start, you don't need "
+                     "start.bat: just plug in the iPad and open the app.\n Otherwise close the "
+                     "other window first (or end 'Python' in Task Manager), then run start.bat again.")
         raise
 
 

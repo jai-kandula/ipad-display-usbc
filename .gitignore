@@ -7,3 +7,5 @@ ios/*.xcodeproj/
 *.ipa
 
 vdd.log
+host.log
+host.log.old
