@@ -27,7 +27,7 @@ struct ViewerView: UIViewRepresentable {
 }
 
 /// Owns the relay and the full-screen web view that shows the PC's screen.
-final class Viewer: NSObject, WKNavigationDelegate {
+final class Viewer: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
     static let shared = Viewer()
 
     let relay = Relay()
@@ -35,6 +35,8 @@ final class Viewer: NSObject, WKNavigationDelegate {
     private var showingWaiting = false
     private var retry: DispatchWorkItem?
     private let serverURL = URL(string: "http://127.0.0.1:\(Relay.viewerPort)/")!
+    /// Last iPad clipboard state we know about, so we only send real changes.
+    private var lastPasteboard = UIPasteboard.general.changeCount
 
     override init() {
         super.init()
@@ -42,6 +44,8 @@ final class Viewer: NSObject, WKNavigationDelegate {
         config.applicationNameForUserAgent = "iPadDisplayApp"   // lets the page know it's in the app
         config.allowsInlineMediaPlayback = true
         config.suppressesIncrementalRendering = false
+        config.mediaTypesRequiringUserActionForPlayback = []    // PC sound can start by itself
+        config.userContentController.add(self, name: "clip")   // shared clipboard (PC -> iPad)
         let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
         web.isOpaque = false
@@ -54,6 +58,10 @@ final class Viewer: NSObject, WKNavigationDelegate {
         web.allowsLinkPreview = false
         webView = web
         relay.start()
+        NotificationCenter.default.addObserver(forName: UIPasteboard.changedNotification,
+                                               object: nil, queue: .main) { [weak self] _ in
+            self?.sendPasteboardIfChanged()
+        }
         showWaiting()
         scheduleLoad(after: 0.5)
     }
@@ -61,6 +69,7 @@ final class Viewer: NSObject, WKNavigationDelegate {
     func becameActive() {
         UIApplication.shared.isIdleTimerDisabled = true      // keep the screen on
         relay.reset()
+        sendPasteboardIfChanged()                            // copied in another app?
         if showingWaiting { scheduleLoad(after: 0.8) }
         // Otherwise the page reconnects by itself once fresh tunnels arrive.
     }
@@ -75,6 +84,40 @@ final class Viewer: NSObject, WKNavigationDelegate {
         }
         retry = work
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    // MARK: Shared clipboard
+
+    /// The page passes on something copied on the PC: put it on the iPad clipboard.
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "clip", let body = message.body as? [String: Any] else { return }
+        let pb = UIPasteboard.general
+        if let b64 = body["png"] as? String, let data = Data(base64Encoded: b64), let image = UIImage(data: data) {
+            pb.image = image
+        } else if let text = body["text"] as? String {
+            pb.string = text
+        } else {
+            return
+        }
+        lastPasteboard = pb.changeCount
+    }
+
+    /// Something new was copied on the iPad: send it to the PC clipboard.
+    private func sendPasteboardIfChanged() {
+        let pb = UIPasteboard.general
+        guard pb.changeCount != lastPasteboard, !showingWaiting else { return }
+        lastPasteboard = pb.changeCount
+        var payload: [String: String] = [:]
+        if pb.hasImages, let image = pb.image, let png = image.pngData(), png.count <= 8_000_000 {
+            payload["png"] = png.base64EncodedString()
+        } else if pb.hasStrings, let text = pb.string {
+            payload["text"] = text
+        } else {
+            return
+        }
+        guard let json = try? JSONSerialization.data(withJSONObject: payload),
+              let arg = String(data: json, encoding: .utf8) else { return }
+        webView.evaluateJavaScript("window.ipadClip && window.ipadClip(\(arg))", completionHandler: nil)
     }
 
     // MARK: WKNavigationDelegate

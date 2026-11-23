@@ -57,6 +57,14 @@ Controls are the same as before: tap, drag, hold for right click, two-finger scr
 - **Pinch** with two fingers to zoom in on small text, and pinch out to go back. Tapping still clicks exactly where you tap. **☰ > Fit whole screen** resets the zoom.
 - **☰ > Mirror laptop** makes the iPad show a copy of the laptop screen. **☰ > Extend** makes it a separate screen again. Windows may change the laptop's resolution while mirroring.
 
+## Shared clipboard
+
+Copy something on the laptop (text or a picture) and paste it on the iPad, or the other way round. It works while the iPad Display app is connected.
+- Laptop to iPad: copy as usual. It's on the iPad clipboard within half a second.
+- iPad to laptop: copy in any iPad app, then switch back to iPad Display. The first time, iPadOS asks **"Allow Paste"**. To stop it asking, go to **Settings > Apps > iPad Display > Paste from Other Apps** and choose **Allow**.
+- The laptop window shows `[clipboard] PC -> iPad` or `iPad -> PC` each time.
+- This needs the newest iPad Display app, so install the latest `IPadDisplay.ipa` once.
+
 ## Turn the iPad screen on and off automatically (optional, once)
 
 Normally the virtual screen stays plugged in to Windows even when the iPad isn't, so windows and your mouse can get lost on it. To have it appear only while you use the iPad:
