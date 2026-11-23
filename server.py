@@ -744,6 +744,15 @@ def make_app(cfg):
                         state["force"] = True
                     elif t == "refresh":
                         state["force"] = True
+                    elif t == "display":
+                        # Extend: the iPad is its own screen. Mirror: it shows a copy of
+                        # the laptop screen. The stream follows the change by itself.
+                        mode = {"extend": "/extend", "clone": "/clone"}.get(m.get("mode"))
+                        if mode and IS_WINDOWS:
+                            print(f"[screen] switching Windows to {'mirror' if mode == '/clone' else 'extend'} mode")
+                            import subprocess
+                            subprocess.Popen([os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
+                                             "System32", "DisplaySwitch.exe"), mode])
                     wake.set()
                 except Exception as e:  # never let a bad event kill the session
                     print("input error:", e)

@@ -99,6 +99,8 @@ It also switches off when the laptop restarts. If you move this folder, run `dis
 | Press and hold | Right click |
 | Two-finger tap | Right click |
 | Two-finger drag | Scroll |
+| Pinch | Zoom in on the iPad (☰ > Fit whole screen to reset). Taps still land exactly. |
+| ☰ > Mirror laptop / Extend | Show a copy of the laptop screen, or use the iPad as its own screen |
 | Apple Pencil | Precise mouse (hover moves the pointer on iPads that support it) |
 | ☰ button (top left) | Keyboard, Esc / Tab / Del, Copy / Paste / Undo, quality, disconnect |
 
