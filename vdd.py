@@ -64,9 +64,11 @@ def turn_on(count_screens, wait=10.0):
     return "on" if count_screens() > before else "failed"
 
 
-def turn_off():
+def turn_off(force=False):
+    """Turn the screen off if this host turned it on (or always, with force:
+    a profile that doesn't use the iPad as a screen, e.g. while gaming)."""
     global _turned_on
-    if _turned_on:
+    if _turned_on or (force and is_on()):
         _turned_on = False
         _schtasks("/run", "/tn", TASK_OFF)
 

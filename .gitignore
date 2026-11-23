@@ -9,3 +9,5 @@ ios/*.xcodeproj/
 vdd.log
 host.log
 host.log.old
+profiles.json
+profiles.json.tmp
