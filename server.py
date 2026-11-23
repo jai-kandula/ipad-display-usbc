@@ -373,52 +373,94 @@ def tiles_to_rects(mask):
 class _Grabber(threading.Thread):
     """Copies frames off the GPU on its own thread, so the next frame is being
     fetched while the previous one is compared and encoded. Only this thread
-    touches the dxcam camera once it is running."""
+    touches the dxcam camera, and it releases the camera when it ends.
 
-    def __init__(self, cam):
+    One grabber per screen is shared by every connection showing that screen
+    (dxcam hands out the same camera for the same screen, and two threads
+    grabbing from it at once makes DXGI fail). Each connection keeps its own
+    place with a frame number, so none of them steals frames from another."""
+
+    def __init__(self, cam, key):
         super().__init__(daemon=True, name="gpu-grab")
-        self.cam = cam
+        self.cam, self.key = cam, key
         self.cond = threading.Condition()
-        self.frame = None
+        self.frame, self.seq = None, 0
         self.err = None
         self.stopping = False
-        self.cap_t, self.n = 0.0, 0
+        self.cap_total = 0.0       # grab time and count, ever (readers keep deltas)
+        self.refs = 0
 
     def run(self):
-        while not self.stopping:
-            t0 = time.perf_counter()
-            try:
-                f = self.cam.grab(new_frame_only=True)
-            except Exception as e:      # display mode changed, driver reset, ...
+        try:
+            while not self.stopping:
+                t0 = time.perf_counter()
+                try:
+                    f = self.cam.grab(new_frame_only=True)
+                except Exception as e:      # display mode changed, driver reset, ...
+                    with self.cond:
+                        self.err = e
+                        self.cond.notify_all()
+                    return
+                if f is None:
+                    time.sleep(0.001)
+                    continue
+                dt = time.perf_counter() - t0
                 with self.cond:
-                    self.err = e
+                    self.frame = f          # newest frame wins; older ones are dropped
+                    self.seq += 1
+                    self.cap_total += dt
                     self.cond.notify_all()
-                return
-            if f is None:
-                time.sleep(0.001)
-                continue
-            dt = time.perf_counter() - t0
-            with self.cond:
-                self.frame = f          # newest frame wins; older ones are dropped
-                self.cap_t += dt
-                self.n += 1
-                self.cond.notify_all()
+        finally:
+            try:
+                self.cam.release()
+            except Exception:
+                pass
 
-    def take(self, timeout):
-        """Newest new frame (or None after timeout), plus grab stats since last call."""
+    def take(self, seen, timeout):
+        """(frame newer than `seen` or None after timeout, its number, grab seconds total)."""
         with self.cond:
-            if self.frame is None and self.err is None:
+            if self.seq <= seen and self.err is None:
                 self.cond.wait(timeout)
             if self.err is not None:
                 raise self.err
-            f, self.frame = self.frame, None
-            st = (self.cap_t, self.n)
-            self.cap_t, self.n = 0.0, 0
-            return f, st
+            if self.seq <= seen:
+                return None, seen, self.cap_total
+            return self.frame, self.seq, self.cap_total
+
+    @property
+    def broken(self):
+        return self.err is not None or not self.is_alive()
 
     def stop(self):
         self.stopping = True
-        self.join(timeout=1.0)
+        if threading.current_thread() is not self:
+            self.join(timeout=1.0)
+
+
+_GRABBERS = {}                     # (device, output) -> shared _Grabber
+
+
+def _grabber_get(key, open_cam):
+    """The shared grabber for a screen, starting one if needed. Call with _DX_LOCK held."""
+    g = _GRABBERS.get(key)
+    if g is not None and g.broken:
+        g.stop()                   # (its thread released the camera on the way out)
+        g = None
+    if g is None:
+        g = _Grabber(open_cam(), key)
+        g.start()
+        _GRABBERS[key] = g
+    g.refs += 1
+    return g
+
+
+def _grabber_put(g):
+    with _DX_LOCK:
+        g.refs -= 1
+        if g.refs <= 0:
+            if _GRABBERS.get(g.key) is g:
+                del _GRABBERS[g.key]
+            g.stop()
 
 
 class Session:
@@ -433,9 +475,10 @@ class Session:
         self.dims = (0, 0)
         self.scale = 1.0
         self.adapt = 0             # quality drop (0..30) when the link is slow
-        self.dx = None             # dxcam camera (GPU capture) if available
-        self.dx_tried = False
-        self.grab = None           # _Grabber thread feeding GPU frames
+        self.dx_next = 0.0         # when to (re)try GPU capture
+        self.dx_said = None        # last GPU message printed, so it isn't repeated
+        self.grab = None           # shared _Grabber feeding GPU frames
+        self.grab_seq, self.grab_cap = 0, 0.0
         self.wait = 1 / 60         # how long a step waits for a new GPU frame
         self.backend = "GDI"
         self.last = None           # last captured (array, colourspace)
@@ -483,14 +526,20 @@ class Session:
             self.sct.close()
         self.sct = _MSS()
         self._release_dx()
-        self.dx_tried, self.backend = False, "GDI"
+        self.dx_next, self.backend = 0.0, "GDI"
         self.last = None
         self.reset = True
 
+    def _say(self, msg):
+        if msg != self.dx_said:
+            self.dx_said = msg
+            print(msg)
+
     def _open_dxgi(self):
-        """Find the DXGI output for this screen and open a duplication on it."""
-        self.dx_tried = True
+        """Find the DXGI output for this screen and start (or join) its grabber."""
+        self.dx_next = time.perf_counter() + 5.0     # if this fails, try again in 5 s
         if dxcam is None:
+            self.dx_next = float("inf")
             if not getattr(Session, "_said_no_dxcam", False):
                 Session._said_no_dxcam = True
                 if DXCAM_ERROR:
@@ -501,28 +550,28 @@ class Session:
             return
         try:
             fac = getattr(dxcam, "__factory")
-            for attempt in (1, 2):
+            with _DX_LOCK:
                 found = self._find_output(fac)
-                if found:
-                    d, o = found
-                    self.dx = dxcam.create(device_idx=d, output_idx=o,
-                                           output_color="BGRA",
-                                           processor_backend="numpy")
-                    self.grab = _Grabber(self.dx)
-                    self.grab.start()
-                    self.backend = "GPU"
-                    return
-                if attempt == 1:
+                if not found and not _GRABBERS:
                     # dxcam lists the screens once, when it loads. A screen added
                     # since (the iPad's virtual screen being switched on) isn't in
-                    # that list, so look again.
-                    with _DX_LOCK:
-                        fac.__init__()
-            print(f"GPU capture couldn't find this screen ({self.mon['width']}x{self.mon['height']} at "
-                  f"{self.mon['left']},{self.mon['top']}), using GDI.")
+                    # that list, so look again (only while no camera is open).
+                    fac.__init__()
+                    found = self._find_output(fac)
+                if not found:
+                    self._say(f"GPU capture couldn't find this screen ({self.mon['width']}x{self.mon['height']} at "
+                              f"{self.mon['left']},{self.mon['top']}), using GDI for now.")
+                    return
+                d, o = found
+                self.grab = _grabber_get((d, o), lambda: dxcam.create(
+                    device_idx=d, output_idx=o, output_color="BGRA", processor_backend="numpy"))
+            self.grab_seq, self.grab_cap = self.grab.seq, self.grab.cap_total
+            if self.backend != "GPU" and self.dx_said is not None:
+                print("GPU capture is back on.")
+            self.backend, self.dx_said = "GPU", None
         except Exception as e:
-            print("GPU capture unavailable, using GDI:", e)
-        self.dx = None
+            self._say(f"GPU capture unavailable, using GDI for now: {e}")
+            self.grab = None
 
     def _find_output(self, fac):
         m = self.mon
@@ -537,18 +586,21 @@ class Session:
 
     def _capture(self):
         """Returns (array, colourspace), or None if the screen hasn't changed."""
-        if IS_WINDOWS and not self.dx_tried:
+        if IS_WINDOWS and self.grab is None and time.perf_counter() >= self.dx_next:
             self._open_dxgi()
         if self.grab is not None:
             try:
                 tw = time.perf_counter()
-                frame, (t, n) = self.grab.take(self.wait)
+                frame, seq, cap = self.grab.take(self.grab_seq, self.wait)
                 self.stats["idle"] = self.stats.get("idle", 0.0) + time.perf_counter() - tw
             except Exception as e:      # display mode changed, driver reset, ...
-                print("GPU capture stopped, switching to GDI:", e)
+                self._say(f"GPU capture stopped, using GDI for a moment: {e}")
                 self._release_dx()
                 self.backend = "GDI"
+                self.dx_next = time.perf_counter() + 2.0
             else:
+                n, t = seq - self.grab_seq, cap - self.grab_cap
+                self.grab_seq, self.grab_cap = seq, cap
                 self.stats["cap"] += t
                 self.stats["caps"] = self.stats.get("caps", 0) + n
                 self.stats["new"] = self.stats.get("new", 0) + n
@@ -686,14 +738,8 @@ class Session:
 
     def _release_dx(self):
         if self.grab is not None:
-            self.grab.stop()
+            _grabber_put(self.grab)
             self.grab = None
-        if self.dx is not None:
-            try:
-                self.dx.release()
-            except Exception:
-                pass
-            self.dx = None
 
     def _video(self, arr, cs):
         if not self.video_wanted or self.video_failed or cs != "BGRA":
