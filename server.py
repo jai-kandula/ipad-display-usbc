@@ -46,6 +46,7 @@ if IS_WINDOWS:
 
 import mss  # noqa: E402
 import numpy as np  # noqa: E402
+import pcaudio  # noqa: E402  (PC sound on the iPad)
 import clip  # noqa: E402  (shared clipboard)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
@@ -657,6 +658,26 @@ def make_app(cfg):
                                   "wired": is_wired(request.remote),
                                   "usb": request.remote == "127.0.0.1"})
 
+    async def audio_handler(request):
+        """PC sound for the iPad (see pcaudio.py)."""
+        if not authorized(request):
+            return web.Response(status=403, text="bad pin")
+        ws = web.WebSocketResponse(heartbeat=30, compress=False)
+        await ws.prepare(request)
+        if not pcaudio.AVAILABLE:
+            await ws.send_str('{"type":"nosound"}')
+            await ws.close()
+            return ws
+        reader = asyncio.ensure_future(ws.receive())        # notices the iPad closing it
+        sender = asyncio.ensure_future(pcaudio.stream(ws))
+        try:
+            await asyncio.wait({reader, sender}, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for t in (reader, sender):
+                t.cancel()
+            await ws.close()
+        return ws
+
     async def ws_handler(request):
         if not authorized(request):
             return web.Response(status=403, text="bad pin")
@@ -896,6 +917,7 @@ def make_app(cfg):
     app.router.add_get("/", index)
     app.router.add_get("/api/monitors", monitors)
     app.router.add_get("/ws", ws_handler)
+    app.router.add_get("/audio", audio_handler)
     app.router.add_static("/", WEB_DIR, show_index=False)
     return app
 

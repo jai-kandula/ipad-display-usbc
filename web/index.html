@@ -103,6 +103,7 @@
   <div class="row" id="modes">
     <button data-mode="fast">Fast</button><button data-mode="balanced">Balanced</button><button data-mode="sharp">Sharp</button><button data-mode="wired">Wired</button>
   </div>
+  <button id="m-sound">🔊  PC sound: on</button>
   <div class="row">
     <button id="m-zoom">Fit whole screen</button>
   </div>
@@ -308,12 +309,14 @@
     document.body.classList.add('live', 'waiting');
     requestWakeLock();
     connect();
+    soundUnlock();                 // works right away in the app; in Safari after the first tap
     markMode();
   }
   function stop() {
     live = false;
     clearTimeout(retryTimer);
     if (ws) { ws.onclose = null; ws.close(); ws = null; }
+    soundStop();
     document.body.classList.remove('live', 'waiting');
     $('menu').classList.remove('open');
     if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
@@ -397,6 +400,64 @@
       frames = 0; bytes = 0; decodeMs = 0; lastStat = now;
     }
   }
+  // ---------------------------------------------------------------- PC sound
+  // 16-bit stereo PCM at 48 kHz arrives on /audio and is played through an
+  // AudioWorklet ring buffer kept around 40-60 ms deep (dropping the excess if
+  // it grows, so sound never drifts behind the picture).
+  const SOUND_WORKLET = `
+    class PcPlayer extends AudioWorkletProcessor {
+      constructor() {
+        super();
+        this.buf = new Float32Array(48000 * 2);    // 1 s stereo ring
+        this.r = 0; this.w = 0; this.n = 0; this.primed = false;
+        this.port.onmessage = e => {
+          const s = new Int16Array(e.data), len = this.buf.length;
+          for (let i = 0; i < s.length; i++) { this.buf[this.w] = s[i] / 32768; this.w = (this.w + 1) % len; }
+          this.n = Math.min(len, this.n + s.length);
+          const max = 2 * 48 * 120;                // over 120 ms queued: skip ahead to 50 ms
+          if (this.n > max) { const drop = this.n - 2 * 48 * 50; this.r = (this.r + drop) % len; this.n -= drop; }
+        };
+      }
+      process(_, outputs) {
+        const L = outputs[0][0], R = outputs[0][1] || outputs[0][0], len = this.buf.length;
+        if (!this.primed) { if (this.n < 2 * 48 * 30) return true; this.primed = true; }
+        for (let i = 0; i < L.length; i++) {
+          if (this.n < 2) { this.primed = false; L[i] = R[i] = 0; continue; }
+          L[i] = this.buf[this.r]; R[i] = this.buf[(this.r + 1) % len];
+          this.r = (this.r + 2) % len; this.n -= 2;
+        }
+        return true;
+      }
+    }
+    registerProcessor('pc-player', PcPlayer);`;
+  let actx = null, player = null, aws = null, soundOn = store.get('sound', '1') === '1';
+  async function soundUnlock() {             // must run inside a tap the first time
+    if (!soundOn || !live) return;
+    try {
+      if (!actx) {
+        actx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000, latencyHint: 'interactive' });
+        await actx.audioWorklet.addModule(URL.createObjectURL(new Blob([SOUND_WORKLET], { type: 'text/javascript' })));
+        player = new AudioWorkletNode(actx, 'pc-player', { outputChannelCount: [2] });
+        player.connect(actx.destination);
+      }
+      if (actx.state !== 'running') await actx.resume();
+      soundConnect();
+    } catch (e) { console.log('sound unavailable', e); }
+  }
+  function soundConnect() {
+    if (aws || !soundOn || !live || !player) return;
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    aws = new WebSocket(`${proto}://${location.host}/audio?pin=${encodeURIComponent(store.get('pin', ''))}`);
+    aws.binaryType = 'arraybuffer';
+    aws.onmessage = ev => {
+      if (typeof ev.data === 'string') { if (ev.data.includes('nosound')) $('m-sound').textContent = '🔇  PC sound: not available'; return; }
+      player.port.postMessage(ev.data, [ev.data]);
+    };
+    aws.onclose = () => { aws = null; if (soundOn && live) setTimeout(soundConnect, 2000); };
+  }
+  function soundStop() { if (aws) { aws.onclose = null; aws.close(); aws = null; } }
+  function markSound() { $('m-sound').textContent = soundOn ? '🔊  PC sound: on' : '🔇  PC sound: off'; }
+
   // Called by the iPad app when something new was copied on the iPad.
   window.ipadClip = o => send({ t: 'clip', ...o });
   function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
@@ -468,6 +529,7 @@
 
   stage.addEventListener('pointerdown', e => {
     e.preventDefault();
+    if (soundOn && (!actx || actx.state !== 'running' || !aws)) soundUnlock();
     $('menu').classList.remove('open');
     stage.setPointerCapture(e.pointerId);
     touchActive = true;
@@ -610,6 +672,11 @@
   $('fab').addEventListener('click', () => $('menu').classList.toggle('open'));
   $('m-kbd').addEventListener('click', () => { $('menu').classList.remove('open'); kbd.focus(); kbd.setSelectionRange(2, 2); });
   $('m-disc').addEventListener('click', () => { store.set('auto', '0'); stop(); });
+  markSound();
+  $('m-sound').addEventListener('click', () => {
+    soundOn = !soundOn; store.set('sound', soundOn ? '1' : '0'); markSound();
+    if (soundOn) soundUnlock(); else soundStop();
+  });
   $('m-zoom').addEventListener('click', () => { setZoom(1); $('menu').classList.remove('open'); });
   document.querySelectorAll('#dispmode [data-display]').forEach(b => b.addEventListener('click', () => {
     send({ t: 'display', mode: b.dataset.display });
