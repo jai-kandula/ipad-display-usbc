@@ -15,9 +15,13 @@ except Exception:
     AVAILABLE = False
 
 # (encoder, input pixel format, options), fastest first.
+_NVENC = {"preset": "p1", "tune": "ull", "zerolatency": "1", "delay": "0",
+          "rc": "vbr", "cq": "21", "bf": "0", "forced-idr": "1"}
 CANDIDATES = [
-    ("h264_nvenc", "bgr0", {"preset": "p1", "tune": "ull", "zerolatency": "1", "delay": "0",
-                             "rc": "vbr", "cq": "21", "bf": "0", "forced-idr": "1"}),
+    # NVENC takes the captured BGRA pixels as they are, so the frame is handed
+    # over without any copy or colour conversion on the CPU.
+    ("h264_nvenc", "bgra", _NVENC),
+    ("h264_nvenc", "bgr0", _NVENC),
     ("h264_amf", "bgr0", {"usage": "ultralowlatency", "quality": "speed", "rc": "cqp",
                            "qp_i": "20", "qp_p": "22", "bf": "0"}),
     ("h264_qsv", "nv12", {"preset": "veryfast", "look_ahead": "0", "async_depth": "1",
@@ -83,11 +87,17 @@ class Encoder:
             print(f"[video] H.264 encoding on the {gpu} ({self.name}) at {width}x{height}", flush=True)
 
     def encode(self, bgra, key=False):
-        """bgra: HxWx4 uint8. Returns (avc bytes, is_key) or (None, False)."""
-        frame = av.VideoFrame.from_ndarray(bgra, format="bgra")
-        if self.pix != "bgra":
-            frame = frame.reformat(format=self.pix) if self.pix != "bgr0" else \
-                av.VideoFrame.from_ndarray(bgra, format="bgr0") if _has_bgr0() else frame.reformat(format="bgr0")
+        """bgra: HxWx4 uint8 (rows may be padded, as GPU capture gives them).
+        Returns (avc bytes, is_key) or (None, False)."""
+        frame = _wrap(bgra) if self.pix == "bgra" else None
+        if frame is None:
+            bgra = np.ascontiguousarray(bgra)
+            if self.pix == "bgr0" and _has_bgr0():
+                frame = av.VideoFrame.from_ndarray(bgra, format="bgr0")
+            else:
+                frame = av.VideoFrame.from_ndarray(bgra, format="bgra")
+                if self.pix != "bgra":
+                    frame = frame.reformat(format=self.pix)
         frame.pts = self.pts
         self.pts += 1
         if key:
@@ -112,6 +122,14 @@ class Encoder:
             self.ctx.close()
         except Exception:
             pass
+
+
+def _wrap(bgra):
+    """A frame that uses the array's memory directly (no copy), if PyAV can."""
+    try:
+        return av.VideoFrame.from_numpy_buffer(bgra, format="bgra")
+    except Exception:
+        return None
 
 
 _BGR0 = None

@@ -752,7 +752,7 @@ class Session:
                 self.video = video.Encoder(w, h)
                 self.video_key = True
             t0 = time.perf_counter()
-            body, is_key = self.video.encode(np.ascontiguousarray(arr), key=self.video_key)
+            body, is_key = self.video.encode(arr, key=self.video_key)
             self.stats["enc"] += time.perf_counter() - t0
         except Exception as e:
             print("[video] turned off, using pictures instead:", e)
