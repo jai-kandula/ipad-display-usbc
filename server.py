@@ -716,6 +716,7 @@ def make_app(cfg):
                             can_send.set()
                         continue
                     if t == "move":
+                        state["moves"] = state.get("moves", 0) + 1
                         INPUT.move(*to_screen(m))
                     elif t == "down":
                         INPUT.move(*to_screen(m))
@@ -768,7 +769,9 @@ def make_app(cfg):
                           f"{st['bytes'] / n / 1024:5.0f} KB/update | "
                           f"{st['bytes'] * 8 / 1e6 / secs:5.1f} Mbit/s | "
                           f"round trip {state['rtt_sum'] * 1000 / acks:4.0f} ms | "
-                          f"quality {st.get('q', '-')}", flush=True)
+                          f"quality {st.get('q', '-')} | "
+                          f"touch moves {state.get('moves', 0) / secs:3.0f}/s", flush=True)
+                    state["moves"] = 0
                     sess.stats = {"frames": 0, "cap": 0.0, "enc": 0.0, "bytes": 0}
                     state["rtt_sum"], state["acks"] = 0.0, 0
                     next_report = start + 5
