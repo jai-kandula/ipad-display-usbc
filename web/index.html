@@ -326,6 +326,10 @@
             else { canvas.width = m.width; canvas.height = m.height; }
             layout();
           }
+        } else if (m.type === 'clip') {
+          // Copied on the PC: the iPad app puts it on the iPad clipboard.
+          const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.clip;
+          if (h) h.postMessage(m.png ? { png: m.png } : { text: m.text || '' });
         } else if (m.type === 'cursor') {
           if (!touchActive) { cursor = { x: m.x, y: m.y, v: m.v }; drawCursor(); }
         }
@@ -379,6 +383,8 @@
       frames = 0; bytes = 0; decodeMs = 0; lastStat = now;
     }
   }
+  // Called by the iPad app when something new was copied on the iPad.
+  window.ipadClip = o => send({ t: 'clip', ...o });
   function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 
   // Watchdog: the PC sends something at least every 1.5 s. If nothing arrives
