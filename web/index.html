@@ -152,6 +152,10 @@
   #sheet .btns { display: flex; gap: 8px; margin-top: 12px; }
   #sheet .btns button { flex: 1; margin: 0; }
   #sheet .danger { color: #ff8a8a; }
+  #toast { position: fixed; z-index: 25; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    padding: 9px 16px; border-radius: 18px; background: rgba(20,22,28,.85); font-size: 15px; pointer-events: none;
+    opacity: 0; transition: opacity .25s; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  #toast.show { opacity: 1; }
   #kbd { position: fixed; left: -1000px; top: 0; width: 10px; height: 10px; opacity: 0; }
 </style>
 </head>
@@ -163,6 +167,7 @@
 <div id="status">Connecting…</div>
 <div id="night"></div>
 <div id="hud"></div>
+<div id="toast"></div>
 
 <div id="setup">
   <div class="card">
@@ -210,6 +215,7 @@
     <button data-mode="fast">Fast</button><button data-mode="balanced">Balanced</button><button data-mode="sharp">Sharp</button><button data-mode="wired">Wired</button>
   </div>
   <button class="tog" id="m-video" style="width:100%"><span>Video mode<small>Smooth scrolling and dragging</small></span></button>
+  <button class="tog" id="m-pen" style="width:100%"><span>Pencil pressure<small>Draw and write with pressure and tilt in Windows apps</small></span></button>
   <button class="tog" id="m-night" style="width:100%"><span>Night mode<small>Warmer colours</small></span></button>
   <button id="m-zoom" style="width:100%;margin-top:6px">Fit whole screen</button>
 
@@ -359,6 +365,7 @@
       if (r.status === 403) { errEl.textContent = 'That PIN is not right.'; goEl.disabled = true; return; }
       const j = await r.json();
       monitors = j.monitors;
+      penOK = !!j.pen; markPen();
       if (j.usb) {                       // over the USB-C cable: no PIN needed
         noPin = true;
         pinEl.style.display = 'none'; $('pinlabel').style.display = 'none';
@@ -770,6 +777,47 @@
     return { x: x / touches.size, y: y / touches.size };
   }
 
+  // Apple Pencil as a Windows pen (pressure and tilt), when the host supports it.
+  let penOK = false;
+  const usePen = e => e.pointerType === 'pen' && penOK && store.get('pen', '1') === '1';
+  function penMsg(s, e) {
+    return { t: 'pen', s, ...norm(e.clientX, e.clientY), p: e.pressure || 0.5,
+             tx: e.tiltX || 0, ty: e.tiltY || 0 };
+  }
+  function markPen() { $('m-pen').classList.toggle('on', penOK && store.get('pen', '1') === '1'); $('m-pen').classList.toggle('na', !penOK); }
+  $('m-pen').addEventListener('click', () => { if (penOK) { store.set('pen', store.get('pen', '1') === '1' ? '0' : '1'); markPen(); } });
+  stage.addEventListener('pointerleave', e => { if (usePen(e)) send(penMsg('leave', e)); });
+
+  // Magic Keyboard trackpad (or a mouse wheel): two-finger scrolling.
+  let wheelAcc = { x: 0, y: 0 };
+  stage.addEventListener('wheel', e => {
+    e.preventDefault();
+    const k = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 800 : 1;
+    wheelAcc.y += -e.deltaY * k * 1.2;          // 120 = one wheel notch
+    wheelAcc.x += e.deltaX * k * 1.2;
+    const dy = Math.trunc(wheelAcc.y), dx = Math.trunc(wheelAcc.x);
+    if (Math.abs(dy) >= 20 || Math.abs(dx) >= 20) {
+      send({ t: 'scroll', dx: Math.abs(dx) >= 20 ? dx : 0, dy: Math.abs(dy) >= 20 ? dy : 0 });
+      if (Math.abs(dy) >= 20) wheelAcc.y -= dy;
+      if (Math.abs(dx) >= 20) wheelAcc.x -= dx;
+    }
+  }, { passive: false });
+
+  // Three-finger swipes: left/right throw the active window to the next screen,
+  // up shows all windows, down shows the desktop.
+  let three = null;
+  let toastTimer = null;
+  function toast(t) { $('toast').textContent = t; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 1200); }
+  function threeDone() {
+    const dx = three.last.x - three.start.x, dy = three.last.y - three.start.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 90) return;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      send({ t: 'key', k: dx > 0 ? 'ArrowRight' : 'ArrowLeft', mods: ['Win', 'Shift'] });
+      toast(dx > 0 ? 'Window → next screen' : '← Window to next screen');
+    } else if (dy < 0) { send({ t: 'key', k: 'Tab', mods: ['Win'] }); toast('All windows'); }
+    else { send({ t: 'key', k: 'd', mods: ['Win'] }); toast('Desktop'); }
+  }
+
   stage.addEventListener('pointerdown', e => {
     e.preventDefault();
     if (soundOn && (!actx || actx.state !== 'running' || !aws)) soundUnlock();
@@ -777,6 +825,7 @@
     stage.setPointerCapture(e.pointerId);
     touchActive = true;
     localCursor(e.clientX, e.clientY);
+    if (usePen(e)) { send(penMsg('down', e)); return; }
     if (e.pointerType !== 'touch') {            // Apple Pencil or trackpad: direct and precise
       send({ t: 'down', b: e.button === 2 ? 2 : 0, ...norm(e.clientX, e.clientY) });
       return;
@@ -798,11 +847,20 @@
       gesture = 'two';                         // becomes 'scroll' or 'zoom' once it moves
       scrollRef = centroid(); scrollOrigin = scrollRef; moved = 0; scrollAcc = { x: 0, y: 0 };
       pinch0 = { d: spread(), z: view.z, c: scrollRef, vx: view.x, vy: view.y };
+    } else if (touches.size === 3) {
+      gesture = 'three';
+      three = { start: centroid(), last: centroid() };
     }
   }, { passive: false });
 
   stage.addEventListener('pointermove', e => {
     e.preventDefault();
+    if (usePen(e)) {                            // every sample, for smooth strokes
+      localCursor(e.clientX, e.clientY);
+      const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+      (evs.length ? evs : [e]).forEach(ev => send(penMsg(e.buttons ? 'move' : 'hover', ev)));
+      return;
+    }
     if (e.pointerType !== 'touch') {            // pencil: also follows hover
       localCursor(e.clientX, e.clientY);
       queueMove(norm(e.clientX, e.clientY));
@@ -819,6 +877,8 @@
         send({ t: 'down', b: 0, ...norm(startPt.x, startPt.y) });
       }
       if (gesture === 'drag') { localCursor(t.x, t.y); queueMove(norm(t.x, t.y)); }
+    } else if (gesture === 'three') {
+      if (touches.size === 3) three.last = centroid();
     } else if (gesture === 'two') {
       const c = centroid();
       const dSpread = Math.abs(spread() - pinch0.d), dMove = Math.hypot(c.x - scrollOrigin.x, c.y - scrollOrigin.y);
@@ -851,6 +911,7 @@
 
   function endPointer(e) {
     e.preventDefault();
+    if (usePen(e)) { send(penMsg('up', e)); touchActive = false; return; }
     if (e.pointerType !== 'touch') {
       flushMove();
       send({ t: 'up', b: e.button === 2 ? 2 : 0, ...norm(e.clientX, e.clientY) });
@@ -872,6 +933,8 @@
       if (now - lastTap.t < 400 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 30) p = { x: lastTap.x, y: lastTap.y };
       send({ t: 'click', b: 0, ...norm(p.x, p.y) });
       lastTap = { t: now, x: p.x, y: p.y };
+    } else if (gesture === 'three') {
+      threeDone();
     } else if (gesture === 'zoom') {
       if (view.z < 1.08) setZoom(1);          // snap back to the whole screen
     } else if ((gesture === 'scroll' || gesture === 'two') && moved < TAP_SLOP && dur < 350) {
