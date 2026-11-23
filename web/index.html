@@ -83,7 +83,7 @@
   /* corner status overlay */
   #hud { position: fixed; z-index: 18; right: calc(8px + env(safe-area-inset-right)); top: calc(8px + env(safe-area-inset-top));
     display: none; padding: 5px 10px; border-radius: 12px; font: 12px ui-monospace, Menlo, monospace; color: #dfe4ec;
-    background: rgba(20,22,28,.7); pointer-events: none; }
+    background: rgba(20,22,28,.7); pointer-events: none; white-space: pre; text-align: right; }
   body.live.hud #hud { display: block; }
 
   /* night mode: a warm tint over the picture */
@@ -598,6 +598,8 @@
           renderWindows(m);
         } else if (m.type === 'screen') {
           onScreenMsg(m);
+        } else if (m.type === 'speed') {
+          pcSpeed = m; drawHud();
         } else if (m.type === 'pong') {
           hudRtt = Math.round(performance.now() - m.c); drawHud();
         } else if (m.type === 'cursor') {
@@ -719,13 +721,22 @@
   // Called by the iPad app when something new was copied on the iPad.
   window.ipadClip = o => send({ t: 'clip', ...o });
   // ---------------------------------------------------------------- status corner
-  let hudFps = 0, hudRtt = null, battery = null;
+  let hudFps = 0, hudRtt = null, battery = null, pcSpeed = null;
   function drawHud() {
     if (!document.body.classList.contains('hud')) return;
     const parts = [`${hudFps} fps`];
     if (hudRtt !== null) parts.push(`${hudRtt} ms`);
     if (battery) parts.push(`${battery.charging ? '⚡' : '🔋'} ${Math.round(battery.level * 100)}%`);
-    $('hud').textContent = parts.join('  ·  ');
+    let text = parts.join('  ·  ');
+    // The PC's side (from the [speed] line): how fast Windows draws this
+    // screen, how many touch moves reach it, and how long each update takes.
+    if (pcSpeed) {
+      const r = Math.round, s = pcSpeed;
+      text += `\nPC ${r(s.screen)} fps · touch ${r(s.moves)}/s · ${s.backend}` +
+              `\nwork ${s.work.toFixed(1)} ms · enc ${s.enc.toFixed(1)} ms · ${s.mbit.toFixed(0)} Mbit/s` +
+              (s.video >= 1 ? `\nvideo ${r(s.video)}/s${s.encoder ? ' · ' + s.encoder.replace('h264_', '') : ''}` : '');
+    }
+    $('hud').textContent = text;
   }
   // The iPad app reports the battery (Safari doesn't let web pages read it).
   window.ipadBattery = (level, charging) => { if (level >= 0) battery = { level, charging }; drawHud(); };
