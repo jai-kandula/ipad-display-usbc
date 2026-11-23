@@ -16,7 +16,7 @@ struct IPadDisplayApp: App {
                 .background(Color.black)
         }
         .onChange(of: phase) { newPhase in
-            if newPhase == .active { Viewer.shared.becameActive() }
+            if newPhase == .active { Viewer.shared.becameActive() } else { Viewer.shared.setDim(false) }
         }
     }
 }
@@ -37,6 +37,8 @@ final class Viewer: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
     private let serverURL = URL(string: "http://127.0.0.1:\(Relay.viewerPort)/")!
     /// Last iPad clipboard state we know about, so we only send real changes.
     private var lastPasteboard = UIPasteboard.general.changeCount
+    /// Brightness before the page dimmed the screen (the PC went to sleep), if dimmed.
+    private var brightnessBeforeDim: CGFloat?
 
     override init() {
         super.init()
@@ -46,6 +48,7 @@ final class Viewer: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         config.suppressesIncrementalRendering = false
         config.mediaTypesRequiringUserActionForPlayback = []    // PC sound can start by itself
         config.userContentController.add(self, name: "clip")   // shared clipboard (PC -> iPad)
+        config.userContentController.add(self, name: "screen") // dim while the PC sleeps
         let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
         web.isOpaque = false
@@ -61,6 +64,12 @@ final class Viewer: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         NotificationCenter.default.addObserver(forName: UIPasteboard.changedNotification,
                                                object: nil, queue: .main) { [weak self] _ in
             self?.sendPasteboardIfChanged()
+        }
+        UIDevice.current.isBatteryMonitoringEnabled = true      // for the status corner
+        for name in [UIDevice.batteryLevelDidChangeNotification, UIDevice.batteryStateDidChangeNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                self?.sendBattery()
+            }
         }
         showWaiting()
         scheduleLoad(after: 0.5)
@@ -90,6 +99,10 @@ final class Viewer: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
 
     /// The page passes on something copied on the PC: put it on the iPad clipboard.
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "screen", let body = message.body as? [String: Any] {
+            setDim(body["dim"] as? Bool ?? false)
+            return
+        }
         guard message.name == "clip", let body = message.body as? [String: Any] else { return }
         let pb = UIPasteboard.general
         if let b64 = body["png"] as? String, let data = Data(base64Encoded: b64), let image = UIImage(data: data) {
@@ -120,10 +133,36 @@ final class Viewer: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         webView.evaluateJavaScript("window.ipadClip && window.ipadClip(\(arg))", completionHandler: nil)
     }
 
+    // MARK: Battery and brightness
+
+    /// Tell the page the iPad's battery (web pages can't read it themselves).
+    private func sendBattery() {
+        let device = UIDevice.current
+        guard !showingWaiting, device.batteryLevel >= 0 else { return }
+        let charging = device.batteryState == .charging || device.batteryState == .full
+        webView.evaluateJavaScript("window.ipadBattery && window.ipadBattery(\(device.batteryLevel), \(charging))",
+                                   completionHandler: nil)
+    }
+
+    /// Dim the screen while the PC is asleep or off, and put it back after.
+    func setDim(_ dim: Bool) {
+        let screen = webView.window?.windowScene?.screen ?? UIScreen.main
+        if dim, brightnessBeforeDim == nil {
+            brightnessBeforeDim = screen.brightness
+            screen.brightness = 0.02
+        } else if !dim, let before = brightnessBeforeDim {
+            screen.brightness = before
+            brightnessBeforeDim = nil
+        }
+    }
+
     // MARK: WKNavigationDelegate
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if webView.url?.host == "127.0.0.1" { showingWaiting = false }
+        if webView.url?.host == "127.0.0.1" {
+            showingWaiting = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.sendBattery() }
+        }
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {

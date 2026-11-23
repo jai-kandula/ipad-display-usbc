@@ -102,6 +102,20 @@ In **☰ > Screen** you can change the iPad's screen in Windows without opening 
 
 Only the iPad's screen is changed. The laptop's main screen is always left alone.
 
+## Icon next to the clock
+
+While the host runs, an iPad icon sits next to the Windows clock (it may be under the **^** arrow). It's **blue** while the iPad is connected and grey while it waits. Right-click it to:
+- see what the iPad is doing,
+- switch **Profile** (Work, Gaming, or your own),
+- open the log or this folder,
+- **Quit iPad Display** (this also turns the iPad screen off, like closing the window).
+
+start.bat installs the small `pystray` package for this, so run start.bat once after updating. To hide the icon, start with `start.bat --no-tray`.
+
+## When the laptop sleeps
+
+If the laptop goes to sleep, closes its lid or shuts down, the iPad goes black after 15 seconds and the app turns its brightness right down, so it doesn't sit there lit up. When the laptop wakes, the picture and brightness come back by themselves. Tap the iPad to brighten it in the meantime. The iPad app also keeps the iPad awake while it's connected, and shows its battery in the status corner (**☰ > Status corner**).
+
 ## Put apps on the iPad
 
 **☰ > Apps on the iPad** lists the windows open on the laptop.

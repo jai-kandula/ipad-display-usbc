@@ -729,6 +729,18 @@ def list_monitors():
 # --------------------------------------------------------------------------
 # Profiles: what the iPad is for right now (see deck.py)
 # --------------------------------------------------------------------------
+# What the iPad is doing right now, for the tray icon.
+STATUS = {"streams": 0, "deck_seen": 0.0}
+
+
+def status_text():
+    if STATUS["streams"]:
+        return True, "iPad connected, showing the screen"
+    if time.time() - STATUS["deck_seen"] < 12:
+        return True, "iPad connected, button deck"
+    return False, "waiting for the iPad"
+
+
 class DeckProfiles:
     """Switches profiles, and turns the iPad's virtual screen on or off to
     match when screen control is set up (display-setup.bat)."""
@@ -802,6 +814,7 @@ def make_app(cfg):
     async def profiles_get(request):
         if not authorized(request):
             return web.json_response({"error": "bad pin"}, status=403)
+        STATUS["deck_seen"] = time.time()          # the deck checks in every 5 s
         return web.json_response(DECK.data())
 
     async def profiles_put(request):
@@ -888,6 +901,7 @@ def make_app(cfg):
         cap_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="capture")  # mss is per-thread
         mon = await loop.run_in_executor(cap_pool, sess.monitor)
         winpin.target["mon"] = dict(mon)
+        STATUS["streams"] += 1
         print(f"[+] iPad connected from {request.remote} -> screen "
               f"{mon['width']}x{mon['height']} at ({mon['left']},{mon['top']})")
 
@@ -1147,6 +1161,7 @@ def make_app(cfg):
                 winpin.target["mon"] = None
             await loop.run_in_executor(cap_pool, sess.close)
             cap_pool.shutdown(wait=False)
+            STATUS["streams"] -= 1
             print(f"[-] iPad disconnected ({request.remote})")
         return ws
 
@@ -1160,7 +1175,24 @@ def make_app(cfg):
     app.router.add_post("/api/profile", profile_switch)
     app.router.add_post("/api/action", deck_action)
     app.router.add_static("/", WEB_DIR, show_index=False)
+
+    async def remember_loop(app):
+        app["loop"] = asyncio.get_running_loop()
+    app.on_startup.append(remember_loop)
     return app
+
+
+def _quit_from_tray(app):
+    """Stop the host as Ctrl+C would (so the iPad screen is switched off too)."""
+    from aiohttp.web_runner import GracefulExit
+
+    def stop():
+        raise GracefulExit()
+    loop = app.get("loop")
+    if loop is not None:
+        loop.call_soon_threadsafe(stop)
+    else:
+        os._exit(0)
 
 
 def _log_to_file(path):
@@ -1182,6 +1214,7 @@ def main():
     ap.add_argument("--background", action="store_true",
                     help="run without a window (auto-start): log to host.log, and turn the "
                          "iPad's virtual screen on only while an iPad is plugged in")
+    ap.add_argument("--no-tray", action="store_true", help="don't show the icon next to the clock")
     ap.add_argument("--keep-screen", action="store_true",
                     help="don't turn the iPad's virtual screen on/off automatically")
     args = ap.parse_args()
@@ -1251,6 +1284,10 @@ def main():
     print("=" * 62)
     app = make_app(cfg)
     winpin.start()
+    if IS_WINDOWS and not args.no_tray:
+        import tray
+        tray.Tray(status_text, DECK, os.path.join(HERE, "host.log"), HERE,
+                  lambda: _quit_from_tray(app)).start()
     import usb_bridge
     usb_bridge.start(app, args.port, on_plug)
     try:
