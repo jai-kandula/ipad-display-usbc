@@ -84,6 +84,8 @@ SMALL_CHANGE = 0.08           # < 8% of the screen changed: send straight at hig
 FULL_FRAME = 0.45             # > 45% changed: send the whole screen as stripes
 SETTLE_SECONDS = 0.12         # screen still for this long: sharpen blurry tiles
 MAX_IN_FLIGHT = 2             # frames sent but not yet shown on the iPad
+SHARPEN_CHUNK = 0.2           # sharpen at most this share of the screen per update,
+                              # so a big re-send never blocks the next motion frame
 
 # Quality profiles. lo = while things move, hi = once they settle.
 PROFILES = {
@@ -98,7 +100,7 @@ PROFILES = {
     # service): crisp 4:4:4 for small changes and once things settle, lighter
     # 4:2:0 frames while things move so frames never pile up in the cable.
     "wired":    {"lo": 70, "hi": 92, "hi_sub": "444", "lo_sub": "420",
-                 "small": 0.15, "settle": 0.06},
+                 "small": 0.15, "settle": 0.15},
 }
 
 # Address ranges that mean "connected by cable" (see WIRED.md):
@@ -343,6 +345,7 @@ class Session:
         self.backend = "GDI"
         self.last = None           # last captured (array, colourspace)
         self.stats = {"frames": 0, "cap": 0.0, "enc": 0.0, "bytes": 0}
+        self._diff = None          # reused buffer for the changed-pixel mask
 
     def set_profile(self, name):
         self.profile = PROFILES.get(name, PROFILES["balanced"])
@@ -436,6 +439,13 @@ class Session:
 
     def step(self, force=False):
         """Capture once. Returns (packet bytes | None, (w, h))."""
+        t0 = time.perf_counter()
+        try:
+            return self._step(force)
+        finally:
+            self.stats["work"] = self.stats.get("work", 0.0) + time.perf_counter() - t0
+
+    def _step(self, force=False):
         if self.mon is None:
             self.monitor()
         self._check_geometry()
@@ -444,6 +454,8 @@ class Session:
         self.stats["cap"] += time.perf_counter() - t0
         self.stats["caps"] = self.stats.get("caps", 0) + 1
         unchanged = cap is None
+        if not unchanged:
+            self.stats["new"] = self.stats.get("new", 0) + 1
         if unchanged:
             if self.last is None:
                 return None, self.dims
@@ -468,12 +480,24 @@ class Session:
             self.last_change = now
             return self._pack(arr, cs, self._stripes(w, h), hi, prof["hi_sub"], key=True), self.dims
 
-        diff = None if unchanged else (cur != self.prev)
+        if unchanged:
+            diff = None
+        else:
+            if self._diff is None or self._diff.shape != cur.shape:
+                self._diff = np.empty(cur.shape, bool)
+            diff = np.not_equal(cur, self.prev, out=self._diff)
         if diff is None or not diff.any():
             # Nothing moved. If something was sent blurry, sharpen it now.
+            # Done in slices (top to bottom) so no single update is huge: if
+            # things start moving again, the next motion frame isn't stuck
+            # behind a megabyte of sharpening in the cable.
             if self.blurry.any() and now - self.last_change >= prof.get("settle", SETTLE_SECONDS):
-                rects = self._px(tiles_to_rects(self.blurry), w, h)
-                self.blurry[:] = False
+                budget = max(1, int(self.blurry.size * SHARPEN_CHUNK))
+                upto = int(np.searchsorted(np.cumsum(self.blurry.sum(axis=1)), budget)) + 1
+                part = np.zeros_like(self.blurry)
+                part[:upto] = self.blurry[:upto]
+                self.blurry &= ~part
+                rects = self._px(tiles_to_rects(part), w, h)
                 return self._pack(arr, cs, rects, hi, prof["hi_sub"]), self.dims
             return None, self.dims
 
@@ -676,8 +700,10 @@ def make_app(cfg):
                     st, n = sess.stats, max(1, sess.stats["frames"])
                     secs = start - next_report + 5
                     acks = max(1, state["acks"])
-                    print(f"[speed] {st['frames'] / secs:4.0f} updates/s | "
+                    print(f"[speed] {st.get('new', 0) / secs:4.0f} screen fps | "
+                          f"{st['frames'] / secs:4.0f} updates/s | "
                           f"capture {st['cap'] * 1000 / max(1, st.get('caps', 0)):4.1f} ms ({sess.backend}) | "
+                          f"work {st.get('work', 0) * 1000 / max(1, st.get('caps', 0)):4.1f} ms | "
                           f"encode {st['enc'] * 1000 / n:4.1f} ms | "
                           f"{st['bytes'] / n / 1024:5.0f} KB/update | "
                           f"{st['bytes'] * 8 / 1e6 / secs:5.1f} Mbit/s | "
