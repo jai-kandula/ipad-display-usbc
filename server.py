@@ -810,6 +810,9 @@ def make_app(cfg):
                     elif t == "mode":
                         sess.set_profile(str(m.get("mode", "balanced")))
                         state["force"] = True
+                    elif t == "ping":          # the iPad measures the round trip
+                        await ws.send_str(json.dumps({"type": "pong", "c": m.get("c", 0)}))
+                        continue
                     elif t == "refresh":
                         state["force"] = True
                     elif t == "vkey":
