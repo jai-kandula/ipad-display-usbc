@@ -33,6 +33,13 @@ from concurrent.futures import ThreadPoolExecutor
 
 IS_WINDOWS = sys.platform == "win32"
 
+# GPU capture (dxcam, through comtypes) and PC sound (soundcard) both set up
+# Windows COM on this thread. soundcard asks for the multithreaded kind; comtypes
+# defaults to the other kind and then refuses to load at all. Agree on
+# multithreaded before either is imported.
+if IS_WINDOWS:
+    sys.coinit_flags = 0      # COINIT_MULTITHREADED
+
 # Must happen before anything touches the screen, so that coordinates are real
 # pixels and not DPI-scaled ones.
 if IS_WINDOWS:
@@ -83,8 +90,10 @@ try:
         import dxcam  # type: ignore
     else:
         dxcam = None
-except Exception:
+    DXCAM_ERROR = None
+except Exception as _e:
     dxcam = None
+    DXCAM_ERROR = f"{type(_e).__name__}: {_e}"   # installed but failed to load: say why
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(HERE, "web")
@@ -484,8 +493,11 @@ class Session:
         if dxcam is None:
             if not getattr(Session, "_said_no_dxcam", False):
                 Session._said_no_dxcam = True
-                print("GPU capture unavailable (the dxcam package isn't installed), using GDI. "
-                      "Run start.bat once with internet to install it.")
+                if DXCAM_ERROR:
+                    print(f"GPU capture unavailable (dxcam failed to load: {DXCAM_ERROR}), using GDI.")
+                else:
+                    print("GPU capture unavailable (the dxcam package isn't installed), using GDI. "
+                          "Run start.bat once with internet to install it.")
             return
         try:
             fac = getattr(dxcam, "__factory")
