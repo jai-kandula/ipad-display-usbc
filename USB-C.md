@@ -72,6 +72,21 @@ Whatever the laptop plays also comes out of the iPad's speakers, about 50 ms beh
 - The laptop keeps playing the sound too. Turn the laptop's volume down if you only want it on the iPad. If the iPad goes quiet when the laptop is muted, leave the laptop at a low volume instead.
 - start.bat installs the small `soundcard` package for this. If the menu says "not available", run start.bat again with an internet connection.
 
+## Profiles and the button deck (Work and Gaming)
+
+A **profile** says what the iPad is for right now. Switch with **☰ > Profile**, or the buttons along the top of the deck. Two come ready to use:
+
+- **💼 Work**: the iPad is your second screen. A panel of shortcut buttons (copy, paste, screenshot, task view and more) slides out when you tap the small **‹** tab on the right edge.
+- **🎮 Gaming**: the whole iPad becomes a grid of big buttons, like a Stream Deck: mute mic, deafen, save a clip, screenshot, volume and music. **Nothing is streamed**, and if you ran `display-setup.bat` the iPad screen is also removed from Windows, so the game runs as if the iPad weren't there. A tap costs the laptop about as much as pressing a key.
+
+To change things, tap **Edit** on the deck (or **☰ > Edit buttons and profiles**):
+
+- Tap a button to change it, or **+ Add button** for a new one. A button can **press keys** (like `ctrl+shift+m`, `win+d`, `alt+f10`, `f13`, `playpause`, `volup`), **type text**, **open** an app, file or link (`obs64.exe`, `steam://`, `https://…`), or **switch profile**. Use the ◀ ▶ buttons to move it.
+- **⚙︎ Profile** sets the name, icon, buttons per row, and whether the profile shows the PC screen, the button panel, and keeps the iPad screen in Windows. **+ Profile** makes a new one (for example one per game).
+- Tip: some games ignore keys that come from another device. Buttons work best when they press shortcuts for apps like Discord, OBS or NVIDIA. Give the app a spare shortcut such as `ctrl+alt+f13` and put the same one on the button.
+
+Your profiles are saved on the laptop in `profiles.json` in this folder, so they're kept when you update the app.
+
 ## Video mode (smoother scrolling and dragging)
 
 While things move, the picture is sent as **H.264 video**, encoded by the laptop's graphics card (NVIDIA, AMD or Intel) and decoded by the iPad's video chip. That needs far less data than pictures, so scrolling, dragging windows and videos stay smooth. Typing and small changes are still sent as sharp pictures straight away, and once things stop moving, the moved areas are re-sent at full sharpness, exactly as before.
@@ -93,7 +108,7 @@ It also switches off when the laptop restarts. If you move this folder, run `dis
 
 Run **`autostart-setup.bat`** once (after start.bat has run at least once). From then on the host runs in the background whenever you log in to Windows. There's no window, so you never have to open start.bat: **just plug in the iPad and open the app.**
 
-- If you also ran `display-setup.bat`, the virtual screen turns **on when you plug the iPad in** and **off when you unplug it**.
+- If you also ran `display-setup.bat`, the virtual screen turns **on when you plug the iPad in** and **off when you unplug it** (it stays off while a profile like Gaming doesn't use the screen).
 - The host's messages, including the `[speed]` lines, go to **`host.log`** in this folder.
 - If Windows Firewall asks about "pythonw", allow it on Private networks. It only matters for Wi-Fi.
 - To turn auto-start off, run `autostart-setup.bat remove`. That also stops the background host.

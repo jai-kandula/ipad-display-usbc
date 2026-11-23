@@ -49,6 +49,7 @@ import numpy as np  # noqa: E402
 import video  # noqa: E402  (H.264 for moving content)
 import pcaudio  # noqa: E402  (PC sound on the iPad)
 import clip  # noqa: E402  (shared clipboard)
+import deck  # noqa: E402  (profiles and the button deck)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -276,6 +277,27 @@ class Input:
         items = [self._key(m) for m in mod_vks]
         items += [self._key(vk), self._key(vk, flags=self.KEYUP)]
         items += [self._key(m, flags=self.KEYUP) for m in reversed(mod_vks)]
+        self._send(items)
+
+    # Keys Windows marks as "extended" (arrows, Win, media keys...): games and
+    # apps that read scan codes need the flag to tell them from the numpad.
+    EXTENDED = {0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2C, 0x2D, 0x2E,
+                0x5B, 0x5C, 0x5D, 0x6F, 0x90, 0xA3, 0xA5} | set(range(0xA6, 0xB8))
+
+    def _scan_key(self, vk, up=False):
+        scan = self.user32.MapVirtualKeyW(vk, 0) & 0xFF
+        flags = (self.KEYUP if up else 0) | (0x0001 if vk in self.EXTENDED else 0)
+        return self._key(vk, scan, flags)
+
+    def combo(self, vk, mods=()):
+        """Press a key by virtual-key code with modifiers held (the button deck).
+        Fills in the scan code too, so games and global hotkeys see it."""
+        if not self.ok:
+            return
+        mod_vks = [self.VK[m] for m in mods if m in self.VK]
+        items = [self._scan_key(m) for m in mod_vks]
+        items += [self._scan_key(vk), self._scan_key(vk, up=True)]
+        items += [self._scan_key(m, up=True) for m in reversed(mod_vks)]
         self._send(items)
 
 
@@ -678,6 +700,54 @@ def list_monitors():
 
 
 # --------------------------------------------------------------------------
+# Profiles: what the iPad is for right now (see deck.py)
+# --------------------------------------------------------------------------
+class DeckProfiles:
+    """Switches profiles, and turns the iPad's virtual screen on or off to
+    match when screen control is set up (display-setup.bat)."""
+
+    def __init__(self):
+        self.screen_ctl = False      # main() turns this on when vdd can switch the screen
+        self.lock = threading.Lock()
+
+    def data(self):
+        d = deck.load()
+        d["screen_control"] = self.screen_ctl
+        return d
+
+    def active(self):
+        d = deck.load()
+        return deck.find(d, d.get("active")) or d["profiles"][0]
+
+    def apply_screen(self, prof):
+        if not self.screen_ctl:
+            return
+        import vdd
+        with self.lock:
+            if prof.get("screen", True):
+                vdd.turn_on(lambda: len(list_monitors()))
+            else:
+                vdd.turn_off(force=True)
+
+    def switch(self, name):
+        """Make `name` active and match the screen to it (blocks while Windows
+        adds or removes the screen, a few seconds). Returns the new data."""
+        d = deck.load()
+        prof = deck.find(d, name)
+        if prof is None:
+            raise ValueError(f"no profile named '{name}'")
+        d["active"] = name
+        d.pop("screen_control", None)
+        deck.save(d)
+        print(f"[profile] {name}", flush=True)
+        self.apply_screen(prof)
+        return self.data()
+
+
+DECK = DeckProfiles()
+
+
+# --------------------------------------------------------------------------
 # HTTP + WebSocket server
 # --------------------------------------------------------------------------
 def make_app(cfg):
@@ -701,6 +771,55 @@ def make_app(cfg):
                                   "fastjpeg": simplejpeg is not None,
                                   "wired": is_wired(request.remote),
                                   "usb": request.remote == "127.0.0.1"})
+
+    async def profiles_get(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        return web.json_response(DECK.data())
+
+    async def profiles_put(request):
+        """Save edited profiles and buttons from the iPad."""
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        try:
+            body = await request.json()
+            body.pop("screen_control", None)
+            deck.save(body)
+        except (ValueError, TypeError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+        return web.json_response(DECK.data())
+
+    async def profile_switch(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        try:
+            name = (await request.json())["name"]
+            data = await asyncio.get_running_loop().run_in_executor(None, DECK.switch, name)
+        except (ValueError, KeyError, TypeError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+        return web.json_response(data)
+
+    async def deck_action(request):
+        """A deck button was tapped: {profile, index}."""
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        try:
+            body = await request.json()
+            prof = deck.find(deck.load(), body["profile"])
+            button = prof["buttons"][int(body["index"])]
+        except (ValueError, KeyError, TypeError, IndexError):
+            return web.json_response({"error": "no such button"}, status=400)
+
+        def work():
+            switched = []
+            deck.run(button, INPUT, lambda name: switched.append(DECK.switch(name)))
+            return switched[0] if switched else None
+        try:
+            data = await asyncio.get_running_loop().run_in_executor(None, work)
+        except Exception as e:           # bad key name, app not found...
+            print(f"[deck] {button.get('label', '?')}: {e}", flush=True)
+            return web.json_response({"error": str(e)}, status=400)
+        return web.json_response({"ok": True, "profiles": data})
 
     async def audio_handler(request):
         """PC sound for the iPad (see pcaudio.py)."""
@@ -976,6 +1095,10 @@ def make_app(cfg):
     app.router.add_get("/api/monitors", monitors)
     app.router.add_get("/ws", ws_handler)
     app.router.add_get("/audio", audio_handler)
+    app.router.add_get("/api/profiles", profiles_get)
+    app.router.add_put("/api/profiles", profiles_put)
+    app.router.add_post("/api/profile", profile_switch)
+    app.router.add_post("/api/action", deck_action)
     app.router.add_static("/", WEB_DIR, show_index=False)
     return app
 
@@ -1028,10 +1151,14 @@ def main():
         if vdd.available():
             print("\n The iPad's virtual screen turns on while an iPad is plugged in over USB-C.")
 
+            DECK.screen_ctl = True
+
             def on_plug(plugged):
                 # Switching takes a few seconds; do it off the event loop.
                 def work():
-                    if plugged:
+                    if plugged and not DECK.active().get("screen", True):
+                        print("[screen] iPad plugged in; this profile doesn't use the screen.", flush=True)
+                    elif plugged:
                         print("[screen] iPad plugged in: turning the virtual screen on.", flush=True)
                         vdd.turn_on(lambda: len(list_monitors()))
                     else:
@@ -1041,8 +1168,11 @@ def main():
     elif IS_WINDOWS and not args.keep_screen:
         import vdd
         if vdd.available():
-            print("\n Turning on the iPad's virtual screen (it turns off when you close this window)...")
-            res = vdd.turn_on(lambda: len(list_monitors()))
+            DECK.screen_ctl = True
+            res = None
+            if DECK.active().get("screen", True):
+                print("\n Turning on the iPad's virtual screen (it turns off when you close this window)...")
+                res = vdd.turn_on(lambda: len(list_monitors()))
             if res == "failed":
                 print("   It didn't appear. Check vdd.log in this folder, or turn it on in Device Manager.")
         else:
