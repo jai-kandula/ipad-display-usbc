@@ -52,6 +52,7 @@ import clip  # noqa: E402  (shared clipboard)
 import deck  # noqa: E402  (profiles and the button deck)
 import screenshape  # noqa: E402  (portrait, resolution and text size)
 import pen  # noqa: E402  (Apple Pencil pressure and tilt)
+import winpin  # noqa: E402  (put app windows on the iPad)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -464,6 +465,8 @@ class Session:
             return
         print(f"[screen] changed to {new['width']}x{new['height']} at "
               f"({new['left']},{new['top']}), following it.")
+        if winpin.target["mon"] == self.mon:
+            winpin.target["mon"] = dict(new)
         self.mon = new
         if self.sct is not None:
             self.sct.close()
@@ -884,6 +887,7 @@ def make_app(cfg):
         loop = asyncio.get_running_loop()
         cap_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="capture")  # mss is per-thread
         mon = await loop.run_in_executor(cap_pool, sess.monitor)
+        winpin.target["mon"] = dict(mon)
         print(f"[+] iPad connected from {request.remote} -> screen "
               f"{mon['width']}x{mon['height']} at ({mon['left']},{mon['top']})")
 
@@ -985,6 +989,22 @@ def make_app(cfg):
                             import subprocess
                             subprocess.Popen([os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
                                              "System32", "DisplaySwitch.exe"), mode])
+                    elif t in ("windows", "winmove", "pin"):
+                        # The iPad's list of open apps: move one here, or keep an app here.
+                        def apps(m=m, mon=dict(sess.mon)):
+                            if t == "winmove":
+                                winpin.move_here(int(m["hwnd"]), mon)
+                            elif t == "pin":
+                                winpin.set_pin(str(m["exe"]), bool(m.get("on")))
+                                if m.get("on"):
+                                    for w in winpin.list_windows():
+                                        if w["exe"].lower() == str(m["exe"]).lower() and not w["here"]:
+                                            winpin.move_here(w["hwnd"], mon)
+                            if t != "windows":
+                                time.sleep(0.3)          # let Windows finish moving it
+                            return {"type": "windows", "list": winpin.list_windows(),
+                                    "pins": winpin.load_pins(), "ok": IS_WINDOWS}
+                        await ws.send_str(json.dumps(await loop.run_in_executor(None, apps)))
                     elif t == "screen":
                         # Turn the iPad's screen portrait, or change its resolution or text size.
                         res = await loop.run_in_executor(None, screen_change, dict(sess.mon), m)
@@ -1123,6 +1143,8 @@ def make_app(cfg):
         finally:
             for t in (rtask, wtask, ctask):
                 t.cancel()
+            if winpin.target["mon"] == sess.mon:
+                winpin.target["mon"] = None
             await loop.run_in_executor(cap_pool, sess.close)
             cap_pool.shutdown(wait=False)
             print(f"[-] iPad disconnected ({request.remote})")
@@ -1228,6 +1250,7 @@ def main():
     print(" USB-C: plug in the iPad and open the iPad Display app (see USB-C.md).")
     print("=" * 62)
     app = make_app(cfg)
+    winpin.start()
     import usb_bridge
     usb_bridge.start(app, args.port, on_plug)
     try:

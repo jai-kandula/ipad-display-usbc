@@ -156,6 +156,13 @@
     padding: 9px 16px; border-radius: 18px; background: rgba(20,22,28,.85); font-size: 15px; pointer-events: none;
     opacity: 0; transition: opacity .25s; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
   #toast.show { opacity: 1; }
+  #wins { margin-top: 10px; }
+  #wins .w { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #22262e; }
+  #wins .w .t { flex: 1; min-width: 0; font-size: 14px; }
+  #wins .w .t small { display: block; color: #7d8697; font-size: 12px; }
+  #wins .w .t b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #wins .w button { width: auto; flex: none; padding: 8px 10px; font-size: 13px; margin: 0; }
+  #wins .w button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   #kbd { position: fixed; left: -1000px; top: 0; width: 10px; height: 10px; opacity: 0; }
 </style>
 </head>
@@ -233,6 +240,7 @@
 
   <h3>More</h3>
   <button class="tog" id="m-sound" style="width:100%"><span>PC sound<small>Play the laptop's sound here</small></span></button>
+  <button id="m-apps" style="width:100%;margin-bottom:6px">🪟  Apps on the iPad</button>
   <button class="tog" id="m-hud" style="width:100%"><span>Status corner<small>Updates per second, delay, battery</small></span></button>
 
   <button id="m-disc">Disconnect</button>
@@ -283,6 +291,13 @@
     <div class="btns" id="ep-edit"><button id="ep-del" class="danger">Delete profile</button></div>
     <div class="err" id="ep-err"></div>
     <div class="btns"><button id="ep-cancel">Cancel</button><button id="ep-save" class="primary">Save</button></div>
+  </div>
+  <div id="ed-win">
+    <h2>Apps on the iPad</h2>
+    <div class="hint" style="margin-top:0">Tap <b>Move here</b> to put a window on the iPad. <b>📌 Keep</b> also moves that app's windows here every time they open, whenever the iPad is connected.</div>
+    <div id="wins"></div>
+    <div class="err" id="win-err"></div>
+    <div class="btns"><button id="win-close">Done</button></div>
   </div>
 </div></div>
 <textarea id="kbd" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
@@ -573,6 +588,8 @@
           // Copied on the PC: the iPad app puts it on the iPad clipboard.
           const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.clip;
           if (h) h.postMessage(m.png ? { png: m.png } : { text: m.text || '' });
+        } else if (m.type === 'windows') {
+          renderWindows(m);
         } else if (m.type === 'screen') {
           onScreenMsg(m);
         } else if (m.type === 'pong') {
@@ -1204,6 +1221,7 @@
   function openSheet(which) {
     $('ed-btn').style.display = which === 'btn' ? '' : 'none';
     $('ed-prof').style.display = which === 'prof' ? '' : 'none';
+    $('ed-win').style.display = which === 'win' ? '' : 'none';
     $('eb-err').textContent = $('ep-err').textContent = '';
     $('sheetbg').classList.add('open');
   }
@@ -1379,6 +1397,39 @@
   });
   $('fab').addEventListener('click', () => { if ($('menu').classList.contains('open')) send({ t: 'screen', get: 1 }); });
   markShape();
+
+
+  // ---------------------------------------------------------------- apps on the iPad
+  function renderWindows(m) {
+    const box = $('wins'); box.innerHTML = '';
+    $('win-err').textContent = m.ok ? '' : 'Only works when the PC runs Windows.';
+    const pins = new Set((m.pins || []).map(p => p.toLowerCase()));
+    const list = m.list.slice().sort((a, b) => (b.here - a.here) || a.exe.localeCompare(b.exe));
+    if (!list.length && m.ok) box.textContent = 'No app windows are open.';
+    list.forEach(w => {
+      const row = document.createElement('div'); row.className = 'w';
+      const t = document.createElement('div'); t.className = 't';
+      const b = document.createElement('b'); b.textContent = w.title;
+      const sm = document.createElement('small'); sm.textContent = (w.exe || 'app') + (w.here ? ' · on the iPad' : '');
+      t.append(b, sm);
+      const mv = document.createElement('button');
+      mv.textContent = w.here ? 'Here ✓' : 'Move here'; mv.disabled = w.here;
+      mv.addEventListener('click', () => send({ t: 'winmove', hwnd: w.hwnd }));
+      row.append(t, mv);
+      if (w.exe) {
+        const on = pins.has(w.exe.toLowerCase());
+        const pin = document.createElement('button');
+        pin.textContent = '📌 Keep'; pin.classList.toggle('on', on);
+        pin.addEventListener('click', () => send({ t: 'pin', exe: w.exe, on: !on }));
+        row.appendChild(pin);
+      }
+      box.appendChild(row);
+    });
+  }
+  $('m-apps').addEventListener('click', () => {
+    closeMenu(); $('wins').textContent = 'Loading…'; openSheet('win'); send({ t: 'windows' });
+  });
+  $('win-close').addEventListener('click', closeSheet);
 
   if (IN_APP) noPin = true;              // try without a PIN; the server says if one is needed
   if (noPin || pinEl.value.length === 6) loadMonitors().then(() => {

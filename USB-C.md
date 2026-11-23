@@ -87,6 +87,14 @@ In **☰ > Screen** you can change the iPad's screen in Windows without opening 
 
 Only the iPad's screen is changed. The laptop's main screen is always left alone.
 
+## Put apps on the iPad
+
+**☰ > Apps on the iPad** lists the windows open on the laptop.
+- **Move here** puts that window on the iPad, maximized.
+- **📌 Keep** does that for the app every time: whenever the iPad is connected, its windows move to the iPad as they open (for example Discord, Spotify or your notes). You can still drag one back to the laptop. Tap 📌 Keep again to stop.
+
+Kept apps are saved in `pins.json` in this folder.
+
 ## Profiles and the button deck (Work and Gaming)
 
 A **profile** says what the iPad is for right now. Switch with **☰ > Profile**, or the buttons along the top of the deck. Two come ready to use:
