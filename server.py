@@ -896,8 +896,17 @@ def make_app(cfg):
         return secrets.compare_digest(request.query.get("pin", ""), pin)
 
     async def index(request):
-        return web.FileResponse(os.path.join(WEB_DIR, "index.html"),
-                                headers={"Cache-Control": "no-cache"})
+        # The page with the icon set (web/icons.svg) placed inline, so every
+        # <use href="#i-..."> works from the first paint.
+        with open(os.path.join(WEB_DIR, "index.html"), encoding="utf-8") as f:
+            html = f.read()
+        try:
+            with open(os.path.join(WEB_DIR, "icons.svg"), encoding="utf-8") as f:
+                icons = f.read().replace("<svg ", '<svg style="display:none" aria-hidden="true" ', 1)
+        except OSError:
+            icons = ""
+        return web.Response(text=html.replace("<!--ICONS-->", icons, 1), content_type="text/html",
+                            headers={"Cache-Control": "no-cache"})
 
     async def monitors(request):
         if not authorized(request):

@@ -12,7 +12,11 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <title>iPad Display</title>
 <style>
-  :root { color-scheme: dark; --accent: #4f8cff; --ok: #5fd38d; --warn: #ffc65c; }
+  :root { color-scheme: dark; --accent: #5b8cff; --accent2: #8f6bff; --ok: #4fd68e; --warn: #ffc65c; --bad: #ff6b7a;
+    --bg: #07080b; --surface: #12141a; --surface2: #191c24; --line: rgba(255,255,255,.07); --text: #eef1f6;
+    --dim: #8b93a3; --grad: linear-gradient(135deg, var(--accent), var(--accent2)); }
+  svg.ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75;
+    stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
   html, body { margin: 0; height: 100%; background: #000; color: #eee;
     font: 16px -apple-system, system-ui, sans-serif; overflow: hidden;
     -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -33,7 +37,7 @@
   input, select, button { font: inherit; width: 100%; box-sizing: border-box; border-radius: 10px;
     border: 1px solid #2f3440; background: #0d0f13; color: #eee; padding: 12px; }
   input#pin { letter-spacing: 6px; font-size: 22px; text-align: center; }
-  button.primary { margin-top: 20px; background: var(--accent); border: 0; font-weight: 600; color: #fff; }
+  button.primary { margin-top: 20px; background: var(--grad); border: 0; font-weight: 600; color: #fff; box-shadow: 0 6px 18px rgba(91,140,255,.25); }
   button:disabled { opacity: .5; }
   .err { color: #ff7a7a; font-size: 14px; min-height: 20px; margin-top: 10px; }
   .hint { color: #7d8697; font-size: 13px; margin-top: 12px; line-height: 1.45; }
@@ -46,39 +50,102 @@
   body.live.waiting #status { display: block; }
 
   /* menu button: small, fades out of the way while you work */
-  #fab { position: fixed; left: calc(8px + env(safe-area-inset-left)); top: calc(8px + env(safe-area-inset-top));
-    width: 36px; height: 36px; border-radius: 18px; border: 0; padding: 0; display: none; z-index: 20;
-    background: rgba(30,32,40,.7); color: #fff; font-size: 17px; line-height: 36px;
-    transition: opacity .4s; }
-  body.live #fab { display: block; }
+  #fab { position: fixed; left: calc(10px + env(safe-area-inset-left)); top: calc(10px + env(safe-area-inset-top));
+    width: 40px; height: 40px; border-radius: 14px; border: 1px solid rgba(255,255,255,.08); padding: 0; display: none; z-index: 20;
+    background: rgba(22,24,31,.72); color: #fff; align-items: center; justify-content: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,.35); transition: opacity .4s, background .2s; }
+  #fab svg.ic { width: 20px; height: 20px; }
+  body.live #fab { display: flex; }
   body.idle #fab:not(.open) { opacity: .25; }
+  #fab.open { background: var(--grad); border-color: transparent; }
 
-  /* side sheet */
-  #menu { position: fixed; z-index: 19; left: 0; top: 0; bottom: 0; width: 300px; box-sizing: border-box;
-    padding: calc(54px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
-    background: rgba(18,20,26,.94);
-    border-right: 1px solid rgba(255,255,255,.08); overflow-y: auto;
-    transform: translateX(-105%); visibility: hidden; transition: transform .22s ease, visibility .22s; }
+  /* quick menu: the things you reach for while working */
+  #menu { position: fixed; z-index: 19; left: 0; top: 0; bottom: 0; width: 304px; box-sizing: border-box;
+    padding: calc(62px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+    background: linear-gradient(180deg, rgba(20,22,29,.97), rgba(12,13,18,.97));
+    border-right: 1px solid var(--line); overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+    box-shadow: 12px 0 40px rgba(0,0,0,.45);
+    transform: translateX(-105%); visibility: hidden; transition: transform .24s cubic-bezier(.2,.8,.2,1), visibility .24s; }
   #menu.open { transform: none; visibility: visible; }
-  #menu h3 { margin: 16px 2px 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em;
-    text-transform: uppercase; color: #8a93a3; }
-  #menu h3:first-child, #menu #m-profsec h3 { margin-top: 0; }
-  #menu button { margin: 0; padding: 11px 12px; background: rgba(255,255,255,.06); border: 0;
-    border-radius: 10px; text-align: left; font-size: 15px; color: #eee; }
-  #menu button:active { background: rgba(255,255,255,.14); }
-  #menu .row { display: flex; gap: 6px; margin: 6px 0; }
-  #menu .row button { flex: 1; text-align: center; padding: 10px 2px; font-size: 14px; }
-  :is(#menu, #sheet) .seg { display: flex; padding: 3px; gap: 3px; background: rgba(255,255,255,.06); border-radius: 11px; margin: 6px 0; }
-  :is(#menu, #sheet) .seg button { flex: 1; background: transparent; text-align: center; padding: 8px 2px; font-size: 13px; border-radius: 8px; }
-  :is(#menu, #sheet) .seg button.on { background: var(--accent); color: #fff; }
-  :is(#menu, #sheet) .tog { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
-  :is(#menu, #sheet) .tog::after { content: ''; width: 38px; height: 22px; border-radius: 11px; flex: none;
-    background: #3a3f4b radial-gradient(circle at 11px 11px, #fff 8px, transparent 8.5px); transition: background .2s; }
-  :is(#menu, #sheet) .tog.on::after { background: var(--ok) radial-gradient(circle at 27px 11px, #fff 8px, transparent 8.5px); }
-  :is(#menu, #sheet) .tog.na { opacity: .45; }
-  :is(#menu, #sheet) .tog small { display: block; color: #8a93a3; font-size: 12px; margin-top: 2px; }
-  #menu #m-disc { width: 100%; margin-top: 18px; color: #ff8a8a; text-align: center; }
-  #menu .stats { font-size: 12px; color: #8a93a3; padding: 10px 2px 2px; line-height: 1.5; }
+  #menu .qlabel { margin: 10px 4px 2px; font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+  #menu .qlabel:first-child { margin-top: 0; }
+  #menu button { margin: 0; border: 0; color: var(--text); font-size: 15px; }
+  #menu .qgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  #menu .qgrid button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    padding: 11px 4px 9px; border-radius: 14px; font-size: 12.5px; color: #cfd5df;
+    background: linear-gradient(180deg, #1c1f28, #15171e); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+  #menu .qgrid button:active, #menu .qrow:active { transform: scale(.97); }
+  #menu .qgrid button .k { font: 600 13px ui-monospace, Menlo, monospace; height: 20px; line-height: 20px; color: #fff; }
+  #menu .qgrid #m-kbd { grid-column: span 3; flex-direction: row; gap: 10px; font-size: 15px; color: #fff; padding: 12px;
+    background: var(--grad); box-shadow: 0 6px 20px rgba(91,140,255,.25); }
+  #menu .qrow { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 12px; border-radius: 13px;
+    background: rgba(255,255,255,.045); text-align: left; transition: transform .08s; }
+  #menu .qrow .chev { margin-left: auto; color: #555c6a; width: 16px; height: 16px; }
+  #menu .qfoot { margin-top: auto; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  #menu .danger { color: #ff8a95; }
+  #menu #m-profiles { margin: 0; }
+  :is(#menu, #sheet, #settings) .seg { display: flex; padding: 3px; gap: 3px; background: rgba(255,255,255,.055); border-radius: 12px; margin: 6px 0; }
+  :is(#menu, #sheet, #settings) .seg button { flex: 1; margin: 0; border: 0; background: transparent; color: #cfd5df; text-align: center;
+    padding: 8px 4px; font-size: 13.5px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  :is(#menu, #sheet, #settings) .seg button svg.ic { width: 16px; height: 16px; }
+  :is(#menu, #sheet, #settings) .seg button.on { background: var(--grad); color: #fff; box-shadow: 0 2px 10px rgba(91,140,255,.3); }
+  :is(#menu, #sheet, #settings) .tog { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
+  :is(#menu, #sheet, #settings) .tog::after { content: ''; width: 44px; height: 26px; border-radius: 13px; flex: none; margin-left: 12px;
+    background: #2c303b radial-gradient(circle at 13px 13px, #fff 9.5px, transparent 10px); transition: background .2s; }
+  :is(#menu, #sheet, #settings) .tog.on::after { background: var(--ok) radial-gradient(circle at 31px 13px, #fff 9.5px, transparent 10px); }
+  :is(#menu, #sheet, #settings) .tog.na { opacity: .45; }
+  :is(#menu, #sheet, #settings) .tog small { display: block; color: var(--dim); font-size: 12.5px; margin-top: 2px; line-height: 1.35; }
+
+  /* settings: sections on the left, their rows on the right */
+  #settings { position: fixed; inset: 0; z-index: 45; display: none; align-items: center; justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    background: rgba(3,4,6,.6); }
+  #settings.open { display: flex; }
+  #settings .sx { display: flex; width: 100%; max-width: 1000px; height: 100%; max-height: 760px; overflow: hidden;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  #settings nav { flex: 0 0 236px; padding: 22px 12px; box-sizing: border-box; overflow-y: auto;
+    background: linear-gradient(180deg, #161921, #101218); border-right: 1px solid var(--line); }
+  #settings nav .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 18px; font-weight: 650; font-size: 17px; }
+  #settings nav .brand .logo { width: 30px; height: 30px; border-radius: 9px; background: var(--grad); display: grid; place-items: center; }
+  #settings nav .brand .logo svg.ic { width: 18px; height: 18px; color: #fff; }
+  #settings nav button { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 3px; padding: 9px 10px;
+    border: 0; border-radius: 12px; background: transparent; color: #c9cfda; font-size: 15px; text-align: left; }
+  #settings nav button.on { background: rgba(255,255,255,.07); color: #fff; }
+  .tile { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: none; color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18); }
+  .tile svg.ic { width: 17px; height: 17px; stroke-width: 2; }
+  .t-blue { background: linear-gradient(135deg, #4f8cff, #3a6be0); } .t-violet { background: linear-gradient(135deg, #9a72ff, #6d4be0); }
+  .t-green { background: linear-gradient(135deg, #3fcf86, #23a865); } .t-orange { background: linear-gradient(135deg, #ffa24f, #f0782c); }
+  .t-pink { background: linear-gradient(135deg, #ff6f9d, #e0457a); } .t-teal { background: linear-gradient(135deg, #36c9d6, #1f9fb0); }
+  .t-gray { background: linear-gradient(135deg, #7b8394, #5a6171); } .t-red { background: linear-gradient(135deg, #ff6b6b, #e04646); }
+  .t-yellow { background: linear-gradient(135deg, #ffcf4f, #f0aa2c); }
+  #settings .sbody { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  #settings .shead { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 8px; }
+  #settings .shead h2 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -.01em; }
+  #settings .shead button { width: 36px; height: 36px; padding: 0; border-radius: 18px; border: 0; background: rgba(255,255,255,.07);
+    color: #fff; display: grid; place-items: center; }
+  #settings .scroll { flex: 1; overflow-y: auto; padding: 6px 22px 28px; }
+  #settings section { display: none; } #settings section.on { display: block; }
+  #settings .gtitle { margin: 18px 6px 8px; font-size: 12px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--dim); }
+  #settings .group { background: var(--surface2); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  #settings .srow { display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; margin: 0; padding: 12px 14px;
+    border: 0; border-radius: 0; background: transparent; color: var(--text); text-align: left; font-size: 15.5px; min-height: 56px; }
+  #settings .srow + .srow, #settings .srow + .sblock, #settings .sblock + .srow, #settings .sblock + .sblock { border-top: 1px solid var(--line); }
+  #settings .srow .stx { flex: 1; min-width: 0; }
+  #settings .srow .stx small { display: block; color: var(--dim); font-size: 12.5px; margin-top: 2px; line-height: 1.35; }
+  #settings .srow .val { color: var(--dim); font-size: 14px; }
+  #settings .srow .chev { color: #555c6a; width: 16px; height: 16px; }
+  #settings .sblock { padding: 12px 14px; }
+  #settings #m-shape { border-top: 1px solid var(--line); }
+  #settings .sblock .seg { margin: 8px 0 2px; }
+  #settings .note { font-size: 12.5px; color: var(--dim); padding: 8px 8px 0; line-height: 1.45; }
+  #settings .note a { color: var(--accent); }
+  #settings input, #settings select { padding: 10px 12px; border-radius: 10px; background: #0d0f14; border-color: #2a2f3a; font-size: 15px; }
+  #settings .tog { margin: 0; }
+  @media (max-width: 720px) {
+    #settings nav { flex-basis: 64px; padding: 16px 8px; } #settings nav .brand span, #settings nav button span { display: none; }
+    #settings nav button { justify-content: center; padding: 8px 0; } #settings nav .brand { padding: 0 0 14px; justify-content: center; }
+  }
 
   /* corner status overlay */
   #hud { position: fixed; z-index: 18; right: calc(8px + env(safe-area-inset-right)); top: calc(8px + env(safe-area-inset-top));
@@ -99,23 +166,32 @@
   #deckbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   #chips { display: flex; gap: 6px; flex: 1; overflow-x: auto; scrollbar-width: none; }
   #deckbar button { width: auto; flex: none; margin: 0; padding: 8px 14px; border: 0; border-radius: 18px;
-    background: rgba(255,255,255,.07); color: #cfd5df; font-size: 15px; white-space: nowrap; }
-  #deckbar button.on { background: var(--accent); color: #fff; }
+    background: rgba(255,255,255,.07); color: #cfd5df; font-size: 15px; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 7px; }
+  #deckbar button svg.ic { width: 17px; height: 17px; }
+  #deckbar button.on { background: var(--grad); color: #fff; box-shadow: 0 3px 12px rgba(91,140,255,.3); }
   #deckbar #d-edit { color: #fff; }
   body.deckedit #deckbar #d-edit, .editing #deckbar #d-edit { background: var(--ok); color: #0b0c10; font-weight: 600; }
   #grid { flex: 1; display: grid; gap: 12px; min-height: 0; overflow-y: auto; }
-  .key { position: relative; margin: 0; padding: 8px; border: 0; border-radius: 18px; min-height: 0; overflow: hidden;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #e8ebf0;
-    background: linear-gradient(#1e2129, #16181f); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 2px 6px rgba(0,0,0,.4);
+  .key { position: relative; margin: 0; padding: 8px; border: 1px solid rgba(255,255,255,.05); border-radius: 20px; min-height: 0; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #e8ebf0;
+    background: radial-gradient(120% 90% at 50% 0%, #232733 0%, #171a22 55%, #121419 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 8px 18px rgba(0,0,0,.35);
     transition: transform .08s, background .15s; }
-  .key .i { font-size: clamp(26px, 4.6vw, 46px); line-height: 1.1; }
+  .key .i { font-size: clamp(22px, 3.6vw, 34px); line-height: 1; font-weight: 650; letter-spacing: -.02em;
+    width: clamp(46px, 7vw, 66px); height: clamp(46px, 7vw, 66px); border-radius: 30%; display: grid; place-items: center;
+    background: linear-gradient(145deg, rgba(91,140,255,.22), rgba(143,107,255,.16)); color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+  .key .i svg.ic { width: 52%; height: 52%; stroke-width: 1.85; }
+  .key .em { display: none; position: absolute; right: 9px; top: 8px; color: var(--ok); }
+  .key .em svg.ic { width: 15px; height: 15px; }
   .key .l { font-size: 14px; color: #aeb6c3; text-align: center; line-height: 1.2; max-width: 100%; overflow: hidden;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .key.hit { transform: scale(.94); background: #2a3a5c; }
+  .key.hit { transform: scale(.94); background: radial-gradient(120% 90% at 50% 0%, #34477a, #1f2a44); }
   .key.err { background: #4a1f24; }
   .key.add { background: transparent; border: 2px dashed #2f3440; box-shadow: none; }
-  .key.add .i, .key.add .l { color: #7d8697; }
-  .editing .key:not(.add)::after { content: '✎'; position: absolute; right: 9px; top: 7px; font-size: 13px; color: var(--ok); }
+  .key.add .i, .key.add .l { color: #7d8697; } .key.add .i { background: rgba(255,255,255,.04); }
+  .editing .key:not(.add) .em { display: block; }
   #deckmsg { min-height: 18px; font-size: 13px; color: #8a93a3; text-align: center; margin-top: 8px; }
 
   /* the same buttons as a panel that slides out of the right edge over the picture */
@@ -126,12 +202,14 @@
   body.live.strip #strip { display: flex; }
   #strip.open { transform: translate(0, -50%); visibility: visible; }
   #strip .key { flex: none; height: 72px; border-radius: 14px; gap: 3px; padding: 4px; }
-  #strip .key .i { font-size: 26px; }
+  #strip .key .i { font-size: 18px; width: 38px; height: 38px; border-radius: 11px; }
   #strip .key .l { font-size: 11px; -webkit-line-clamp: 1; }
   #tab { position: fixed; z-index: 18; right: 0; top: 50%; width: 22px; height: 64px; margin: -32px 0 0; padding: 0;
     border: 0; border-radius: 12px 0 0 12px; display: none; background: rgba(30,32,40,.55); color: #fff; font-size: 18px;
+    place-items: center;
     transition: opacity .4s, right .2s ease; }
-  body.live.strip #tab { display: block; }
+  body.live.strip #tab { display: grid; }
+  #tab svg.ic { width: 16px; height: 16px; }
   body.idle #tab:not(.open) { opacity: .25; }
   #tab.open { right: 92px; }
 
@@ -152,6 +230,16 @@
   #sheet .btns { display: flex; gap: 8px; margin-top: 12px; }
   #sheet .btns button { flex: 1; margin: 0; }
   #sheet .danger { color: #ff8a8a; }
+  #sheet .icpick { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; max-height: 188px;
+    overflow-y: auto; padding: 8px; margin-top: 6px; border-radius: 12px; background: #0d0f13; border: 1px solid #2a2e37; }
+  #sheet .icpick button { height: 44px; padding: 0; margin: 0; border: 0; border-radius: 10px; background: rgba(255,255,255,.04);
+    color: #cfd5df; display: grid; place-items: center; }
+  #sheet .icpick button.on { background: var(--grad); color: #fff; }
+  #sheet .icrow { display: flex; gap: 10px; align-items: center; }
+  #sheet .icprev { width: 52px; height: 52px; flex: none; border-radius: 15px; display: grid; place-items: center; font-weight: 650; font-size: 20px;
+    background: linear-gradient(145deg, rgba(91,140,255,.28), rgba(143,107,255,.2)); color: #fff; }
+  #sheet .icprev svg.ic { width: 26px; height: 26px; }
+  #sheet .icrow input { flex: 1; }
   #toast { position: fixed; z-index: 25; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     padding: 9px 16px; border-radius: 18px; background: rgba(20,22,28,.85); font-size: 15px; pointer-events: none;
     opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
@@ -171,6 +259,7 @@
 </style>
 </head>
 <body>
+<!--ICONS-->
 <div id="stage">
   <canvas id="screen"></canvas>
   <svg id="cursor" viewBox="0 0 14 22"><path d="M1 1v17l4.2-4 2.9 6.6 2.7-1.2-2.8-6.4H14z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
@@ -206,72 +295,135 @@
   </div>
 </div>
 
-<button id="fab" aria-label="Menu">☰</button>
+<button id="fab" aria-label="Menu"><svg class="ic"><use href="#i-menu"/></svg></button>
 <div id="menu">
   <div id="m-profsec" style="display:none">
-    <h3>Profile</h3>
+    <div class="qlabel">Profile</div>
     <div class="seg" id="m-profiles"></div>
-    <button id="m-edit" style="width:100%">Edit buttons and profiles</button>
   </div>
-  <h3>Type</h3>
-  <button id="m-kbd" style="width:100%">⌨️  Show keyboard</button>
-  <div class="row">
-    <button data-key="Escape">Esc</button><button data-key="Tab">Tab</button><button data-key="Delete">Del</button>
+  <div class="qlabel">Type</div>
+  <div class="qgrid">
+    <button id="m-kbd"><svg class="ic"><use href="#i-keyboard"/></svg>Show keyboard</button>
+    <button data-key="Escape"><span class="k">esc</span>Escape</button>
+    <button data-key="Tab"><span class="k">tab</span>Tab</button>
+    <button data-key="Delete"><span class="k">del</span>Delete</button>
+    <button data-combo="Control+c"><svg class="ic"><use href="#i-copy"/></svg>Copy</button>
+    <button data-combo="Control+v"><svg class="ic"><use href="#i-paste"/></svg>Paste</button>
+    <button data-combo="Control+z"><svg class="ic"><use href="#i-undo"/></svg>Undo</button>
   </div>
-  <div class="row">
-    <button data-combo="Control+c">Copy</button><button data-combo="Control+v">Paste</button><button data-combo="Control+z">Undo</button>
+  <div class="qlabel">View</div>
+  <button class="qrow" id="m-zoom"><svg class="ic"><use href="#i-fit"/></svg>Fit whole screen</button>
+  <button class="qrow" id="m-apps"><svg class="ic"><use href="#i-window"/></svg>Apps on the iPad<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
+  <button class="qrow" id="m-edit"><svg class="ic"><use href="#i-grid"/></svg>Edit buttons and profiles<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
+  <div class="qfoot">
+    <button class="qrow" id="m-settings"><svg class="ic"><use href="#i-sliders"/></svg>Settings<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
+    <button class="qrow" id="m-pc" style="display:none"><svg class="ic"><use href="#i-laptop"/></svg>Switch PC</button>
+    <button class="qrow danger" id="m-disc"><svg class="ic"><use href="#i-power"/></svg>Disconnect</button>
   </div>
-
-  <h3>Picture</h3>
-  <div class="seg" id="modes">
-    <button data-mode="fast">Fast</button><button data-mode="balanced">Balanced</button><button data-mode="sharp">Sharp</button><button data-mode="wired">Wired</button>
-  </div>
-  <button class="tog" id="m-video" style="width:100%"><span>Video mode<small>Smooth scrolling and dragging</small></span></button>
-  <button class="tog" id="m-pen" style="width:100%"><span>Pencil pressure<small>Draw and write with pressure and tilt in Windows apps</small></span></button>
-  <button class="tog" id="m-night" style="width:100%"><span>Night mode<small>Warmer colours</small></span></button>
-  <button id="m-zoom" style="width:100%;margin-top:6px">Fit whole screen</button>
-
-  <h3>Screen</h3>
-  <div class="seg" id="dispmode">
-    <button data-display="extend">Extend</button><button data-display="clone">Mirror laptop</button>
-  </div>
-  <div id="m-shape">
-    <div class="seg" id="m-sizes">
-      <button data-size="sharp">Sharp</button><button data-size="roomy">Roomy</button><button data-size="space">Max space</button><button data-size="fast">Fast</button>
-    </div>
-    <button class="tog" id="m-rotate" style="width:100%"><span>Turn with the iPad<small>Hold the iPad upright for a portrait screen</small></span></button>
-    <div class="stats" id="m-scrmsg"></div>
-  </div>
-
-  <h3>More</h3>
-  <button class="tog" id="m-sound" style="width:100%"><span>PC sound<small>Play the laptop's sound here</small></span></button>
-  <button id="m-apps" style="width:100%;margin-bottom:6px">🪟  Apps on the iPad</button>
-  <button class="tog" id="m-hud" style="width:100%"><span>Status corner<small>Updates per second, delay, battery</small></span></button>
-
-  <button id="m-pc" style="width:100%;margin-top:6px;display:none">💻  Switch PC</button>
-  <button id="m-disc">Disconnect</button>
-  <div class="stats" id="stats"></div>
 </div>
+
+<div id="settings"><div class="sx">
+  <nav>
+    <div class="brand"><div class="logo"><svg class="ic"><use href="#i-tablet"/></svg></div><span>iPad Display</span></div>
+    <button data-sec="display"><span class="tile t-blue"><svg class="ic"><use href="#i-monitor"/></svg></span><span>Display</span></button>
+    <button data-sec="picture"><span class="tile t-violet"><svg class="ic"><use href="#i-sparkle"/></svg></span><span>Picture and speed</span></button>
+    <button data-sec="input"><span class="tile t-orange"><svg class="ic"><use href="#i-pen"/></svg></span><span>Pencil and touch</span></button>
+    <button data-sec="deck"><span class="tile t-pink"><svg class="ic"><use href="#i-grid"/></svg></span><span>Buttons</span></button>
+    <button data-sec="sound"><span class="tile t-green"><svg class="ic"><use href="#i-vol-up"/></svg></span><span>Sound</span></button>
+    <button data-sec="connection"><span class="tile t-teal"><svg class="ic"><use href="#i-cable"/></svg></span><span>Connection</span></button>
+    <button data-sec="about"><span class="tile t-gray"><svg class="ic"><use href="#i-info"/></svg></span><span>About</span></button>
+  </nav>
+  <div class="sbody">
+    <div class="shead"><h2 id="s-title">Settings</h2><button id="s-close" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></div>
+    <div class="scroll">
+      <section data-sec="display">
+        <div class="gtitle">In Windows</div>
+        <div class="group">
+          <div class="sblock"><div class="srow" style="padding:0;min-height:0"><span class="tile t-blue"><svg class="ic"><use href="#i-layers"/></svg></span><span class="stx">Screen mode<small>Extend the desktop onto the iPad, or mirror the laptop</small></span></div>
+            <div class="seg" id="dispmode"><button data-display="extend">Extend</button><button data-display="clone">Mirror laptop</button></div></div>
+          <div id="m-shape">
+            <div class="sblock"><div class="srow" style="padding:0;min-height:0"><span class="tile t-violet"><svg class="ic"><use href="#i-fit"/></svg></span><span class="stx">Screen size<small>Resolution and text size of the iPad's screen in Windows</small></span></div>
+              <div class="seg" id="m-sizes"><button data-size="sharp">Sharp</button><button data-size="roomy">Roomy</button><button data-size="space">Max space</button><button data-size="fast">Fast</button></div>
+              <div class="note" id="m-scrmsg" style="padding-top:4px"></div></div>
+            <button class="tog srow" id="m-rotate"><span class="tile t-teal"><svg class="ic"><use href="#i-rotate"/></svg></span><span class="stx">Turn with the iPad<small>Hold the iPad upright for a portrait screen</small></span></button>
+          </div>
+        </div>
+        <div class="gtitle">Colour</div>
+        <div class="group" id="g-colour">
+          <button class="tog srow" id="m-night"><span class="tile t-orange"><svg class="ic"><use href="#i-moon"/></svg></span><span class="stx">Night mode<small>Warmer colours, easier on the eyes at night</small></span></button>
+        </div>
+      </section>
+      <section data-sec="picture">
+        <div class="gtitle">Quality</div>
+        <div class="group">
+          <div class="sblock"><div class="srow" style="padding:0;min-height:0"><span class="tile t-violet"><svg class="ic"><use href="#i-sparkle"/></svg></span><span class="stx">Picture<small>Wired gives full quality over the cable</small></span></div>
+            <div class="seg" id="modes"><button data-mode="fast">Fast</button><button data-mode="balanced">Balanced</button><button data-mode="sharp">Sharp</button><button data-mode="wired">Wired</button></div></div>
+          <button class="tog srow" id="m-video"><span class="tile t-blue"><svg class="ic"><use href="#i-film"/></svg></span><span class="stx">Video mode<small>H.264 from the graphics card for smooth scrolling and dragging</small></span></button>
+        </div>
+        <div class="gtitle">Status</div>
+        <div class="group">
+          <button class="tog srow" id="m-hud"><span class="tile t-green"><svg class="ic"><use href="#i-gauge"/></svg></span><span class="stx">Status corner<small>Frame rate, delay, battery and the PC's speed numbers</small></span></button>
+        </div>
+        <div class="note" id="stats"></div>
+      </section>
+      <section data-sec="input">
+        <div class="gtitle">Apple Pencil</div>
+        <div class="group" id="g-pen">
+          <button class="tog srow" id="m-pen"><span class="tile t-orange"><svg class="ic"><use href="#i-pen"/></svg></span><span class="stx">Pencil as a Windows pen<small>Pressure and tilt in drawing apps. Off: the Pencil works like a mouse</small></span></button>
+        </div>
+        <div class="gtitle">Touch</div>
+        <div class="group" id="g-touch">
+          <div class="srow"><span class="tile t-gray"><svg class="ic"><use href="#i-hand"/></svg></span><span class="stx">Gestures<small>Tap to click, hold or two-finger tap to right-click, two fingers to scroll, pinch to zoom, three-finger swipes for windows</small></span></div>
+        </div>
+      </section>
+      <section data-sec="deck">
+        <div class="gtitle">Profiles and buttons</div>
+        <div class="group" id="g-deck">
+          <button class="srow" id="s-edit"><span class="tile t-pink"><svg class="ic"><use href="#i-grid"/></svg></span><span class="stx">Edit buttons and profiles<small>Work, Gaming and your own, with any shortcut, text, app or link</small></span><svg class="ic chev"><use href="#i-chev-right"/></svg></button>
+        </div>
+      </section>
+      <section data-sec="sound">
+        <div class="gtitle">PC sound</div>
+        <div class="group">
+          <button class="tog srow" id="m-sound"><span class="tile t-green"><svg class="ic"><use href="#i-vol-up"/></svg></span><span class="stx">Play the PC's sound here<small>Whatever the laptop plays comes out of the iPad's speakers, kept in time with the picture</small></span></button>
+        </div>
+      </section>
+      <section data-sec="connection">
+        <div class="gtitle">This connection</div>
+        <div class="group" id="g-conn">
+          <div class="srow"><span class="tile t-teal" id="s-linkic"><svg class="ic"><use href="#i-cable"/></svg></span><span class="stx" id="s-link">Connected</span></div>
+        </div>
+      </section>
+      <section data-sec="about">
+        <div class="group">
+          <div class="srow"><span class="tile t-gray"><svg class="ic"><use href="#i-tablet"/></svg></span><span class="stx">iPad Display<small>Your iPad as a second screen and button deck for your PC, over USB-C or Wi-Fi</small></span></div>
+          <div class="srow"><span class="tile t-violet"><svg class="ic"><use href="#i-star"/></svg></span><span class="stx">Icons<small>Drawn for this app as one set: 24-point grid, rounded strokes</small></span></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div></div>
 <div id="deck">
   <div id="deckbar">
     <div id="chips"></div>
-    <button id="d-prof" style="display:none">⚙︎ Profile</button>
-    <button id="d-add" style="display:none">+ Profile</button>
+    <button id="d-prof" style="display:none"><svg class="ic"><use href="#i-sliders"/></svg>Profile</button>
+    <button id="d-add" style="display:none"><svg class="ic"><use href="#i-plus"/></svg>Profile</button>
     <button id="d-edit">Edit</button>
   </div>
   <div id="grid"></div>
   <div id="deckmsg"></div>
 </div>
-<button id="tab" aria-label="Buttons">‹</button>
+<button id="tab" aria-label="Buttons"><svg class="ic"><use href="#i-chev-left"/></svg></button>
 <div id="strip"></div>
 
 <div id="sheetbg"><div id="sheet">
   <div id="ed-btn">
     <h2>Button</h2>
-    <div class="two">
-      <div><label for="eb-icon">Icon</label><input id="eb-icon" maxlength="8" autocomplete="off"></div>
-      <div><label for="eb-label">Name</label><input id="eb-label" maxlength="40" autocomplete="off"></div>
-    </div>
+    <label for="eb-label">Name</label>
+    <div class="icrow"><div class="icprev" id="eb-prev"></div><input id="eb-label" maxlength="40" autocomplete="off"></div>
+    <label>Icon <span style="color:#5d6573">(or type up to 3 letters)</span></label>
+    <input id="eb-icon" maxlength="3" autocomplete="off" autocapitalize="characters" placeholder="Letters instead of an icon">
+    <div class="icpick" id="eb-pick"></div>
     <label>When tapped</label>
     <div class="seg" id="eb-type">
       <button data-t="keys">Press keys</button><button data-t="text">Type text</button><button data-t="open">Open</button><button data-t="profile">Profile</button>
@@ -279,16 +431,17 @@
     <input id="eb-value" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
     <select id="eb-prof"></select>
     <div class="hint" id="eb-hint"></div>
-    <div class="btns" id="eb-edit"><button id="eb-left">◀ Move</button><button id="eb-right">Move ▶</button><button id="eb-del" class="danger">Delete</button></div>
+    <div class="btns" id="eb-edit"><button id="eb-left"><svg class="ic"><use href="#i-chev-left"/></svg> Move</button><button id="eb-right">Move <svg class="ic"><use href="#i-chev-right"/></svg></button><button id="eb-del" class="danger">Delete</button></div>
     <div class="err" id="eb-err"></div>
     <div class="btns"><button id="eb-cancel">Cancel</button><button id="eb-save" class="primary">Save</button></div>
   </div>
   <div id="ed-prof">
     <h2>Profile</h2>
-    <div class="two">
-      <div><label for="ep-icon">Icon</label><input id="ep-icon" maxlength="8" autocomplete="off"></div>
-      <div><label for="ep-name">Name</label><input id="ep-name" maxlength="24" autocomplete="off"></div>
-    </div>
+    <label for="ep-name">Name</label>
+    <div class="icrow"><div class="icprev" id="ep-prev"></div><input id="ep-name" maxlength="24" autocomplete="off"></div>
+    <label>Icon</label>
+    <input id="ep-icon" type="hidden">
+    <div class="icpick" id="ep-pick"></div>
     <button class="tog" id="ep-stream" style="width:100%"><span>Show the PC screen<small>Off: the whole iPad is buttons and nothing is streamed, so it costs the PC almost nothing (best for gaming)</small></span></button>
     <button class="tog" id="ep-strip" style="width:100%"><span>Button panel<small>Slide the buttons out from the right edge of the screen</small></span></button>
     <button class="tog" id="ep-screen" style="width:100%"><span>Keep the iPad screen in Windows<small id="ep-screen-sub">Off removes the extra screen, so the PC has one less to draw</small></span></button>
@@ -300,7 +453,7 @@
   </div>
   <div id="ed-win">
     <h2>Apps on the iPad</h2>
-    <div class="hint" style="margin-top:0">Tap <b>Move here</b> to put a window on the iPad. <b>📌 Keep</b> also moves that app's windows here every time they open, whenever the iPad is connected.</div>
+    <div class="hint" style="margin-top:0">Tap <b>Move here</b> to put a window on the iPad. <b>Keep</b> also moves that app's windows here every time they open, whenever the iPad is connected.</div>
     <div id="wins"></div>
     <div class="err" id="win-err"></div>
     <div class="btns"><button id="win-close">Done</button></div>
@@ -315,6 +468,34 @@
     get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
+
+  // ---------------------------------------------------------------- icons
+  // The drawn icon set (web/icons.svg, placed inline by the PC). Buttons and
+  // profiles store "i:name"; anything else is shown as letters.
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  function ico(name, cls) {
+    const s = document.createElementNS(SVGNS, 'svg'); s.setAttribute('class', 'ic' + (cls ? ' ' + cls : ''));
+    const u = document.createElementNS(SVGNS, 'use'); u.setAttribute('href', '#i-' + name); s.appendChild(u);
+    return s;
+  }
+  const hasIcon = n => !!document.getElementById('i-' + n);
+  function iconInto(el, v) {                    // a button's or profile's icon
+    el.textContent = '';
+    if (typeof v === 'string' && v.startsWith('i:') && hasIcon(v.slice(2))) el.appendChild(ico(v.slice(2)));
+    else el.textContent = (v || '').slice(0, 3) || '•';
+  }
+  const UI_ONLY = new Set(['menu', 'close', 'chev-right', 'chev-left', 'check', 'dot', 'sliders']);
+  const PICKABLE = () => [...document.querySelectorAll('symbol[id^="i-"]')].map(x => x.id.slice(2)).filter(n => !UI_ONLY.has(n) || n === 'sliders');
+  function iconPicker(box, current, onPick) {
+    box.innerHTML = '';
+    PICKABLE().forEach(n => {
+      const b = document.createElement('button'); b.type = 'button'; b.title = n;
+      b.appendChild(ico(n)); b.classList.toggle('on', current === 'i:' + n);
+      b.addEventListener('click', () => { box.querySelectorAll('.on').forEach(x => x.classList.remove('on')); b.classList.add('on'); onPick('i:' + n); });
+      box.appendChild(b);
+    });
+    const on = box.querySelector('.on'); if (on) setTimeout(() => on.scrollIntoView({ block: 'nearest' }), 0);
+  }
 
   // ---------------------------------------------------------------- iPad models
   // Native screen resolution in landscape (pixels). Models that support iPadOS 26.
@@ -405,6 +586,9 @@
       goEl.disabled = !monEl.value;
       showResInfo();
       if (!j.input) errEl.textContent = 'Note: touch control is off (host is not Windows).';
+      $('s-link').innerHTML = j.wired ? 'Connected by cable<small>USB-C: full quality, lowest delay</small>'
+        : 'Connected over Wi-Fi<small>For the lowest delay, use the USB-C cable</small>';
+      $('s-linkic').firstElementChild.replaceWith(ico(j.wired ? 'cable' : 'wifi'));
       $('link').innerHTML = j.wired
         ? '<span style="color:var(--ok)">✓ Connected by cable. Wired mode picked for full quality.</span>'
         : 'Connected over Wi-Fi. For a cable connection, see WIRED.md.';
@@ -726,7 +910,7 @@
     if (!document.body.classList.contains('hud')) return;
     const parts = [`${hudFps} fps`];
     if (hudRtt !== null) parts.push(`${hudRtt} ms`);
-    if (battery) parts.push(`${battery.charging ? '⚡' : '🔋'} ${Math.round(battery.level * 100)}%`);
+    if (battery) parts.push(`${battery.charging ? 'charging' : 'battery'} ${Math.round(battery.level * 100)}%`);
     let text = parts.join('  ·  ');
     // The PC's side (from the [speed] line): how fast Windows draws this
     // screen, how many touch moves reach it, and how long each update takes.
@@ -1080,9 +1264,10 @@
   function keyEl(b, onTap) {
     const k = document.createElement('button');
     k.className = 'key';
-    const i = document.createElement('span'); i.className = 'i'; i.textContent = b.icon || '•';
+    const i = document.createElement('span'); i.className = 'i'; iconInto(i, b.icon);
     const l = document.createElement('span'); l.className = 'l'; l.textContent = b.label || '';
-    k.append(i, l);
+    const em = document.createElement('span'); em.className = 'em'; em.appendChild(ico('pen'));
+    k.append(i, l, em);
     k.addEventListener('click', () => onTap(k));
     return k;
   }
@@ -1164,6 +1349,12 @@
     applyProfile();
   }
 
+  function profLabel(el, q) {
+    el.textContent = '';
+    if (q.icon && q.icon.startsWith('i:') && hasIcon(q.icon.slice(2))) el.appendChild(ico(q.icon.slice(2)));
+    else if (q.icon) el.append(q.icon + ' ');
+    el.append(q.name);
+  }
   function renderProfileUI() {
     $('m-profsec').style.display = profiles ? '' : 'none';
     if (!profiles) { document.body.classList.remove('strip'); return; }
@@ -1172,7 +1363,7 @@
     seg.innerHTML = '';
     profiles.profiles.forEach(q => {
       const b = document.createElement('button');
-      b.textContent = `${q.icon || ''} ${q.name}`.trim();
+      profLabel(b, q);
       b.classList.toggle('on', q.name === p.name);
       b.addEventListener('click', () => { if (q.name !== activeProf().name) switchTo(q.name); });
       seg.appendChild(b);
@@ -1193,7 +1384,7 @@
     chips.innerHTML = '';
     profiles.profiles.forEach(q => {
       const c = document.createElement('button');
-      c.textContent = `${q.icon || ''} ${q.name}`.trim();
+      profLabel(c, q);
       c.classList.toggle('on', q.name === shown.name);
       c.addEventListener('click', () => {
         if (editing) { editName = q.name; renderDeck(); }      // editing: just look at another profile
@@ -1208,7 +1399,7 @@
     grid.style.gridTemplateRows = `repeat(${Math.max(2, Math.ceil(n / cols))}, minmax(96px, 1fr))`;
     shown.buttons.forEach((b, i) => grid.appendChild(keyEl(b, el => editing ? editButton(shown.name, i) : press(shown, i, el))));
     if (editing) {
-      const a = keyEl({ icon: '+', label: 'Add button' }, () => editButton(shown.name, -1));
+      const a = keyEl({ icon: 'i:plus', label: 'Add button' }, () => editButton(shown.name, -1));
       a.classList.add('add');
       grid.appendChild(a);
     }
@@ -1233,9 +1424,10 @@
   $('m-edit').addEventListener('click', startEditing);
   $('d-prof').addEventListener('click', () => editProfile(editName));
   $('d-add').addEventListener('click', () => editProfile(null));
+  $('s-edit').addEventListener('click', () => { closeSettings(); startEditing(); });
   $('tab').addEventListener('click', () => {
     $('tab').classList.toggle('open', $('strip').classList.toggle('open'));
-    $('tab').textContent = $('strip').classList.contains('open') ? '›' : '‹';
+    $('tab').firstElementChild.replaceWith(ico($('strip').classList.contains('open') ? 'chev-right' : 'chev-left'));
   });
 
   // ---- editor sheet
@@ -1269,9 +1461,11 @@
   const PLACE = { keys: 'ctrl+shift+m', text: 'gg wp', open: 'obs64.exe', profile: '' };
   let eb = null;                                  // { name, i, type }
   function editButton(name, i) {
-    const p = prof(name), b = i >= 0 ? p.buttons[i] : { icon: '⭐', label: '' };
-    eb = { name, i, type: ['keys', 'text', 'open', 'profile'].find(t => t in b) || 'keys' };
-    $('eb-icon').value = b.icon || ''; $('eb-label').value = b.label || '';
+    const p = prof(name), b = i >= 0 ? p.buttons[i] : { icon: 'i:star', label: '' };
+    eb = { name, i, type: ['keys', 'text', 'open', 'profile'].find(t => t in b) || 'keys', icon: b.icon || 'i:star' };
+    $('eb-icon').value = eb.icon.startsWith('i:') ? '' : eb.icon; $('eb-label').value = b.label || '';
+    iconInto($('eb-prev'), eb.icon);
+    iconPicker($('eb-pick'), eb.icon, v => { eb.icon = v; $('eb-icon').value = ''; iconInto($('eb-prev'), v); });
     $('eb-value').value = eb.type !== 'profile' ? (b[eb.type] || '') : '';
     const sel = $('eb-prof'); sel.innerHTML = '';
     profiles.profiles.forEach(q => { const o = document.createElement('option'); o.value = o.textContent = q.name; sel.appendChild(o); });
@@ -1288,10 +1482,15 @@
     $('eb-hint').textContent = HINTS[eb.type];
   }
   document.querySelectorAll('#eb-type [data-t]').forEach(x => x.addEventListener('click', () => { eb.type = x.dataset.t; markType(); }));
+  $('eb-icon').addEventListener('input', () => {
+    const t = $('eb-icon').value.trim();
+    eb.icon = t || 'i:star'; iconInto($('eb-prev'), eb.icon);
+    $('eb-pick').querySelectorAll('.on').forEach(x => x.classList.remove('on'));
+  });
   $('eb-save').addEventListener('click', async () => {
     const v = eb.type === 'profile' ? $('eb-prof').value : $('eb-value').value.trim();
     if (!v) { $('eb-err').textContent = 'Fill in what the button does.'; return; }
-    const b = { label: $('eb-label').value.trim() || v, icon: $('eb-icon').value.trim() || '•', [eb.type]: v };
+    const b = { label: $('eb-label').value.trim() || v, icon: eb.icon || 'i:star', [eb.type]: v };
     const data = clone(profiles), q = data.profiles.find(x => x.name === eb.name);
     if (eb.i >= 0) q.buttons[eb.i] = b; else q.buttons.push(b);
     if (await saveAll(data, $('eb-err'))) closeSheet();
@@ -1313,9 +1512,11 @@
 
   let ep = null;                                  // { name (null = new), stream, strip, screen, cols }
   function editProfile(name) {
-    const p = name ? prof(name) : { name: '', icon: '🎛️', stream: false, strip: false, screen: false, cols: 4 };
+    const p = name ? prof(name) : { name: '', icon: 'i:sliders', stream: false, strip: false, screen: false, cols: 4 };
     ep = { name, stream: p.stream !== false, strip: !!p.strip, screen: p.screen !== false, cols: p.cols || 4 };
-    $('ep-icon').value = p.icon || ''; $('ep-name').value = p.name;
+    $('ep-icon').value = p.icon || 'i:sliders'; $('ep-name').value = p.name;
+    iconInto($('ep-prev'), $('ep-icon').value);
+    iconPicker($('ep-pick'), $('ep-icon').value, v => { $('ep-icon').value = v; iconInto($('ep-prev'), v); });
     $('ep-edit').style.display = name && profiles.profiles.length > 1 ? '' : 'none';
     markProf();
     openSheet('prof');
@@ -1360,6 +1561,30 @@
   $('ep-cancel').addEventListener('click', closeSheet);
   $('sheetbg').addEventListener('click', e => { if (e.target === $('sheetbg')) closeSheet(); });
 
+
+  // ---------------------------------------------------------------- settings
+  const SEC_TITLES = {};
+  document.querySelectorAll('#settings nav [data-sec]').forEach(b => {
+    SEC_TITLES[b.dataset.sec] = b.textContent.trim();
+    b.addEventListener('click', () => showSection(b.dataset.sec));
+  });
+  function showSection(sec) {
+    store.set('ssec', sec);
+    document.querySelectorAll('#settings nav [data-sec]').forEach(b => b.classList.toggle('on', b.dataset.sec === sec));
+    document.querySelectorAll('#settings section').forEach(x => x.classList.toggle('on', x.dataset.sec === sec));
+    $('s-title').textContent = SEC_TITLES[sec] || 'Settings';
+  }
+  function openSettings(sec) {
+    closeMenu();
+    showSection(sec || store.get('ssec', 'display'));
+    $('settings').classList.add('open');
+    send({ t: 'screen', get: 1 });
+    window.dispatchEvent(new Event('settingsopen'));
+  }
+  function closeSettings() { $('settings').classList.remove('open'); }
+  $('m-settings').addEventListener('click', () => openSettings());
+  $('s-close').addEventListener('click', closeSettings);
+  $('settings').addEventListener('click', e => { if (e.target === $('settings')) closeSettings(); });
 
   // ---------------------------------------------------------------- screen shape
   // Resolution and text-size presets for the iPad's screen in Windows, and
@@ -1440,7 +1665,7 @@
       if (w.exe) {
         const on = pins.has(w.exe.toLowerCase());
         const pin = document.createElement('button');
-        pin.textContent = '📌 Keep'; pin.classList.toggle('on', on);
+        pin.append(ico('pin'), ' Keep'); pin.classList.toggle('on', on);
         pin.addEventListener('click', () => send({ t: 'pin', exe: w.exe, on: !on }));
         row.appendChild(pin);
       }
