@@ -28,6 +28,7 @@ rem Optional: H.264 video for smooth scrolling and dragging (uses the graphics c
 ".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check "av>=14" >nul 2>nul
 rem Optional: encrypted Wi-Fi (the host's own certificate).
 ".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check "cryptography>=44" >nul 2>nul
+".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check "sympy>=1.14" "tzdata" >nul 2>nul
 rem Optional: PC sound on the iPad.
 ".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check "soundcard>=0.4.6" >nul 2>nul
 rem Optional: the icon next to the clock.
