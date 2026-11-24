@@ -356,6 +356,28 @@
     background: rgba(20,22,28,.8); color: #cfd5df; letter-spacing: .03em; }
   .clip .ct { padding: 9px 11px 11px; } .clip .ct b { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .clip .ct small { color: #8f98a8; font-size: 12.5px; }
+  #co { position: fixed; inset: 0; z-index: 30; display: none; background: #08090c; }
+  #co.open { display: block; }
+  #co .cx { position: absolute; inset: 0; padding: calc(12px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; }
+  #co .chead { display: flex; align-items: center; gap: 10px; }
+  #co .chead h2 { margin: 0; font-size: 22px; flex: none; }
+  #co .chead .row { flex: 1; min-width: 0; }
+  #co .row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0; flex-wrap: nowrap; }
+  #co .row::-webkit-scrollbar { display: none; }
+  #co .row .chip { flex: none; }
+  #co .chead > button { margin: 0; width: 40px; height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center; flex: none; }
+  #co-view { position: relative; flex: 1; min-height: 0; overflow: hidden; border-radius: 14px; background: #111318; touch-action: none; }
+  #co-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+  #co-stage img, #co-stage canvas { position: absolute; left: 0; top: 0; display: block; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  #co-view .empty { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center; color: #aeb6c3; padding: 20px; }
+  #co-view .empty button { width: auto; justify-self: center; margin: 0; }
+  .co-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .co-tools button { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; }
+  .co-tools button.on { background: var(--grad); color: #fff; border-color: transparent; }
+  .co-tools .sw { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+  .co-tools .sw.on { border-color: #fff; background: var(--c); }
+  .co-tools .sp { flex: 1; }
+  .co-tools svg.ic { width: 17px; height: 17px; }
   #cl-player { position: absolute; inset: 0; display: none; flex-direction: column; background: #000; }
   #cl-player.open { display: flex; }
   #cl-player video { flex: 1; min-height: 0; width: 100%; background: #000; }
@@ -448,6 +470,7 @@
   <div class="qlabel">View</div>
   <button class="qrow" id="m-zoom"><svg class="ic"><use href="#i-fit"/></svg>Fit whole screen</button>
   <button class="qrow" id="m-clips"><svg class="ic"><use href="#i-film"/></svg>Clips<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
+  <button class="qrow" id="m-callouts"><svg class="ic"><use href="#i-target"/></svg>Callouts<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-rec"><svg class="ic"><use href="#i-record"/></svg><span id="m-rec-t">Record the iPad screen</span></button>
   <button class="qrow" id="m-tablet"><svg class="ic"><use href="#i-pen"/></svg><span id="m-tablet-t">Drawing tablet</span></button>
   <button class="qrow" id="m-apps"><svg class="ic"><use href="#i-window"/></svg>Apps on the iPad<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
@@ -599,6 +622,7 @@
     <button id="d-prof" style="display:none"><svg class="ic"><use href="#i-sliders"/></svg>Profile</button>
     <button id="d-add" style="display:none"><svg class="ic"><use href="#i-plus"/></svg>Profile</button>
     <button id="d-clips"><svg class="ic"><use href="#i-film"/></svg>Clips</button>
+    <button id="d-callouts"><svg class="ic"><use href="#i-target"/></svg>Callouts</button>
     <button id="d-edit">Edit</button>
   </div>
   <div id="grid"></div>
@@ -607,6 +631,23 @@
 <button id="tab" aria-label="Buttons"><svg class="ic"><use href="#i-chev-left"/></svg></button>
 <div id="strip"></div>
 
+<div id="co"><div class="cx">
+  <div class="chead"><h2>Callouts</h2><div class="row" id="co-maps"></div>
+    <button id="co-close" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></div>
+  <div class="row" id="co-floors"></div>
+  <div id="co-view"><div id="co-stage"><img id="co-img" alt="" draggable="false"><canvas id="co-ink"></canvas></div></div>
+  <div class="co-tools" id="co-tools">
+    <button class="sw on" data-c="#ff4d4d" style="--c:#ff4d4d;background:#ff4d4d" aria-label="Red"></button>
+    <button class="sw" data-c="#ffd23f" style="--c:#ffd23f;background:#ffd23f" aria-label="Yellow"></button>
+    <button class="sw" data-c="#3fd2ff" style="--c:#3fd2ff;background:#3fd2ff" aria-label="Blue"></button>
+    <button class="sw" data-c="#ffffff" style="--c:#ffffff;background:#ffffff" aria-label="White"></button>
+    <button id="co-finger"><svg class="ic"><use href="#i-hand"/></svg>Draw with finger</button>
+    <span class="sp"></span>
+    <button id="co-undo"><svg class="ic"><use href="#i-undo"/></svg>Undo</button>
+    <button id="co-clear"><svg class="ic"><use href="#i-eraser"/></svg>Clear</button>
+    <button id="co-fit"><svg class="ic"><use href="#i-fit"/></svg>Fit</button>
+  </div>
+</div></div>
 <div id="clips"><div class="cx">
   <div class="chead"><h2>Clips</h2><input id="cl-q" placeholder="Search" autocomplete="off" autocapitalize="off" spellcheck="false">
     <button id="cl-close" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></div>
@@ -1726,6 +1767,147 @@
     try { await api('clips/action', 'POST', { id: clipShown.id, do: what }); toast(what === 'play' ? 'Playing on the PC' : 'Shown in File Explorer'); }
     catch (e) { toast(e.message); }
   }
+  // ---- map callouts: your own pictures (callouts.py), zoom with two fingers, draw with the Pencil
+  // (or a finger after "Draw with finger"). Drawings stay until cleared or the app is closed.
+  const co = { data: null, map: '', floor: '', s: 1, tx: 0, ty: 0, fit: 1, color: '#ff4d4d', finger: false, ink: {}, ptrs: new Map(), stroke: null, pinch: null, tap: null, tapAt: 0 };
+  async function openCallouts() {
+    closeMenu(); $('co').classList.add('open');
+    try { co.data = await (await fetch(`/api/callouts?${pinQ()}`)).json(); }
+    catch (e) { co.data = { maps: [] }; }
+    const maps = co.data.maps || [];
+    if (!maps.find(m => m.name === co.map)) co.map = store.get('co-map', '');
+    if (!maps.find(m => m.name === co.map)) co.map = maps.length ? maps[0].name : '';
+    renderCallouts();
+  }
+  function coMap() { return co.data && (co.data.maps || []).find(m => m.name === co.map); }
+  function renderCallouts() {
+    const maps = (co.data && co.data.maps) || [], box = $('co-maps'); box.innerHTML = '';
+    maps.forEach(m => {
+      const c = document.createElement('button'); c.className = 'chip' + (m.name === co.map ? ' on' : ''); c.textContent = m.name;
+      c.addEventListener('click', () => { co.map = m.name; store.set('co-map', m.name); co.floor = ''; renderCallouts(); });
+      box.appendChild(c);
+    });
+    const on = box.querySelector('.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+    const m = coMap(), fl = $('co-floors'); fl.innerHTML = '';
+    const cv0 = $('co-view'); cv0.querySelectorAll('.empty').forEach(e => e.remove());
+    $('co-stage').style.display = m ? '' : 'none'; $('co-tools').style.visibility = m ? '' : 'hidden';
+    if (!m) {
+      const e = document.createElement('div'); e.className = 'empty';
+      const t = document.createElement('div');
+      t.textContent = co.data && co.data.folder
+        ? `Put your map pictures in ${co.data.folder} on the PC: one folder per map (like Bank), one picture per floor. A number in front of a name sets the order.`
+        : "Can't reach the PC.";
+      const b = document.createElement('button'); b.textContent = 'Open the folder on the PC';
+      b.addEventListener('click', async () => { try { await api('callouts/folder', 'POST'); toast('Opened on the PC'); } catch (err) { toast(err.message); } });
+      e.append(t, b); cv0.appendChild(e);
+      return;
+    }
+    if (!m.floors.find(f => f.id === co.floor)) co.floor = store.get('co-floor-' + m.name, m.floors[0].id);
+    if (!m.floors.find(f => f.id === co.floor)) co.floor = m.floors[0].id;
+    m.floors.forEach(f => {
+      const c = document.createElement('button'); c.className = 'chip' + (f.id === co.floor ? ' on' : ''); c.textContent = f.name;
+      c.addEventListener('click', () => { co.floor = f.id; store.set('co-floor-' + m.name, f.id); renderCallouts(); });
+      fl.appendChild(c);
+    });
+    const f = m.floors.find(x => x.id === co.floor), img = $('co-img'), url = `/api/callouts/image?${pinQ()}&id=${f.id}&v=${f.v}`;
+    if (img.dataset.id !== f.id) {
+      img.dataset.id = f.id;
+      img.onload = () => {
+        const cv = $('co-ink'), k = Math.min(1, 4096 / Math.max(img.naturalWidth, img.naturalHeight));
+        cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
+        cv.style.width = img.style.width = img.naturalWidth + 'px'; cv.style.height = img.style.height = img.naturalHeight + 'px';
+        coFit(); coRedraw();
+      };
+      img.src = url;
+    }
+  }
+  function coApply() { $('co-stage').style.transform = `translate(${co.tx}px,${co.ty}px) scale(${co.s})`; }
+  function coFit() {
+    const img = $('co-img'), v = $('co-view').getBoundingClientRect();
+    if (!img.naturalWidth) return;
+    co.fit = co.s = Math.min(v.width / img.naturalWidth, v.height / img.naturalHeight);
+    co.tx = (v.width - img.naturalWidth * co.s) / 2; co.ty = (v.height - img.naturalHeight * co.s) / 2;
+    coApply();
+  }
+  function coRedraw() {
+    const cv = $('co-ink'), g = cv.getContext('2d'), img = $('co-img'), k = cv.width / (img.naturalWidth || 1);
+    g.clearRect(0, 0, cv.width, cv.height); g.lineCap = g.lineJoin = 'round';
+    (co.ink[co.floor] || []).forEach(st => {
+      g.strokeStyle = st.c; g.lineWidth = st.w * k; g.beginPath();
+      st.p.forEach(([x, y], i) => i ? g.lineTo(x * k, y * k) : g.moveTo(x * k, y * k));
+      if (st.p.length === 1) g.lineTo(st.p[0][0] * k + .1, st.p[0][1] * k);
+      g.stroke();
+    });
+  }
+  function coPoint(e) { const v = $('co-view').getBoundingClientRect(); return [(e.clientX - v.left - co.tx) / co.s, (e.clientY - v.top - co.ty) / co.s]; }
+  function coMid() {
+    const v = $('co-view').getBoundingClientRect(), [a, b] = [...co.ptrs.values()];
+    return { x: (a.x + b.x) / 2 - v.left, y: (a.y + b.y) / 2 - v.top, d: Math.hypot(a.x - b.x, a.y - b.y) || 1 };
+  }
+  const coView = $('co-view');
+  coView.addEventListener('pointerdown', e => {
+    if (!$('co-img').naturalWidth) return;
+    try { coView.setPointerCapture(e.pointerId); } catch (err) { /* synthetic */ }
+    const draw = e.pointerType === 'pen' || (co.finger && co.ptrs.size === 0 && e.pointerType !== 'pen');
+    if (draw && !co.pinch) {
+      co.stroke = { id: e.pointerId, c: co.color, w: 5 / co.s, p: [coPoint(e)] };
+      (co.ink[co.floor] = co.ink[co.floor] || []).push(co.stroke); coRedraw();
+      return;
+    }
+    co.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (co.ptrs.size === 2) {
+      if (co.stroke && e.pointerType !== 'pen') { const l = co.ink[co.floor]; if (l && l[l.length - 1] === co.stroke && co.stroke.p.length < 4) l.pop(); co.stroke = null; coRedraw(); }
+      const m = coMid(); co.pinch = { s: co.s, tx: co.tx, ty: co.ty, ...m };
+    }
+    co.tap = co.ptrs.size === 1 ? { id: e.pointerId, t: Date.now(), x: e.clientX, y: e.clientY } : null;   // a pinch is no tap
+  });
+  coView.addEventListener('pointermove', e => {
+    if (co.stroke && co.stroke.id === e.pointerId) {
+      const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+      (evs.length ? evs : [e]).forEach(x => co.stroke.p.push(coPoint(x)));
+      coRedraw(); return;
+    }
+    const prev = co.ptrs.get(e.pointerId);
+    if (!prev) return;
+    co.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (co.pinch && co.ptrs.size >= 2) {
+      const m = coMid(), p = co.pinch;
+      co.s = Math.max(co.fit * .6, Math.min(co.fit * 12, p.s * m.d / p.d));
+      const ix = (p.x - p.tx) / p.s, iy = (p.y - p.ty) / p.s;
+      co.tx = m.x - ix * co.s; co.ty = m.y - iy * co.s; coApply();
+    } else if (co.ptrs.size === 1) {
+      co.tx += e.clientX - prev.x; co.ty += e.clientY - prev.y; coApply();
+    }
+  });
+  const coUp = e => {
+    if (co.stroke && co.stroke.id === e.pointerId) { co.stroke = null; return; }
+    co.ptrs.delete(e.pointerId);
+    if (co.ptrs.size < 2) co.pinch = null;
+    const t = co.tap;                                           // double-tap: back to the whole floor
+    if (t && t.id === e.pointerId && Date.now() - t.t < 250 && Math.hypot(e.clientX - t.x, e.clientY - t.y) < 12) {
+      if (Date.now() - co.tapAt < 350) { coFit(); co.tapAt = 0; } else co.tapAt = Date.now();
+    } else co.tapAt = 0;
+    co.tap = null;
+  };
+  coView.addEventListener('pointerup', coUp); coView.addEventListener('pointercancel', coUp);
+  coView.addEventListener('wheel', e => {                          // trackpad / mouse on the iPad
+    e.preventDefault();
+    const v = coView.getBoundingClientRect(), x = e.clientX - v.left, y = e.clientY - v.top, s0 = co.s;
+    co.s = Math.max(co.fit * .6, Math.min(co.fit * 12, co.s * Math.exp(-e.deltaY / 300)));
+    co.tx = x - (x - co.tx) * co.s / s0; co.ty = y - (y - co.ty) * co.s / s0; coApply();
+  }, { passive: false });
+  document.querySelectorAll('#co-tools .sw').forEach(b => b.addEventListener('click', () => {
+    co.color = b.dataset.c; document.querySelectorAll('#co-tools .sw').forEach(x => x.classList.toggle('on', x === b));
+  }));
+  $('co-finger').addEventListener('click', () => { co.finger = !co.finger; $('co-finger').classList.toggle('on', co.finger); });
+  $('co-undo').addEventListener('click', () => { (co.ink[co.floor] || []).pop(); coRedraw(); });
+  $('co-clear').addEventListener('click', () => { co.ink[co.floor] = []; coRedraw(); });
+  $('co-fit').addEventListener('click', coFit);
+  $('co-close').addEventListener('click', () => $('co').classList.remove('open'));
+  addEventListener('resize', () => { if ($('co').classList.contains('open')) coFit(); });
+  $('m-callouts').addEventListener('click', openCallouts);
+  $('d-callouts').addEventListener('click', openCallouts);
+
   $('m-clips').addEventListener('click', () => openClips(false));
   $('d-clips').addEventListener('click', () => openClips(false));
   $('cl-close').addEventListener('click', () => { closePlayer(); $('clips').classList.remove('open'); });

@@ -149,6 +149,10 @@ Buttons can drive OBS Studio directly (no hotkeys needed): go live or end the st
 
 The **Twitch chat** tile shows your chat live. Type your channel name in **Settings > Buttons > Twitch chat**. It reads chat straight from Twitch on the iPad (read-only, no login), so the laptop does nothing for it.
 
+### Siege callouts (your own map pictures)
+
+Tap **Callouts** on the deck (or **☰ > Callouts**) to see your map callout pictures on the iPad. Put them on the laptop in the `callouts` folder in this folder (the Callouts screen has a button that opens it): one folder per map, one picture per floor, for example `callouts\Bank\1 Basement.png`, `2 First floor.png`, `3 Second floor.png`, `4 Roof.png`. The number in front only sets the order. Pinch to zoom, drag to move, double-tap to see the whole floor. Draw on the map with the Pencil (or turn on **Draw with finger**) to plan a strat with your team; each floor keeps its own drawing until you tap **Clear**.
+
 ## Video mode (smoother scrolling and dragging)
 
 While things move, the picture is sent as **H.264 video**, encoded by the laptop's graphics card (NVIDIA, AMD or Intel) and decoded by the iPad's video chip. That needs far less data than pictures, so scrolling, dragging windows and videos stay smooth. Typing and small changes are still sent as sharp pictures straight away, and once things stop moving, the moved areas are re-sent at full sharpness, exactly as before.

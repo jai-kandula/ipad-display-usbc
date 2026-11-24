@@ -68,6 +68,7 @@ import screens  # noqa: E402  (which screen is the iPad's, the laptop's, a monit
 import tlsutil  # noqa: E402  (encrypted Wi-Fi)
 import clips  # noqa: E402  (replay clips from any clipping app)
 import obs  # noqa: E402  (OBS Studio buttons and tile)
+import callouts  # noqa: E402  (map callouts from your own pictures)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -1043,6 +1044,28 @@ def make_app(cfg):
         except Exception as e:
             return web.json_response({"error": str(e)}, status=400)
 
+    async def callouts_list(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        return web.json_response(await asyncio.get_running_loop().run_in_executor(None, callouts.listing))
+
+    async def callouts_image(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        got = await asyncio.get_running_loop().run_in_executor(None, callouts.image, request.query.get("id", ""))
+        if not got:
+            return web.Response(status=404)
+        return web.FileResponse(got[0], headers={"Content-Type": got[1], "Cache-Control": "max-age=604800"})
+
+    async def callouts_folder(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        try:
+            await asyncio.get_running_loop().run_in_executor(None, callouts.open_folder)
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=400)
+        return web.json_response({"ok": True})
+
     async def apps_api(request):
         """Apps the profile editor can offer: recently in front, and open now."""
         if not authorized(request):
@@ -1520,6 +1543,9 @@ def make_app(cfg):
     app.router.add_post("/api/action", deck_action)
     app.router.add_get("/api/settings", settings_get)
     app.router.add_put("/api/settings", settings_put)
+    app.router.add_get("/api/callouts", callouts_list)
+    app.router.add_get("/api/callouts/image", callouts_image)
+    app.router.add_post("/api/callouts/folder", callouts_folder)
     app.router.add_get("/api/obs", obs_api)
     app.router.add_post("/api/obs", obs_api)
     app.router.add_get("/api/ha", ha_api)
