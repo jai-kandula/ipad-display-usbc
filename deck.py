@@ -22,33 +22,57 @@ PATH = os.path.join(HERE, "profiles.json")
 DEFAULT = {
     "active": "Work",
     "profiles": [
-        {"name": "Work", "icon": "💼", "screen": True, "stream": True, "strip": True,
+        {"name": "Work", "icon": "i:briefcase", "screen": True, "stream": True, "strip": True,
          "cols": 4, "buttons": [
-            {"label": "Copy", "icon": "📋", "keys": "ctrl+c"},
-            {"label": "Paste", "icon": "📥", "keys": "ctrl+v"},
-            {"label": "Undo", "icon": "↩️", "keys": "ctrl+z"},
-            {"label": "Screenshot", "icon": "📸", "keys": "win+shift+s"},
-            {"label": "Task view", "icon": "🗂️", "keys": "win+tab"},
-            {"label": "Desktop", "icon": "🖥️", "keys": "win+d"},
-            {"label": "Mute mic", "icon": "🎙️", "keys": "ctrl+shift+m"},
-            {"label": "Play / pause", "icon": "⏯️", "keys": "playpause"},
-            {"label": "Gaming", "icon": "🎮", "profile": "Gaming"},
+            {"label": "Copy", "icon": "i:copy", "keys": "ctrl+c"},
+            {"label": "Paste", "icon": "i:paste", "keys": "ctrl+v"},
+            {"label": "Undo", "icon": "i:undo", "keys": "ctrl+z"},
+            {"label": "Screenshot", "icon": "i:screenshot", "keys": "win+shift+s"},
+            {"label": "Task view", "icon": "i:taskview", "keys": "win+tab"},
+            {"label": "Desktop", "icon": "i:monitor", "keys": "win+d"},
+            {"label": "Mute mic", "icon": "i:mic-off", "keys": "ctrl+shift+m"},
+            {"label": "Play / pause", "icon": "i:playpause", "keys": "playpause"},
+            {"label": "Gaming", "icon": "i:gamepad", "profile": "Gaming"},
          ]},
-        {"name": "Gaming", "icon": "🎮", "screen": False, "stream": False, "strip": False,
+        {"name": "Gaming", "icon": "i:gamepad", "screen": False, "stream": False, "strip": False,
          "cols": 4, "buttons": [
-            {"label": "Mute mic", "icon": "🎙️", "keys": "ctrl+shift+m"},
-            {"label": "Deafen", "icon": "🎧", "keys": "ctrl+shift+d"},
-            {"label": "Save clip (NVIDIA)", "icon": "🎬", "keys": "alt+f10"},
-            {"label": "Screenshot", "icon": "📸", "keys": "win+alt+printscreen"},
-            {"label": "Volume down", "icon": "🔉", "keys": "voldown"},
-            {"label": "Volume up", "icon": "🔊", "keys": "volup"},
-            {"label": "Play / pause", "icon": "⏯️", "keys": "playpause"},
-            {"label": "Next track", "icon": "⏭️", "keys": "next"},
-            {"label": "Open Discord", "icon": "💬", "open": "discord://"},
-            {"label": "Work", "icon": "💼", "profile": "Work"},
+            {"label": "Mute mic", "icon": "i:mic-off", "keys": "ctrl+shift+m"},
+            {"label": "Deafen", "icon": "i:headphones-off", "keys": "ctrl+shift+d"},
+            {"label": "Save clip (NVIDIA)", "icon": "i:clip", "keys": "alt+f10"},
+            {"label": "Screenshot", "icon": "i:screenshot", "keys": "win+alt+printscreen"},
+            {"label": "Volume down", "icon": "i:vol-down", "keys": "voldown"},
+            {"label": "Volume up", "icon": "i:vol-up", "keys": "volup"},
+            {"label": "Play / pause", "icon": "i:playpause", "keys": "playpause"},
+            {"label": "Next track", "icon": "i:next", "keys": "next"},
+            {"label": "Open Discord", "icon": "i:chat", "open": "discord://"},
+            {"label": "Work", "icon": "i:briefcase", "profile": "Work"},
          ]},
     ],
 }
+
+# Icons are names from web/icons.svg written as "i:name". Profiles saved
+# before the icon set used emoji; the ones the app shipped with are swapped
+# for their drawn icon when loaded. Anything else (letters, a custom emoji)
+# is shown as typed.
+EMOJI_ICONS = {
+    "💼": "briefcase", "📋": "copy", "📥": "paste", "↩️": "undo", "↩": "undo", "📸": "screenshot",
+    "🗂️": "taskview", "🗂": "taskview", "🖥️": "monitor", "🖥": "monitor", "🎙️": "mic-off", "🎙": "mic-off",
+    "⏯️": "playpause", "⏯": "playpause", "🎮": "gamepad", "🎧": "headphones-off", "🎬": "clip",
+    "🔉": "vol-down", "🔊": "vol-up", "🔇": "mute", "⏭️": "next", "⏭": "next", "⏮️": "prev", "⏮": "prev",
+    "💬": "chat", "🎛️": "sliders", "🎛": "sliders", "⭐": "star", "📁": "folder", "🔗": "link",
+    "🏠": "home", "💡": "bulb", "🎵": "music", "⚡": "bolt", "🔒": "lock", "🌙": "moon", "☀️": "sun",
+}
+
+
+def _migrate_icons(data):
+    for p in data.get("profiles", []):
+        if p.get("icon") in EMOJI_ICONS:
+            p["icon"] = "i:" + EMOJI_ICONS[p["icon"]]
+        for b in p.get("buttons", []):
+            if isinstance(b, dict) and b.get("icon") in EMOJI_ICONS:
+                b["icon"] = "i:" + EMOJI_ICONS[b["icon"]]
+    return data
+
 
 _lock = threading.Lock()
 
@@ -58,7 +82,7 @@ def load():
         with open(PATH, encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data.get("profiles"), list) and data["profiles"]:
-            return data
+            return _migrate_icons(data)
     except (OSError, ValueError):
         pass
     return copy.deepcopy(DEFAULT)

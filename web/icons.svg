@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+<!-- iPad Display icon set: 24x24, 1.75 px round strokes, drawn for this app.
+     Use: <svg class="ic"><use href="#i-name"/></svg> (index.html loads this file inline). -->
+<defs>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9.5 5.5L16 12l-6.5 6.5"/></symbol>
+<symbol id="i-chev-left" viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></symbol>
+<symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.75"/><path d="M6.5 10h.01M9.5 10h.01M12.5 10h.01M15.5 10h.01M18 10h.01M7.5 14h9"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2.75"/><path d="M15.5 8.5V6.25A2.25 2.25 0 0 0 13.25 4h-7A2.25 2.25 0 0 0 4 6.25v7a2.25 2.25 0 0 0 2.25 2.25H8.5"/></symbol>
+<symbol id="i-paste" viewBox="0 0 24 24"><path d="M9 4.5H7.25A2.25 2.25 0 0 0 5 6.75v12A2.25 2.25 0 0 0 7.25 21h9.5A2.25 2.25 0 0 0 19 18.75v-12a2.25 2.25 0 0 0-2.25-2.25H15"/><rect x="9" y="3" width="6" height="3.5" rx="1.25"/><path d="M9 12h6M9 16h3.5"/></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14.5L4 9.5l5-5"/><path d="M4 9.5h10.25a5.75 5.75 0 0 1 0 11.5H11"/></symbol>
+<symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14.5l5-5-5-5"/><path d="M20 9.5H9.75a5.75 5.75 0 0 0 0 11.5H13"/></symbol>
+<symbol id="i-screenshot" viewBox="0 0 24 24"><path d="M4 8.5V6.25A2.25 2.25 0 0 1 6.25 4H8.5M15.5 4h2.25A2.25 2.25 0 0 1 20 6.25V8.5M20 15.5v2.25A2.25 2.25 0 0 1 17.75 20H15.5M8.5 20H6.25A2.25 2.25 0 0 1 4 17.75V15.5"/><circle cx="12" cy="12" r="3.25"/></symbol>
+<symbol id="i-taskview" viewBox="0 0 24 24"><rect x="3" y="4.5" width="8" height="6.5" rx="1.75"/><rect x="13" y="4.5" width="8" height="6.5" rx="1.75"/><rect x="3" y="13" width="8" height="6.5" rx="1.75"/><rect x="13" y="13" width="8" height="6.5" rx="1.75"/></symbol>
+<symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="12.5" rx="2.25"/><path d="M8.5 20.5h7M12 16.5v4"/></symbol>
+<symbol id="i-monitor-off" viewBox="0 0 24 24"><path d="M7 4h12.25a2.25 2.25 0 0 1 2.25 2.25v8a2.25 2.25 0 0 1-1.1 1.94M16.5 16.5H4.75A2.25 2.25 0 0 1 2.5 14.25v-8A2.25 2.25 0 0 1 3.6 4.3"/><path d="M8.5 20.5h7M12 16.5v4M3 3l18 18"/></symbol>
+<symbol id="i-laptop" viewBox="0 0 24 24"><path d="M5 15.5V6.75A1.75 1.75 0 0 1 6.75 5h10.5A1.75 1.75 0 0 1 19 6.75v8.75"/><path d="M2.5 18.5h19l-1.2-3H3.7z"/></symbol>
+<symbol id="i-tablet" viewBox="0 0 24 24"><rect x="4.5" y="2.5" width="15" height="19" rx="2.75"/><path d="M10.5 18.5h3"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.75 5h2.5"/></symbol>
+<symbol id="i-devices" viewBox="0 0 24 24"><rect x="2.5" y="5" width="12" height="14" rx="2.25"/><rect x="16.5" y="8.5" width="5" height="10.5" rx="1.5"/><path d="M7.5 16.5h2"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
+<symbol id="i-mic-off" viewBox="0 0 24 24"><path d="M15 10.5V6a3 3 0 0 0-5.6-1.5M9 9v2a3 3 0 0 0 4.6 2.5"/><path d="M5.5 11a6.5 6.5 0 0 0 10.6 5M18.5 11c0 .8-.15 1.55-.4 2.25M12 17.5V21M3.5 3.5l17 17"/></symbol>
+<symbol id="i-headphones" viewBox="0 0 24 24"><path d="M4 15.5V12a8 8 0 0 1 16 0v3.5"/><rect x="3" y="14" width="4.5" height="6.5" rx="1.75"/><rect x="16.5" y="14" width="4.5" height="6.5" rx="1.75"/></symbol>
+<symbol id="i-headphones-off" viewBox="0 0 24 24"><path d="M4 15.5V12a8 8 0 0 1 2.4-5.7M9.2 4.5A8 8 0 0 1 20 12v3.5"/><path d="M7.5 15.5v3.25a1.75 1.75 0 0 1-1.75 1.75h-1A1.75 1.75 0 0 1 3 18.75v-3A1.75 1.75 0 0 1 4.75 14H6M16.5 14h2.75A1.75 1.75 0 0 1 21 15.75v3"/><path d="M3.5 3.5l17 17"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M7.5 5.2v13.6a.9.9 0 0 0 1.37.77l10.9-6.8a.9.9 0 0 0 0-1.54L8.87 4.43A.9.9 0 0 0 7.5 5.2z"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 5v14M15.5 5v14"/></symbol>
+<symbol id="i-playpause" viewBox="0 0 24 24"><path d="M4 6.6v10.8a.8.8 0 0 0 1.25.66l7.6-5.4a.8.8 0 0 0 0-1.32l-7.6-5.4A.8.8 0 0 0 4 6.6zM16.5 6v12M20.5 6v12"/></symbol>
+<symbol id="i-next" viewBox="0 0 24 24"><path d="M5.5 6.6v10.8a.8.8 0 0 0 1.25.66l7.6-5.4a.8.8 0 0 0 0-1.32l-7.6-5.4a.8.8 0 0 0-1.25.66zM18.5 6v12"/></symbol>
+<symbol id="i-prev" viewBox="0 0 24 24"><path d="M18.5 6.6v10.8a.8.8 0 0 1-1.25.66l-7.6-5.4a.8.8 0 0 1 0-1.32l7.6-5.4a.8.8 0 0 1 1.25.66zM5.5 6v12"/></symbol>
+<symbol id="i-vol-down" viewBox="0 0 24 24"><path d="M4 9.5h3.25L11.5 5.5v13l-4.25-4H4z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/></symbol>
+<symbol id="i-vol-up" viewBox="0 0 24 24"><path d="M3 9.5h3.25L10.5 5.5v13l-4.25-4H3z"/><path d="M14.5 9.5a3.5 3.5 0 0 1 0 5M17.5 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+<symbol id="i-mute" viewBox="0 0 24 24"><path d="M3 9.5h3.25L10.5 5.5v13l-4.25-4H3z"/><path d="M15 9.5l5 5M20 9.5l-5 5"/></symbol>
+<symbol id="i-gamepad" viewBox="0 0 24 24"><path d="M7.75 6.5h8.5a4.6 4.6 0 0 1 4.5 3.7l.95 4.9a2.8 2.8 0 0 1-4.9 2.3l-1.9-2.4h-5.8l-1.9 2.4a2.8 2.8 0 0 1-4.9-2.3l.95-4.9a4.6 4.6 0 0 1 4.5-3.7z"/><path d="M8 9.5v4M6 11.5h4M15.5 10.5h.01M17.5 12.5h.01"/></symbol>
+<symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5c5.5 2.2 12.5 2.2 18 0M12 13.5v1.5"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M5.25 4.5h13.5A2.25 2.25 0 0 1 21 6.75v8.5a2.25 2.25 0 0 1-2.25 2.25H12l-4.5 3.5v-3.5H5.25A2.25 2.25 0 0 1 3 15.25v-8.5A2.25 2.25 0 0 1 5.25 4.5z"/><path d="M8 11h.01M12 11h.01M16 11h.01"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.25l4.6-2.9a.6.6 0 0 1 .9.5v8.3a.6.6 0 0 1-.9.5l-4.6-2.9"/></symbol>
+<symbol id="i-record" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.75" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.25A2.25 2.25 0 0 1 5.25 5H9l2 2.5h7.75A2.25 2.25 0 0 1 21 9.75v8A2.25 2.25 0 0 1 18.75 20H5.25A2.25 2.25 0 0 1 3 17.75z"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></symbol>
+<symbol id="i-launch" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8.5 8.5"/><path d="M18 14v3.75A2.25 2.25 0 0 1 15.75 20h-9.5A2.25 2.25 0 0 1 4 17.75v-9.5A2.25 2.25 0 0 1 6.25 6H10"/></symbol>
+<symbol id="i-window" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M6.5 6.5h.01M9 6.5h.01"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 3.5h6M10 3.5v5.75L6.75 13h10.5L14 9.25V3.5M12 13v7.5"/></symbol>
+<symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v4.5h-4.5"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.6A7.75 7.75 0 0 1 9.4 4.5a7.75 7.75 0 1 0 10.1 10.1z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6L6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></symbol>
+<symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M10 9.5v5l4.25-2.5z"/></symbol>
+<symbol id="i-pen" viewBox="0 0 24 24"><path d="M15.2 4.8a2.3 2.3 0 0 1 3.25 0l.75.75a2.3 2.3 0 0 1 0 3.25L9 19l-5 1 1-5z"/><path d="M13.5 6.5l4 4"/></symbol>
+<symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4.3 17.5a8.75 8.75 0 1 1 15.4 0"/><path d="M12 14l4.2-5"/><circle cx="12" cy="14" r="1.4"/></symbol>
+<symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.25"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9.5 3v3M14.5 3v3M9.5 18v3M14.5 18v3M3 9.5h3M3 14.5h3M18 9.5h3M18 14.5h3"/></symbol>
+<symbol id="i-gpu" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="11" rx="2.25"/><circle cx="9" cy="11.5" r="3"/><path d="M15 9.5h3.5M15 13.5h3.5M6 17v2.5M10 17v2.5"/></symbol>
+<symbol id="i-thermo" viewBox="0 0 24 24"><path d="M10 13.6V5.5a2 2 0 0 1 4 0v8.1a4 4 0 1 1-4 0z"/><path d="M12 10v6"/></symbol>
+<symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V6.2l10-2.2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 11L12 4.25 20.5 11"/><path d="M6 9.25v9.5c0 .7.55 1.25 1.25 1.25H10v-5h4v5h2.75c.7 0 1.25-.55 1.25-1.25v-9.5"/></symbol>
+<symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.65.5 1.1 1.4 1.1 2.2h5c0-.8.45-1.7 1.1-2.2A6 6 0 0 0 12 3z"/></symbol>
+<symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.2 2.8L4.9 13.1a.6.6 0 0 0 .47.98H11l-.8 7.1 8.3-10.3a.6.6 0 0 0-.47-.98H12.4z"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3.75l8.75 4.5L12 12.75l-8.75-4.5z"/><path d="M3.25 12.5L12 17l8.75-4.5M3.25 16.5L12 21l8.75-4.5"/></symbol>
+<symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+<symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 12.5V6a1.5 1.5 0 0 1 3 0v5.5M11 11V4.5a1.5 1.5 0 0 1 3 0V11M14 11V6a1.5 1.5 0 0 1 3 0v7.5"/><path d="M8 12.5l-1.6-1.6a1.6 1.6 0 0 0-2.3 2.25L8 18.5A6.5 6.5 0 0 0 12.9 21H13a4 4 0 0 0 4-4v-3.5"/></symbol>
+<symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.9 1.8-1.8 0-1.3-1-1.75-1-2.9 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><path d="M7.5 11.5h.01M9.5 7.75h.01M14 7h.01M17 10.25h.01"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.75" cy="10.75" r="6.75"/><path d="M15.75 15.75L20.5 20.5"/></symbol>
+<symbol id="i-focus" viewBox="0 0 24 24"><path d="M4 8.5V6.25A2.25 2.25 0 0 1 6.25 4H8.5M15.5 4h2.25A2.25 2.25 0 0 1 20 6.25V8.5M20 15.5v2.25A2.25 2.25 0 0 1 17.75 20H15.5M8.5 20H6.25A2.25 2.25 0 0 1 4 17.75V15.5"/><path d="M9.5 9.5l5 2-2 1-1 2z"/></symbol>
+<symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+<symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2.75 9.25a13.5 13.5 0 0 1 18.5 0M5.75 12.75a9.25 9.25 0 0 1 12.5 0M8.75 16.25a5 5 0 0 1 6.5 0M12 19.75h.01"/></symbol>
+<symbol id="i-cable" viewBox="0 0 24 24"><path d="M9 3v3M15 3v3"/><path d="M7.5 6h9v4a4.5 4.5 0 0 1-9 0z"/><path d="M12 14.5V17a4 4 0 0 0 4 4h1"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.75 5.5 3.75 9S14.5 18.5 12 21M12 3C9.5 5.5 8.25 8.5 8.25 12S9.5 18.5 12 21"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l.9 11.7A2.5 2.5 0 0 0 9.4 21h5.2a2.5 2.5 0 0 0 2.5-2.3L18 7M9 7V4.5h6V7"/></symbol>
+<symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8M6.4 6.6a8 8 0 1 0 11.2 0"/></symbol>
+<symbol id="i-text" viewBox="0 0 24 24"><path d="M5 7V4.75h14V7M12 4.75V19.5M9 19.5h6"/></symbol>
+<symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h15M15.5 4.5L19 8l-3.5 3.5M20 16H5M8.5 12.5L5 16l3.5 3.5"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.85.85-4.23 4.12 1 5.83L12 16.85 6.78 19.6l1-5.83-4.23-4.12 5.85-.85z"/></symbol>
+<symbol id="i-battery" viewBox="0 0 24 24"><rect x="2.5" y="7" width="17" height="10" rx="2.5"/><path d="M22 10.5v3"/></symbol>
+<symbol id="i-charging" viewBox="0 0 24 24"><rect x="2.5" y="7" width="17" height="10" rx="2.5"/><path d="M22 10.5v3M11.5 9l-2.5 3.5h4L10.5 15"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.75h.01"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.75 2M9.5 2.5h5"/></symbol>
+<symbol id="i-curve" viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M4 20c6 0 8-12 16-12"/><circle cx="12" cy="13.3" r="1.3"/></symbol>
+<symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM18.5 16l.75 2 2 .75-2 .75-.75 2-.75-2-2-.75 2-.75z"/></symbol>
+<symbol id="i-mouse" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 7v3.5"/></symbol>
+<symbol id="i-broadcast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.75"/><path d="M8.1 15.9a5.5 5.5 0 0 1 0-7.8M15.9 8.1a5.5 5.5 0 0 1 0 7.8M5.3 18.7a9.5 9.5 0 0 1 0-13.4M18.7 5.3a9.5 9.5 0 0 1 0 13.4"/></symbol>
+<symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6.5" cy="7" r="2.75"/><circle cx="6.5" cy="17" r="2.75"/><path d="M8.75 8.6L20 18M8.75 15.4L20 6"/></symbol>
+<symbol id="i-save" viewBox="0 0 24 24"><path d="M5.25 3.5h10.5L20.5 8.25v10.5a1.75 1.75 0 0 1-1.75 1.75H5.25A1.75 1.75 0 0 1 3.5 18.75v-13.5A1.75 1.75 0 0 1 5.25 3.5z"/><path d="M7.5 3.5v5h7v-5M7.5 20.5v-6h9v6"/></symbol>
+<symbol id="i-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none"/></symbol>
+</defs>
+</svg>
