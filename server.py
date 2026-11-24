@@ -1837,7 +1837,8 @@ def make_app(cfg):
                           "rtt": state['rtt_sum'] * 1000 / acks, "q": st.get('q', '-'),
                           "moves": state.get('moves', 0) / secs,
                           "area": 100 * st.get('area', 0.0) / max(1, st.get('areas', 0)),
-                          "encoder": sess.video.name if sess.video is not None else None}
+                          "encoder": sess.video.name if sess.video is not None else None,
+                          "encoders": video.open_count() if video.AVAILABLE else 0}
                     print(f"[speed] {sp['screen']:4.0f} screen fps | "
                           f"{sp['updates']:4.0f} updates/s ({sp['video']:.0f} video) | "
                           f"capture {sp['cap']:4.1f} ms ({sp['backend']}) | "

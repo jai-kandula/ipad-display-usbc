@@ -577,7 +577,8 @@ def summarize_stream(r, seconds):
             "stutters_over_50ms": sum(1 for g in gaps if g > 50),
             "host_capture_ms": avg("cap"), "host_work_ms": avg("work"), "host_encode_ms": avg("enc"),
             "host_screen_fps": avg("screen"), "backend": sp[-1].get("backend") if sp else None,
-            "encoder": sp[-1].get("encoder") if sp else None}
+            "encoder": sp[-1].get("encoder") if sp else None,
+            "encoders": max((x.get("encoders") or 0 for x in sp), default=None)}
 
 
 def section_stream(base, proc, scr, seconds):
@@ -622,8 +623,14 @@ def section_stream(base, proc, scr, seconds):
            f"{moving['stutters_over_50ms']} in {seconds} s, worst {moving['gap_max_ms']} ms"
            + (f" at {moving['gap_max_at_s']} s" if moving.get("gap_max_at_s") is not None else ""))
     if moving.get("host_vram_mb") is not None:
-        result("the host's video memory stays small", moving["host_vram_mb"] < 500,
-               f"{moving['host_vram_mb']} MB while streaming motion, {still['host_vram_mb']} MB on a still screen")
+        # Each picture stream that's moving has its own video encoder. When the
+        # iPad stays connected during the test, there are two (the iPad's and
+        # the test's), so judge the memory per stream.
+        n = max(1, moving.get("encoders") or 1)
+        each = moving["host_vram_mb"] / n
+        result("the host's video memory stays small", each < 400,
+               f"{moving['host_vram_mb']} MB while streaming motion, {still['host_vram_mb']} MB on a still screen"
+               + (f" ({n} video encoders open, such as the iPad's and the test's: {each:.0f} MB each)" if n > 1 else ""))
     result("still screen costs almost nothing", (still["cpu_total_pct"] or 0) < 1.5,
            f"{still['cpu_total_pct']}% CPU, {still['fps']} updates/s"
            + (" (something on the iPad's screen keeps changing: see the host's [speed] note)" if still["fps"] > 20 else ""))
