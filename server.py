@@ -547,6 +547,45 @@ def _grabber_put(g):
 
 VIDEO_REST_SECS = 45      # close the H.264 encoder after this long with no motion (see Session._video_rest)
 _VREST_SAID = False
+VIDEO_OPEN_AFTER = 1.0    # a new connection opens its encoder ahead of motion only once it has lasted this long
+_PARKED = []              # [(video.Encoder, parked at)] left by closed connections, for the next one
+_PARK_LOCK = threading.Lock()
+_PARK_MAX = 2
+
+
+def _park_take(w, h):
+    """An open encoder a closed connection left behind, if one fits. Reusing it
+    skips opening NVENC, which holds Python's lock (and so the picture) while
+    the GPU sets up: a reconnecting iPad starts with no hitch and no extra
+    video memory."""
+    with _PARK_LOCK:
+        for i, (enc, _) in enumerate(_PARKED):
+            if (enc.w, enc.h) == (w, h):
+                del _PARKED[i]
+                return enc
+    return None
+
+
+def _park_put(enc):
+    """Keep a closed connection's encoder for VIDEO_REST_SECS, then close it."""
+    with _PARK_LOCK:
+        _PARKED.append((enc, time.monotonic()))
+        extra = [e for e, _ in _PARKED[:-_PARK_MAX]]
+        del _PARKED[:-_PARK_MAX]
+    for e in extra:
+        e.close()
+    t = threading.Timer(VIDEO_REST_SECS, _park_sweep)
+    t.daemon = True
+    t.start()
+
+
+def _park_sweep():
+    now = time.monotonic()
+    with _PARK_LOCK:
+        old = [e for e, at in _PARKED if now - at >= VIDEO_REST_SECS - 0.5]
+        _PARKED[:] = [(e, at) for e, at in _PARKED if e not in old]
+    for e in old:
+        e.close()
 
 
 class Session:
@@ -578,6 +617,7 @@ class Session:
         self.video = None          # video.Encoder for moving content
         self.video_key = False     # next video frame must be a key frame
         self.video_failed = False
+        self._born = time.perf_counter()
 
     def set_profile(self, name):
         self.profile = PROFILES.get(name, PROFILES["balanced"])
@@ -738,7 +778,15 @@ class Session:
         h, w = arr.shape[:2]
         if self.video_wanted and cs == "BGRA" and not self._vrest and \
                 (self.video is None or (self.video.w, self.video.h) != (w, h)):
-            self._video_prepare(w, h)          # ready before anything moves
+            # Ready before anything moves: at once from a parked encoder, else
+            # opened once the connection has lasted a moment (quick reconnects
+            # don't each open one).
+            if getattr(self, "_vready", None) is None and getattr(self, "_vprep", None) != (w, h):
+                self._vready = _park_take(w, h)
+                if self._vready is not None:
+                    self._vprep = (w, h)
+            if time.perf_counter() - self._born > VIDEO_OPEN_AFTER:
+                self._video_prepare(w, h)
         elif self.video is not None and time.perf_counter() - self._vlast > VIDEO_REST_SECS:
             self._video_rest()
         self.scale = w / self.mon["width"]
@@ -894,6 +942,10 @@ class Session:
         if getattr(self, "_vprep", None) == (w, h) or self.video_failed:
             return
         self._vprep = (w, h)
+        parked = _park_take(w, h)
+        if parked is not None:
+            self._vready = parked
+            return
 
         def work():
             try:
@@ -901,7 +953,9 @@ class Session:
             except Exception as e:
                 self._vready = e
                 return
-            if getattr(self, "_closed", False) or self._vprep != (w, h):
+            if getattr(self, "_closed", False):
+                _park_put(enc)                # opened just as the iPad left: keep it for the next one
+            elif self._vprep != (w, h):
                 enc.close()
             else:
                 self._vready = enc
@@ -965,8 +1019,12 @@ class Session:
     def close(self):
         self._closed = True
         ready, self._vready = getattr(self, "_vready", None), None
-        if ready is not None and not isinstance(ready, Exception):
-            ready.close()
+        for enc in (self.video, ready):
+            if enc is not None and not isinstance(enc, Exception) and not self.video_failed:
+                _park_put(enc)          # the next connection reuses it
+            elif enc is not None and not isinstance(enc, Exception):
+                enc.close()
+        self.video = None
         IN_USE.pop(id(self), None)
         if self.recorder is not None:
             path, secs = self.recorder.stop()
@@ -2047,6 +2105,8 @@ def main():
     # (an answer to the iPad's deck or tiles) holds it; hand it over every
     # 1 ms instead of 5 so those waits stay short. Costs nothing when idle.
     sys.setswitchinterval(0.001)
+    if video.AVAILABLE:
+        threading.Thread(target=video.warm, daemon=True, name="video-warm").start()
 
     if args.background:
         _log_to_file(os.path.join(HERE, "host.log"))
