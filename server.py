@@ -689,13 +689,15 @@ class Session:
         try:
             fac = getattr(dxcam, "__factory")
             with _DX_LOCK:
-                found = self._find_output(fac)
-                if not found and not _GRABBERS:
-                    # dxcam lists the screens once, when it loads. A screen added
-                    # since (the iPad's virtual screen being switched on) isn't in
-                    # that list, so look again (only while no camera is open).
+                if not _GRABBERS:
+                    # dxcam lists the screens and makes its GPU devices once, when
+                    # it loads. Make them again whenever no camera is open: a
+                    # screen added since (the iPad's virtual screen switched on)
+                    # isn't in the old list, and switching the screen off and on
+                    # can leave the old device "removed" (DXGI_ERROR_DEVICE_REMOVED),
+                    # so every later capture on it fails until the host restarts.
                     fac.__init__()
-                    found = self._find_output(fac)
+                found = self._find_output(fac)
                 if not found:
                     self._say(f"GPU capture couldn't find this screen ({self.mon['width']}x{self.mon['height']} at "
                               f"{self.mon['left']},{self.mon['top']}), using GDI for now.")
