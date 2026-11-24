@@ -201,6 +201,27 @@ Quality modes (in the ☰ menu or on the connect screen):
 
 The ☰ menu shows live stats: updates per second, Mbit/s and decode time.
 
+## Pencil, touch and drawing-tablet mode
+
+In **Settings > Pencil and touch**:
+- **Pressure** sets how firm a stroke has to be, with a curve from softer to
+  firmer. "Always the same" gives every stroke the same pressure.
+  (The USB-C Apple Pencil doesn't sense pressure, so this matters for
+  pressure-sensing Pencils.)
+- **Ignore your hand while drawing** stops a resting palm from clicking
+  while the Pencil is on or near the screen.
+- **Pencil buttons** adds buttons at the left edge: right-click (the next
+  stroke is a right-click), eraser, undo and redo.
+- **One finger: only scrolls** turns off finger clicks, so only the Pencil
+  clicks and draws.
+- **Gestures** lets you pick what each three- and four-finger swipe and
+  tap does, from a list or as any key combination.
+
+**Drawing tablet** (in the menu) turns the iPad into a pad for one PC
+screen, like a Wacom tablet. Nothing is streamed, so it costs the PC almost
+nothing. Pick the screen under "Drawing tablet area". Pinch to zoom in on a
+part of the screen for fine work.
+
 ## Several monitors
 
 The iPad shows its own virtual screen by default, whichever monitors are
