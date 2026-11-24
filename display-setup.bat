@@ -31,6 +31,10 @@ schtasks /create /tn "iPad Display\Screen on"  /tr "%PS% -Mode on"  /sc once /st
 if errorlevel 1 ( echo Could not create the task. & pause & exit /b 1 )
 schtasks /create /tn "iPad Display\Screen off" /tr "%PS% -Mode off" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
 if errorlevel 1 ( echo Could not create the task. & pause & exit /b 1 )
+rem Tasks that run as SYSTEM are hidden from normal programs, and starting them
+rem is refused unless the user is allowed to: let the host (not an admin) run them.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0vdd-access.ps1"
+if errorlevel 1 ( echo Could not let the host start the tasks ^(see above^). Send me that message. & pause & exit /b 1 )
 
 echo.
 echo Done. From now on:
