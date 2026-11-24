@@ -297,6 +297,17 @@ def measure(proc, seconds, during=None):
 # ---------------------------------------------------------------- moving picture on a screen
 def animate(x, y, w, h, seconds):
     """(Run in its own process.) A window full of motion on one screen."""
+    # The screen positions are real pixels. Without this, Windows scales this
+    # window's position and size by the display scaling (150% on a 2560x1600
+    # laptop), so the window landed partly on the laptop's screen and only
+    # partly on the iPad's.
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
     import tkinter as tk
     root = tk.Tk()
     root.overrideredirect(True)
