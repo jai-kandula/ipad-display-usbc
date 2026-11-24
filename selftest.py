@@ -328,7 +328,10 @@ def animate(x, y, w, h, seconds):
         pass
     end, t = time.time() + seconds, [0]
     nxt, t0, last_write = [time.perf_counter()], time.perf_counter(), [0.0]
-    fps_file = os.path.join(tempfile.gettempdir(), f"ipd-motion-{os.getpid()}.txt")
+    # Where to say how fast it drew. Named by the parent: on Windows a venv's
+    # python.exe starts the real one as a child, so the two pids differ.
+    fps_file = os.environ.get("IPD_MOTION_FILE") or \
+        os.path.join(tempfile.gettempdir(), f"ipd-motion-{os.getpid()}.txt")
 
     def tick():
         now = time.perf_counter()
@@ -359,9 +362,13 @@ def animate(x, y, w, h, seconds):
 
 
 def start_motion(mon, seconds):
-    return subprocess.Popen([sys.executable, os.path.abspath(__file__), "--animate",
-                             str(mon["left"]), str(mon["top"]), str(mon["width"]), str(mon["height"]),
-                             str(seconds)], creationflags=_NO_WINDOW)
+    fps_file = os.path.join(tempfile.gettempdir(), f"ipd-motion-{os.getpid()}-{time.monotonic_ns()}.txt")
+    mp = subprocess.Popen([sys.executable, os.path.abspath(__file__), "--animate",
+                           str(mon["left"]), str(mon["top"]), str(mon["width"]), str(mon["height"]),
+                           str(seconds)], creationflags=_NO_WINDOW,
+                          env={**os.environ, "IPD_MOTION_FILE": fps_file})
+    mp.fps_file = fps_file
+    return mp
 
 
 def drawn_fps(mp):
@@ -369,7 +376,7 @@ def drawn_fps(mp):
     if mp is None:
         return None
     try:
-        with open(os.path.join(tempfile.gettempdir(), f"ipd-motion-{mp.pid}.txt")) as f:
+        with open(mp.fps_file) as f:
             return float(f.read().strip() or 0) or None
     except (OSError, ValueError):
         return None
