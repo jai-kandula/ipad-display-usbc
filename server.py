@@ -1117,6 +1117,21 @@ WINDOWS = Shared(lambda: winpin.list_windows(), 5.0)
 # --------------------------------------------------------------------------
 # HTTP + WebSocket server
 # --------------------------------------------------------------------------
+def page_build():
+    """Changes whenever the iPad's page (web/index.html, web/icons.svg) changes.
+    The page carries the build it was served as and reloads itself when the
+    laptop reports another one: the app keeps its page open for days, so
+    without this an updated laptop kept talking to yesterday's page."""
+    key = []
+    for n in ("index.html", "icons.svg"):
+        try:
+            st = os.stat(os.path.join(WEB_DIR, n))
+            key.append(f"{st.st_mtime_ns:x}{st.st_size:x}")
+        except OSError:
+            key.append("0")
+    return "-".join(key)
+
+
 def make_app(cfg):
     pin = cfg["pin"]
 
@@ -1145,6 +1160,7 @@ def make_app(cfg):
                     icons = f.read().replace("<svg ", '<svg style="display:none" aria-hidden="true" ', 1)
             except OSError:
                 icons = ""
+            html = html.replace("<head>", f'<head>\n<meta name="page-build" content="{page_build()}">', 1)
             page["body"], page["key"] = html.replace("<!--ICONS-->", icons, 1).encode(), key
         return web.Response(body=page["body"], content_type="text/html", charset="utf-8",
                             headers={"Cache-Control": "no-cache"})
@@ -1693,7 +1709,7 @@ def make_app(cfg):
             """Drawing-tablet mode: the iPad is a pad for one screen. Nothing is
             captured or encoded; the link is just kept alive."""
             await ws.send_str(json.dumps({"type": "info", "width": sess.mon["width"], "height": sess.mon["height"],
-                                          "monitor": sess.mon, "tablet": True}))
+                                          "monitor": sess.mon, "tablet": True, "build": page_build()}))
             while not ws.closed:
                 await asyncio.sleep(1.5)
                 if not ws.closed:
@@ -1781,8 +1797,8 @@ def make_app(cfg):
                                                   "desc": base64.b64encode(desc).decode()}))
                 if dims != last_dims:
                     last_dims = dims
-                    await ws.send_str(json.dumps({"type": "info", "width": dims[0],
-                                                  "height": dims[1], "monitor": sess.mon}))
+                    await ws.send_str(json.dumps({"type": "info", "width": dims[0], "height": dims[1],
+                                                  "monitor": sess.mon, "build": page_build()}))
                 cur = INPUT.cursor()
                 if cur is not None:
                     cx = (cur[0] - sess.mon["left"]) * sess.scale
@@ -1898,6 +1914,11 @@ def make_app(cfg):
         return ws
 
     app = web.Application(client_max_size=64 << 20)      # photos and PDFs from the iPad
+
+    async def tag_build(request, response):
+        if request.path.startswith("/api/"):
+            response.headers["X-Page-Build"] = page_build()
+    app.on_response_prepare.append(tag_build)
     app.router.add_get("/", index)
     app.router.add_get("/api/monitors", monitors)
     app.router.add_get("/ws", ws_handler)
