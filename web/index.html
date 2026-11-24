@@ -157,6 +157,11 @@
   #night { position: fixed; inset: 0; z-index: 5; pointer-events: none; display: none;
     background: rgba(255,140,40,.22); mix-blend-mode: multiply; }
   body.live.night #night { display: block; }
+  /* colour presets, per app if you like */
+  body.c-vivid #screen { filter: saturate(1.28) contrast(1.06); }
+  body.c-warm #screen { filter: sepia(.18) saturate(1.08) brightness(.98); }
+  body.c-grey #screen { filter: grayscale(1) contrast(1.05); }
+  body.c-dim #screen { filter: brightness(.78); }
   /* button deck: the whole iPad is buttons, nothing is streamed */
   #deck { position: fixed; inset: 0; z-index: 30; display: none; flex-direction: column; box-sizing: border-box;
     background: #0b0c10; padding: calc(12px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right))
@@ -429,11 +434,15 @@
             <div class="sblock"><div class="srow" style="padding:0;min-height:0"><span class="tile t-violet"><svg class="ic"><use href="#i-fit"/></svg></span><span class="stx">Screen size<small>Resolution and text size of the iPad's screen in Windows</small></span></div>
               <div class="seg" id="m-sizes"><button data-size="sharp">Sharp</button><button data-size="roomy">Roomy</button><button data-size="space">Max space</button><button data-size="fast">Fast</button></div>
               <div class="note" id="m-scrmsg" style="padding-top:4px"></div></div>
+            <button class="tog srow" id="m-follow"><span class="tile t-blue"><svg class="ic"><use href="#i-target"/></svg></span><span class="stx">Follow the pointer when zoomed<small>Pinch in and the view moves with the mouse, so it never leaves the screen</small></span></button>
             <button class="tog srow" id="m-rotate"><span class="tile t-teal"><svg class="ic"><use href="#i-rotate"/></svg></span><span class="stx">Turn with the iPad<small>Hold the iPad upright for a portrait screen</small></span></button>
           </div>
         </div>
         <div class="gtitle">Colour</div>
         <div class="group" id="g-colour">
+          <div class="sblock"><div class="srow" style="padding:0;min-height:0"><span class="tile t-pink"><svg class="ic"><use href="#i-palette"/></svg></span><span class="stx">Colour<small id="col-sub">How the PC's picture looks on the iPad</small></span></div>
+            <div class="seg" id="col-seg"><button data-v="natural">Natural</button><button data-v="vivid">Vivid</button><button data-v="warm">Warm</button><button data-v="dim">Dim</button><button data-v="grey">Grey</button></div>
+            <button id="col-app" class="chip" type="button" style="margin-top:8px;display:none"></button></div>
           <button class="tog srow" id="m-night"><span class="tile t-orange"><svg class="ic"><use href="#i-moon"/></svg></span><span class="stx">Night mode<small>Warmer colours, easier on the eyes at night</small></span></button>
         </div>
       </section>
@@ -442,6 +451,9 @@
         <div class="group">
           <div class="sblock"><div class="srow" style="padding:0;min-height:0"><span class="tile t-violet"><svg class="ic"><use href="#i-sparkle"/></svg></span><span class="stx">Picture<small>Wired gives full quality over the cable</small></span></div>
             <div class="seg" id="modes"><button data-mode="fast">Fast</button><button data-mode="balanced">Balanced</button><button data-mode="sharp">Sharp</button><button data-mode="wired">Wired</button></div></div>
+          <div class="sblock"><div class="srow" style="padding:0;min-height:0"><span class="tile t-teal"><svg class="ic"><use href="#i-gauge"/></svg></span><span class="stx">Frame rate<small id="fps-sub">Checking this iPad's screen…</small></span></div>
+            <div class="seg" id="fps-seg"><button data-v="60">60 fps</button><button data-v="120">120 fps</button></div>
+            <div class="note" id="hdr-note" style="padding:6px 0 0"></div></div>
           <button class="tog srow" id="m-video"><span class="tile t-blue"><svg class="ic"><use href="#i-film"/></svg></span><span class="stx">Video mode<small>H.264 from the graphics card for smooth scrolling and dragging</small></span></button>
         </div>
         <div class="gtitle">Status</div>
@@ -916,7 +928,7 @@
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const tab = tabletOn();
     const url = `${proto}://${location.host}/ws?pin=${encodeURIComponent(store.get('pin', ''))}` +
-      (tab ? `&tablet=1&monitor=${tabletParam()}` : `&monitor=${monParam()}`) + `&mode=${store.get('mode', 'balanced')}&fps=60` +
+      (tab ? `&tablet=1&monitor=${tabletParam()}` : `&monitor=${monParam()}`) + `&mode=${store.get('mode', 'balanced')}&fps=${wantFps()}` +
       `&video=${videoOK && store.get('video', '1') === '1' ? 1 : 0}`;
     $('status').textContent = retry ? 'Reconnecting…' : 'Connecting…';
     document.body.classList.add('waiting');
@@ -953,13 +965,14 @@
         } else if (m.type === 'screen') {
           onScreenMsg(m);
         } else if (m.type === 'focus') {
+          if (profiles && profiles.front !== m.front) { profiles.front = m.front; applyColour(); }
           if (profiles && profiles.focus !== m.profile) { profiles.focus = m.profile; profiles.front = m.front; renderProfileUI(); }
         } else if (m.type === 'speed') {
           pcSpeed = m; drawHud();
         } else if (m.type === 'pong') {
           hudRtt = Math.round(performance.now() - m.c); drawHud();
         } else if (m.type === 'cursor') {
-          if (!touchActive) { cursor = { x: m.x, y: m.y, v: m.v }; drawCursor(); }
+          if (!touchActive) { cursor = { x: m.x, y: m.y, v: m.v }; drawCursor(); followPointer(); }
         }
         return;
       }
@@ -1469,8 +1482,72 @@
   let idleTimer = null;
   function poke() { document.body.classList.remove('idle'); clearTimeout(idleTimer); idleTimer = setTimeout(() => document.body.classList.add('idle'), 3000); }
   addEventListener('pointerdown', poke, true); poke();
+  // ---- colour presets (one for everything, or one per app in front on the PC)
+  const COLOURS = ['natural', 'vivid', 'warm', 'dim', 'grey'];
+  function appColours() { try { return JSON.parse(store.get('app-colour', '{}')) || {}; } catch (e) { return {}; } }
+  const frontApp = () => (profiles && profiles.front) || '';
+  function applyColour() {
+    const front = frontApp(), per = appColours()[front.toLowerCase()];
+    const c = per || store.get('colour', 'natural');
+    COLOURS.forEach(k => document.body.classList.toggle('c-' + k, k === c && k !== 'natural'));
+    document.querySelectorAll('#col-seg [data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === c));
+    const btn = $('col-app');
+    btn.style.display = front ? '' : 'none';
+    btn.classList.toggle('on', !!per);
+    btn.textContent = per ? `Only for ${front}: tap to use for every app` : `Use this only while ${front} is in front`;
+    $('col-sub').textContent = per ? `Set for ${front}` : 'How the PC\'s picture looks on the iPad';
+  }
+  document.querySelectorAll('#col-seg [data-v]').forEach(b => b.addEventListener('click', () => {
+    const front = frontApp().toLowerCase(), m = appColours();
+    if (front && m[front]) { m[front] = b.dataset.v; store.set('app-colour', JSON.stringify(m)); }
+    else store.set('colour', b.dataset.v);
+    applyColour();
+  }));
+  $('col-app').addEventListener('click', () => {
+    const front = frontApp().toLowerCase(), m = appColours();
+    if (!front) return;
+    if (m[front]) delete m[front]; else m[front] = [...COLOURS].find(k => document.body.classList.contains('c-' + k)) || store.get('colour', 'natural');
+    store.set('app-colour', JSON.stringify(m)); applyColour();
+  });
+  addEventListener('settingsopen', applyColour);
+
+  // ---- frame rate: 120 only where the iPad's screen can show it (ProMotion)
+  let screenHz = 60;
+  const wantFps = () => (screenHz > 90 && store.get('fps', '60') === '120') ? 120 : 60;
+  function markFps() {
+    document.querySelectorAll('#fps-seg [data-v]').forEach(b => { b.classList.toggle('on', String(wantFps()) === b.dataset.v); b.disabled = b.dataset.v === '120' && screenHz <= 90; });
+    $('fps-sub').textContent = screenHz > 90 ? `This iPad's screen runs at up to ${Math.round(screenHz)} Hz` : 'This iPad\'s screen shows 60 frames a second, so 120 wouldn\'t look different';
+  }
+  document.querySelectorAll('#fps-seg [data-v]').forEach(b => b.addEventListener('click', () => {
+    if (b.disabled) return;
+    store.set('fps', b.dataset.v); markFps(); if (live && ws) ws.close();     // reconnect at the new rate
+  }));
+  (function measureHz() {
+    let n = 0, t0 = 0;
+    const tick = t => { if (!n) t0 = t; if (++n < 61) requestAnimationFrame(tick); else { screenHz = 60000 / (t - t0); markFps(); } };
+    requestAnimationFrame(tick);
+  })();
+  $('hdr-note').textContent = matchMedia('(dynamic-range: high)').matches
+    ? 'HDR: this iPad can show HDR, but the PC streams in SDR for now.'
+    : 'HDR and 10-bit colour: this iPad\'s screen is SDR, so they wouldn\'t show.';
+  markFps();
+
+  // ---- follow the pointer while zoomed in
+  function followPointer() {
+    if (view.z <= 1.01 || touchActive || store.get('follow', '1') !== '1' || !cursor.v || !img.w) return;
+    const px = fit.x + cursor.x * fit.w / img.w, py = fit.y + cursor.y * fit.h / img.h;
+    const mx = innerWidth * .18, my = innerHeight * .18;
+    let dx = 0, dy = 0;
+    if (px < mx) dx = mx - px; else if (px > innerWidth - mx) dx = innerWidth - mx - px;
+    if (py < my) dy = my - py; else if (py > innerHeight - my) dy = innerHeight - my - py;
+    if (dx || dy) { view.x += dx; view.y += dy; layout(); }
+  }
+
   function markFlag(id, key, cls) { const on = store.get(key, '0') === '1'; $(id).classList.toggle('on', on); document.body.classList.toggle(cls, on); }
   markFlag('m-night', 'night', 'night');
+  const markFollow = () => $('m-follow').classList.toggle('on', store.get('follow', '1') === '1');
+  $('m-follow').addEventListener('click', () => { store.set('follow', store.get('follow', '1') === '1' ? '0' : '1'); markFollow(); });
+  markFollow();
   markFlag('m-hud', 'hud', 'hud');
   $('m-night').addEventListener('click', () => { store.set('night', store.get('night', '0') === '1' ? '0' : '1'); markFlag('m-night', 'night', 'night'); });
   $('m-hud').addEventListener('click', () => { store.set('hud', store.get('hud', '0') === '1' ? '0' : '1'); markFlag('m-hud', 'hud', 'hud'); });
@@ -1660,6 +1737,7 @@
   async function loadProfiles() {
     try { profiles = await api('profiles'); } catch (e) { profiles = null; }   // older host: no profiles
     renderProfileUI();
+    applyColour();
   }
   const prof = name => profiles && profiles.profiles.find(p => p.name === name);
   const activeProf = () => profiles && (prof(profiles.active) || profiles.profiles[0]);

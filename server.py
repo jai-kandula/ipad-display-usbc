@@ -395,6 +395,7 @@ class _Grabber(threading.Thread):
         self.stopping = False
         self.cap_total = 0.0       # grab time and count, ever (readers keep deltas)
         self.refs = 0
+        self.gap = GRAB_GAP        # shortest time between grabs (the fastest viewer's frame rate)
 
     def run(self):
         nxt = 0.0
@@ -416,7 +417,7 @@ class _Grabber(threading.Thread):
                 if f is None:
                     time.sleep(GRAB_POLL)
                     continue
-                nxt = t0 + GRAB_GAP
+                nxt = t0 + self.gap
                 dt = time.perf_counter() - t0
                 with self.cond:
                     self.frame = f          # newest frame wins; older ones are dropped
@@ -496,6 +497,7 @@ class Session:
         self.grab = None           # shared _Grabber feeding GPU frames
         self.grab_seq, self.grab_cap = 0, 0.0
         self.wait = 1 / 60         # how long a step waits for a new GPU frame
+        self.max_fps = 60          # the iPad's screen rate (120 on ProMotion iPads)
         self.backend = "GDI"
         self.last = None           # last captured (array, colourspace)
         self.stats = {"frames": 0, "cap": 0.0, "enc": 0.0, "bytes": 0}
@@ -587,6 +589,7 @@ class Session:
                 self.grab = _grabber_get((d, o), lambda: dxcam.create(
                     device_idx=d, output_idx=o, output_color="BGRA", processor_backend="numpy"))
             self.grab_seq, self.grab_cap = self.grab.seq, self.grab.cap_total
+            self.grab.gap = min(self.grab.gap, 1.0 / self.max_fps - 0.002)
             if self.backend != "GPU" and self.dx_said is not None:
                 print("GPU capture is back on.")
             self.backend, self.dx_said = "GPU", None
@@ -1098,8 +1101,9 @@ def make_app(cfg):
         except ValueError:                  # "auto": the iPad's own screen
             mon_idx = -1
         sess = Session(mon_idx, q.get("mode", "balanced"))
-        fps = max(10, min(60, int(q.get("fps", "60"))))
+        fps = max(10, min(120, int(q.get("fps", "60"))))     # 120 for ProMotion iPads
         sess.video_wanted = q.get("video") == "1" and video.AVAILABLE
+        sess.max_fps = fps
         tablet = q.get("tablet") == "1"     # drawing tablet: input only, nothing captured
         loop = asyncio.get_running_loop()
         cap_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="capture")  # mss is per-thread
