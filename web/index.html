@@ -324,6 +324,10 @@
   body.phone .key .l { font-size: 12.5px; }
   body.phone .key.live .tv { font-size: 26px; }
   body.phone #deckbar { flex-wrap: wrap; gap: 6px; }
+  /* recording: a red dot on the menu button */
+  body.rec #fab::after { content: ''; position: absolute; right: -3px; top: -3px; width: 12px; height: 12px; border-radius: 50%;
+    background: #ff4d5e; box-shadow: 0 0 0 2px #000; animation: recblink 1.4s infinite; }
+  @keyframes recblink { 50% { opacity: .35; } }
   #toast { position: fixed; z-index: 25; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     padding: 9px 16px; border-radius: 18px; background: rgba(20,22,28,.85); font-size: 15px; pointer-events: none;
     opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
@@ -408,6 +412,7 @@
   </div>
   <div class="qlabel">View</div>
   <button class="qrow" id="m-zoom"><svg class="ic"><use href="#i-fit"/></svg>Fit whole screen</button>
+  <button class="qrow" id="m-rec"><svg class="ic"><use href="#i-record"/></svg><span id="m-rec-t">Record the iPad screen</span></button>
   <button class="qrow" id="m-tablet"><svg class="ic"><use href="#i-pen"/></svg><span id="m-tablet-t">Drawing tablet</span></button>
   <button class="qrow" id="m-apps"><svg class="ic"><use href="#i-window"/></svg>Apps on the iPad<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-edit"><svg class="ic"><use href="#i-grid"/></svg>Edit buttons and profiles<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
@@ -981,6 +986,10 @@
         } else if (m.type === 'focus') {
           if (profiles && profiles.front !== m.front) { profiles.front = m.front; applyColour(); }
           if (profiles && profiles.focus !== m.profile) { profiles.focus = m.profile; profiles.front = m.front; renderProfileUI(); }
+        } else if (m.type === 'record') {
+          recording = !!m.on; markRec();
+          if (m.error) toast(`Recording: ${m.error}`);
+          else if (m.file) toast(`Saved ${m.file} (${m.secs} s) in the recordings folder on the PC`);
         } else if (m.type === 'speed') {
           pcSpeed = m; drawHud();
         } else if (m.type === 'pong') {
@@ -1583,6 +1592,12 @@
     soundOn = !soundOn; store.set('sound', soundOn ? '1' : '0'); markSound();
     if (soundOn) soundUnlock(); else soundStop();
   });
+  let recording = false;
+  function markRec() {
+    document.body.classList.toggle('rec', recording);
+    $('m-rec-t').textContent = recording ? 'Stop recording' : 'Record the iPad screen';
+  }
+  $('m-rec').addEventListener('click', () => { closeMenu(); send({ t: 'record', on: !recording }); });
   $('m-tablet').addEventListener('click', () => { closeMenu(); setTablet(!tabletOn()); toast(tabletOn() ? 'Drawing tablet: nothing is streamed' : 'PC screen'); });
   $('m-tablet-t').textContent = tabletOn() ? 'Back to the PC screen' : 'Drawing tablet';
   $('tab-screen').addEventListener('change', () => { store.set('tablet-screen', $('tab-screen').value); if (tabletOn() && live && ws) ws.close(); });
