@@ -1112,6 +1112,12 @@ def status_text():
         return True, "iPad connected, showing the screen"
     if time.time() - STATUS["deck_seen"] < 12:
         return True, "iPad connected, button deck"
+    try:
+        prof = DECK.active()
+        if not prof.get("screen", True):
+            return False, f"{prof.get('name', 'This')} profile: iPad screen off"
+    except Exception:
+        pass
     return False, "waiting for the iPad"
 
 
@@ -2166,8 +2172,13 @@ def main():
         DECK.allowed = True
         ready = DECK.screen_ctl
     if IS_WINDOWS and not args.keep_screen and args.background:
-        if ready:
-            print("\n The iPad's virtual screen turns on while an iPad is plugged in over USB-C.")
+        prof = DECK.active()
+        if ready and not prof.get("screen", True):
+            print(f"\n Profile: {prof.get('name')}. It keeps the iPad's virtual screen off,")
+            print("   even when the iPad is plugged in. Pick another profile in the tray to use it.")
+        elif ready:
+            print(f"\n Profile: {prof.get('name')}. The iPad's virtual screen turns on while an iPad")
+            print("   is plugged in over USB-C.")
         else:
             print("\n Tip: run display-setup.bat (again if you ran it before 2026-11-24),")
             print("      so the iPad's virtual screen turns on")
@@ -2178,8 +2189,10 @@ def main():
             def work():
                 if not DECK.screen_ctl:
                     return
-                if plugged and not DECK.active().get("screen", True):
-                    print("[screen] iPad plugged in; this profile doesn't use the screen.", flush=True)
+                prof = DECK.active()
+                if plugged and not prof.get("screen", True):
+                    print(f"[screen] iPad plugged in, but the {prof.get('name')} profile keeps the screen off."
+                          " Pick another profile in the tray (Profile) to turn it on.", flush=True)
                 elif plugged:
                     print("[screen] iPad plugged in: turning the virtual screen on.", flush=True)
                     vdd.turn_on(lambda: len(list_monitors()))
