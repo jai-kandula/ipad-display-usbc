@@ -982,6 +982,38 @@ def list_monitors():
 # --------------------------------------------------------------------------
 # Profiles: what the iPad is for right now (see deck.py)
 # --------------------------------------------------------------------------
+class Shared:
+    """An answer many askers share. The iPad's deck, tiles and menus poll the
+    PC several times a second; without this each poll starts its own copy of
+    the same slow read (every window, every screen) on its own thread, and
+    under a burst those threads hold Python's lock and the picture stutters.
+    Now one read runs at a time, everyone waiting gets its answer, and it's
+    reused for `ttl` seconds, or until key() says the source changed."""
+
+    def __init__(self, fn, ttl, key=None):
+        self.fn, self.ttl, self.key = fn, ttl, key
+        self.value, self.at, self.k, self.fut = None, -1e9, None, None
+
+    def clear(self):
+        self.at = -1e9
+
+    async def get(self):
+        k = self.key() if self.key else None
+        if self.fut is None:
+            if k == self.k and time.monotonic() - self.at < self.ttl:
+                return self.value
+            self.fut = asyncio.ensure_future(self._run(k))
+        return await asyncio.shield(self.fut)
+
+    async def _run(self, k):
+        try:
+            v = await asyncio.get_running_loop().run_in_executor(None, self.fn)
+            self.value, self.at, self.k = v, time.monotonic(), k
+            return v
+        finally:
+            self.fut = None
+
+
 # What the iPad is doing right now, for the tray icon.
 STATUS = {"streams": 0, "deck_seen": 0.0}
 TLS = {"port": None}               # the encrypted Wi-Fi port, when it's on
@@ -1067,6 +1099,21 @@ class DeckProfiles:
 DECK = DeckProfiles()
 
 
+def _deck_key():
+    """Changes when the deck's buttons, the app in front or "follow the app" change."""
+    try:
+        m = os.stat(deck.PATH).st_mtime_ns
+    except OSError:
+        m = 0
+    return m, focus.state["version"], hostsettings.get("auto_profiles")
+
+
+# Shared answers for what the iPad polls (see Shared).
+DECK_JSON = Shared(lambda: json.dumps(DECK.data()).encode(), 1.0, _deck_key)
+SCREENS = Shared(list_monitors, 1.0)
+WINDOWS = Shared(lambda: winpin.list_windows(), 5.0)
+
+
 # --------------------------------------------------------------------------
 # HTTP + WebSocket server
 # --------------------------------------------------------------------------
@@ -1105,8 +1152,8 @@ def make_app(cfg):
     async def monitors(request):
         if not authorized(request):
             return web.json_response({"error": "bad pin"}, status=403)
-        # Off the event loop: reading the screens takes ~10 ms and would hold up the stream.
-        mons = await asyncio.get_running_loop().run_in_executor(None, list_monitors)
+        # Off the event loop (reading the screens takes ~10 ms), and shared by askers.
+        mons = await SCREENS.get()
         return web.json_response({"monitors": mons, "input": INPUT.ok, "pen": PEN.ok,
                                   "tls_port": TLS["port"], "secure": request.secure,
                                   "fastjpeg": simplejpeg is not None,
@@ -1117,7 +1164,7 @@ def make_app(cfg):
         if not authorized(request):
             return web.json_response({"error": "bad pin"}, status=403)
         STATUS["deck_seen"] = time.time()          # the deck checks in every 1.5 s
-        return web.json_response(await asyncio.get_running_loop().run_in_executor(None, DECK.data))
+        return web.Response(body=await DECK_JSON.get(), content_type="application/json")
 
     async def profiles_put(request):
         """Save edited profiles and buttons from the iPad."""
@@ -1130,6 +1177,7 @@ def make_app(cfg):
             await asyncio.get_running_loop().run_in_executor(None, deck.save, body)
         except (ValueError, TypeError, AttributeError) as e:
             return web.json_response({"error": str(e)}, status=400)
+        DECK_JSON.clear()
         return web.json_response(await asyncio.get_running_loop().run_in_executor(None, DECK.data))
 
     async def profile_switch(request):
@@ -1140,6 +1188,7 @@ def make_app(cfg):
             data = await asyncio.get_running_loop().run_in_executor(None, DECK.switch, name)
         except (ValueError, KeyError, TypeError) as e:
             return web.json_response({"error": str(e)}, status=400)
+        DECK_JSON.clear()
         return web.json_response(data)
 
     async def settings_get(request):
@@ -1364,7 +1413,7 @@ def make_app(cfg):
             return web.json_response({"error": "bad pin"}, status=403)
         names = list(focus.recent)
         try:
-            for w in await asyncio.get_running_loop().run_in_executor(None, winpin.list_windows):
+            for w in await WINDOWS.get():
                 exe = (w.get("exe") or "").lower()
                 if exe and exe not in names:
                     names.append(exe)
@@ -1550,8 +1599,9 @@ def make_app(cfg):
                         if state["in_flight"] < MAX_IN_FLIGHT:
                             can_send.set()
                         continue
-                    if t == "move":
+                    if t in ("move", "pen", "scroll"):        # finger, Pencil and two-finger moves for [speed]
                         state["moves"] = state.get("moves", 0) + 1
+                    if t == "move":
                         INPUT.move(*to_screen(m))
                     elif t == "down":
                         INPUT.move(*to_screen(m))
@@ -1942,6 +1992,10 @@ def main():
     ap.add_argument("--keep-screen", action="store_true",
                     help="don't turn the iPad's virtual screen on/off automatically")
     args = ap.parse_args()
+    # The picture's thread waits for Python's lock whenever another thread
+    # (an answer to the iPad's deck or tiles) holds it; hand it over every
+    # 1 ms instead of 5 so those waits stay short. Costs nothing when idle.
+    sys.setswitchinterval(0.001)
 
     if args.background:
         _log_to_file(os.path.join(HERE, "host.log"))
