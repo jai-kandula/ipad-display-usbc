@@ -10,11 +10,18 @@ A button runs one action:
   {"text": "gg wp"}              type text
   {"open": "obs64.exe" | "https://..." | "C:\\path\\app.exe"}   start something
   {"profile": "Gaming"}          switch profile
+  {"ha": {"service": "light.toggle", "entity": "light.desk"}}   Home Assistant
+  {"steps": [{"keys": ...}, {"wait": 300}, {"open": ...}, ...]}  a macro: several
+                                 actions in order, with pauses (ms) between them
+
+A profile can list apps ("apps": ["obs64.exe", "photoshop.exe"]): while one
+of them is in front on the PC, the iPad shows that profile's buttons.
 """
 import copy
 import json
 import os
 import threading
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PATH = os.path.join(HERE, "profiles.json")
@@ -96,9 +103,10 @@ def save(data):
             raise ValueError("every profile needs a name")
         p["buttons"] = [b for b in p.get("buttons", []) if isinstance(b, dict)][:60]
         for b in p["buttons"]:
-            if "keys" in b:
-                parse_keys(b["keys"])     # say now if a key name is wrong, not on first tap
+            _check(b)                     # say now if a key name is wrong, not on first tap
         p["cols"] = max(2, min(8, int(p.get("cols", 4))))
+        apps = p.get("apps", [])
+        p["apps"] = [str(a).strip()[:80] for a in apps if str(a).strip()][:20] if isinstance(apps, list) else []
     names = [p["name"] for p in data["profiles"]]
     if data.get("active") not in names:
         data["active"] = names[0]
@@ -108,6 +116,33 @@ def save(data):
             json.dump(data, f, indent=1, ensure_ascii=False)
         os.replace(tmp, PATH)
     return data
+
+
+STEP_KINDS = ("keys", "text", "open", "profile", "ha", "wait")
+MAX_STEPS, MAX_WAIT_MS = 30, 10000
+
+
+def _check(b, in_macro=False):
+    if "keys" in b:
+        parse_keys(b["keys"])
+    if "ha" in b:
+        h = b["ha"]
+        if not isinstance(h, dict) or not (h.get("service") or h.get("entity")):
+            raise ValueError("a Home Assistant button needs an entity or a service")
+    if "wait" in b:
+        b["wait"] = max(0, min(MAX_WAIT_MS, int(b["wait"])))
+    if "steps" in b:
+        if in_macro:
+            raise ValueError("a macro step can't be another macro")
+        steps = b["steps"]
+        if not isinstance(steps, list) or not steps:
+            raise ValueError("a macro needs at least one step")
+        if len(steps) > MAX_STEPS:
+            raise ValueError(f"a macro can have at most {MAX_STEPS} steps")
+        for st in steps:
+            if not isinstance(st, dict) or not any(k in st for k in STEP_KINDS):
+                raise ValueError("every macro step needs something to do")
+            _check(st, in_macro=True)
 
 
 def find(data, name):
@@ -158,6 +193,20 @@ def parse_keys(combo):
 
 def run(button, inp, switch_profile):
     """Run one button's action. inp is the server's Input; switch_profile(name)."""
+    if "steps" in button:                 # a macro: each step in turn
+        for st in button["steps"][:MAX_STEPS]:
+            if "wait" in st:
+                time.sleep(max(0, min(MAX_WAIT_MS, int(st["wait"]))) / 1000)
+            else:
+                run(st, inp, switch_profile)
+                time.sleep(0.05)          # let the PC catch up between keystrokes and apps
+        return
+    if "ha" in button:
+        import ha
+        h = button["ha"]
+        entity = str(h.get("entity", "")).strip()
+        ha.call(h.get("service") or ha.default_service(entity), entity, h.get("data"))
+        return
     if "keys" in button:
         mods, vk = parse_keys(button["keys"])
         inp.combo(vk, mods)

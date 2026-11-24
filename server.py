@@ -60,6 +60,9 @@ import deck  # noqa: E402  (profiles and the button deck)
 import screenshape  # noqa: E402  (portrait, resolution and text size)
 import pen  # noqa: E402  (Apple Pencil pressure and tilt)
 import winpin  # noqa: E402  (put app windows on the iPad)
+import hostsettings  # noqa: E402  (settings kept on the PC)
+import focus  # noqa: E402  (the app in front, for app-aware buttons)
+import ha  # noqa: E402  (Home Assistant buttons)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -848,6 +851,9 @@ class DeckProfiles:
     def data(self):
         d = deck.load()
         d["screen_control"] = self.screen_ctl
+        # The profile whose buttons follow the app in front right now (if any).
+        d["focus"] = focus.match(d["profiles"]) if hostsettings.get("auto_profiles") else None
+        d["front"] = focus.state["exe"]
         return d
 
     def active(self):
@@ -928,7 +934,8 @@ def make_app(cfg):
             return web.json_response({"error": "bad pin"}, status=403)
         try:
             body = await request.json()
-            body.pop("screen_control", None)
+            for k in ("screen_control", "focus", "front"):
+                body.pop(k, None)
             deck.save(body)
         except (ValueError, TypeError) as e:
             return web.json_response({"error": str(e)}, status=400)
@@ -943,6 +950,45 @@ def make_app(cfg):
         except (ValueError, KeyError, TypeError) as e:
             return web.json_response({"error": str(e)}, status=400)
         return web.json_response(data)
+
+    async def settings_get(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        return web.json_response(hostsettings.public())
+
+    async def settings_put(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        try:
+            return web.json_response(hostsettings.update(await request.json()))
+        except (ValueError, TypeError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+
+    async def ha_api(request):
+        """GET: Home Assistant entities for the button editor. POST: test the connection."""
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        loop = asyncio.get_running_loop()
+        try:
+            if request.method == "POST":
+                return web.json_response({"ok": await loop.run_in_executor(None, ha.check)})
+            return web.json_response({"entities": await loop.run_in_executor(None, ha.entities)})
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=400)
+
+    async def apps_api(request):
+        """Apps the profile editor can offer: recently in front, and open now."""
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        names = list(focus.recent)
+        try:
+            for w in await asyncio.get_running_loop().run_in_executor(None, winpin.list_windows):
+                exe = (w.get("exe") or "").lower()
+                if exe and exe not in names:
+                    names.append(exe)
+        except Exception:
+            pass
+        return web.json_response({"apps": names[:40], "front": focus.state["exe"]})
 
     async def deck_action(request):
         """A deck button was tapped: {profile, index}."""
@@ -1138,9 +1184,19 @@ def make_app(cfg):
             last_cursor = None
             last_dims = None
             next_report = time.perf_counter() + REPORT_SECS
+            focus_seen = -1
             while not ws.closed:
                 await can_send.wait()
                 start = time.perf_counter()
+                if focus.state["version"] != focus_seen:      # app-aware buttons
+                    focus_seen = focus.state["version"]
+                    try:
+                        profs = deck.load()["profiles"]
+                        fp = focus.match(profs) if hostsettings.get("auto_profiles") else None
+                        await ws.send_str(json.dumps({"type": "focus", "profile": fp,
+                                                      "front": focus.state["exe"]}))
+                    except Exception:
+                        pass
                 if start >= next_report:       # live speed readout in the PC window
                     st, n = sess.stats, max(1, sess.stats["frames"])
                     secs = start - next_report + REPORT_SECS
@@ -1290,6 +1346,11 @@ def make_app(cfg):
     app.router.add_put("/api/profiles", profiles_put)
     app.router.add_post("/api/profile", profile_switch)
     app.router.add_post("/api/action", deck_action)
+    app.router.add_get("/api/settings", settings_get)
+    app.router.add_put("/api/settings", settings_put)
+    app.router.add_get("/api/ha", ha_api)
+    app.router.add_post("/api/ha", ha_api)
+    app.router.add_get("/api/apps", apps_api)
     app.router.add_static("/", WEB_DIR, show_index=False)
 
     async def remember_loop(app):
@@ -1404,6 +1465,7 @@ def main():
     print("=" * 62)
     app = make_app(cfg)
     winpin.start()
+    focus.start()
     if IS_WINDOWS and not args.no_tray:
         import tray
         tray.Tray(status_text, DECK, os.path.join(HERE, "host.log"), HERE,

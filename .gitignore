@@ -12,3 +12,6 @@ host.log.old
 profiles.json
 profiles.json.tmp
 pins.json
+settings.json
+settings.json.tmp
+recordings/

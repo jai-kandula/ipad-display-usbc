@@ -240,6 +240,22 @@
     background: linear-gradient(145deg, rgba(91,140,255,.28), rgba(143,107,255,.2)); color: #fff; }
   #sheet .icprev svg.ic { width: 26px; height: 26px; }
   #sheet .icrow input { flex: 1; }
+  #sheet #eb-type { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip { width: auto; margin: 0; padding: 6px 10px; border-radius: 16px; border: 1px solid #2f3440; background: #0d0f13;
+    color: #cfd5df; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+  .chip.on { background: var(--grad); border-color: transparent; color: #fff; }
+  .chip svg.ic { width: 14px; height: 14px; }
+  .steps { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .step { display: flex; gap: 6px; align-items: center; }
+  .step select { flex: 0 0 112px; padding: 10px 8px; }
+  .step input { flex: 1; min-width: 0; }
+  .step button { width: 40px; flex: none; padding: 0; height: 42px; display: grid; place-items: center; margin: 0; }
+  .step .n { width: 18px; flex: none; color: var(--dim); font-size: 12px; text-align: center; }
+  .addstep { margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .key.lit .i { background: linear-gradient(145deg, #ffcf4f, #f0aa2c); color: #2a1d00; }
+  .key .badge { position: absolute; left: 10px; top: 9px; font-size: 10.5px; font-weight: 600; letter-spacing: .04em;
+    color: #8f98a8; text-transform: uppercase; }
   #toast { position: fixed; z-index: 25; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     padding: 9px 16px; border-radius: 18px; background: rgba(20,22,28,.85); font-size: 15px; pointer-events: none;
     opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
@@ -379,7 +395,18 @@
       <section data-sec="deck">
         <div class="gtitle">Profiles and buttons</div>
         <div class="group" id="g-deck">
-          <button class="srow" id="s-edit"><span class="tile t-pink"><svg class="ic"><use href="#i-grid"/></svg></span><span class="stx">Edit buttons and profiles<small>Work, Gaming and your own, with any shortcut, text, app or link</small></span><svg class="ic chev"><use href="#i-chev-right"/></svg></button>
+          <button class="srow" id="s-edit"><span class="tile t-pink"><svg class="ic"><use href="#i-grid"/></svg></span><span class="stx">Edit buttons and profiles<small>Shortcuts, text, apps, links, smart home and macros</small></span><svg class="ic chev"><use href="#i-chev-right"/></svg></button>
+          <button class="tog srow" id="s-auto"><span class="tile t-violet"><svg class="ic"><use href="#i-target"/></svg></span><span class="stx">Follow the app in front<small id="s-auto-sub">A profile's buttons appear while one of its apps is in front (set the apps in each profile)</small></span></button>
+        </div>
+        <div class="gtitle">Home Assistant</div>
+        <div class="group" id="g-ha">
+          <div class="sblock">
+            <div class="srow" style="padding:0;min-height:0"><span class="tile t-yellow"><svg class="ic"><use href="#i-bulb"/></svg></span><span class="stx">Smart home buttons<small>Lights, scenes, scripts and switches. Make a token on your Home Assistant profile page, under Long-lived access tokens</small></span></div>
+            <input id="ha-url" placeholder="http://homeassistant.local:8123" style="margin-top:10px" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <input id="ha-token" type="password" placeholder="Long-lived access token" style="margin-top:6px" autocomplete="off">
+            <div class="seg" style="margin-top:8px"><button id="ha-save">Save and test</button></div>
+            <div class="note" id="ha-msg"></div>
+          </div>
         </div>
       </section>
       <section data-sec="sound">
@@ -426,10 +453,18 @@
     <div class="icpick" id="eb-pick"></div>
     <label>When tapped</label>
     <div class="seg" id="eb-type">
-      <button data-t="keys">Press keys</button><button data-t="text">Type text</button><button data-t="open">Open</button><button data-t="profile">Profile</button>
+      <button data-t="keys"><svg class="ic"><use href="#i-keyboard"/></svg>Keys</button><button data-t="text"><svg class="ic"><use href="#i-text"/></svg>Text</button><button data-t="open"><svg class="ic"><use href="#i-launch"/></svg>Open</button>
+      <button data-t="profile"><svg class="ic"><use href="#i-swap"/></svg>Profile</button><button data-t="ha"><svg class="ic"><use href="#i-home"/></svg>Smart home</button><button data-t="steps"><svg class="ic"><use href="#i-bolt"/></svg>Macro</button>
     </div>
     <input id="eb-value" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
     <select id="eb-prof"></select>
+    <div id="eb-ha">
+      <input id="eb-ha-ent" list="ha-ents" placeholder="light.desk, scene.movie, switch.fan…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <datalist id="ha-ents"></datalist>
+      <input id="eb-ha-svc" placeholder="Service (optional): light.turn_on, script.turn_on…" style="margin-top:6px" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div id="eb-steps"><div class="steps" id="eb-steplist"></div>
+      <button class="addstep" id="eb-addstep" type="button"><svg class="ic"><use href="#i-plus"/></svg>Add step</button></div>
     <div class="hint" id="eb-hint"></div>
     <div class="btns" id="eb-edit"><button id="eb-left"><svg class="ic"><use href="#i-chev-left"/></svg> Move</button><button id="eb-right">Move <svg class="ic"><use href="#i-chev-right"/></svg></button><button id="eb-del" class="danger">Delete</button></div>
     <div class="err" id="eb-err"></div>
@@ -445,6 +480,10 @@
     <button class="tog" id="ep-stream" style="width:100%"><span>Show the PC screen<small>Off: the whole iPad is buttons and nothing is streamed, so it costs the PC almost nothing (best for gaming)</small></span></button>
     <button class="tog" id="ep-strip" style="width:100%"><span>Button panel<small>Slide the buttons out from the right edge of the screen</small></span></button>
     <button class="tog" id="ep-screen" style="width:100%"><span>Keep the iPad screen in Windows<small id="ep-screen-sub">Off removes the extra screen, so the PC has one less to draw</small></span></button>
+    <label>Show these buttons while one of these apps is in front</label>
+    <div class="chips" id="ep-apps"></div>
+    <div class="icrow" style="margin-top:6px"><input id="ep-appin" placeholder="obs64.exe, photoshop.exe, RainbowSix.exe…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button id="ep-appadd" type="button" style="width:auto;margin:0">Add</button></div>
+    <div class="chips" id="ep-recent"></div>
     <label>Buttons per row</label>
     <div class="seg" id="ep-cols"><button data-c="3">3</button><button data-c="4">4</button><button data-c="5">5</button><button data-c="6">6</button></div>
     <div class="btns" id="ep-edit"><button id="ep-del" class="danger">Delete profile</button></div>
@@ -782,6 +821,8 @@
           renderWindows(m);
         } else if (m.type === 'screen') {
           onScreenMsg(m);
+        } else if (m.type === 'focus') {
+          if (profiles && profiles.focus !== m.profile) { profiles.focus = m.profile; profiles.front = m.front; renderProfileUI(); }
         } else if (m.type === 'speed') {
           pcSpeed = m; drawHud();
         } else if (m.type === 'pong') {
@@ -1257,6 +1298,8 @@
   }
   const prof = name => profiles && profiles.profiles.find(p => p.name === name);
   const activeProf = () => profiles && (prof(profiles.active) || profiles.profiles[0]);
+  // The buttons to show: a profile whose app is in front on the PC, else the active one.
+  const shownProf = () => (profiles && profiles.focus && prof(profiles.focus)) || activeProf();
   const clone = o => JSON.parse(JSON.stringify(o));
   function closeMenu() { $('menu').classList.remove('open'); $('fab').classList.remove('open'); }
   function deckMsg(t) { $('deckmsg').textContent = t || ''; }
@@ -1268,6 +1311,7 @@
     const l = document.createElement('span'); l.className = 'l'; l.textContent = b.label || '';
     const em = document.createElement('span'); em.className = 'em'; em.appendChild(ico('pen'));
     k.append(i, l, em);
+    if (b.steps) { const g = document.createElement('span'); g.className = 'badge'; g.textContent = `${b.steps.length} steps`; k.appendChild(g); }
     k.addEventListener('click', () => onTap(k));
     return k;
   }
@@ -1301,7 +1345,7 @@
     requestWakeLock();
     renderDeck();
     clearInterval(deckPoll);
-    deckPoll = setInterval(refreshDeck, 5000);
+    deckPoll = setInterval(refreshDeck, 1500);
   }
   function enterStream() {
     leaveDeck();
@@ -1368,17 +1412,17 @@
       b.addEventListener('click', () => { if (q.name !== activeProf().name) switchTo(q.name); });
       seg.appendChild(b);
     });
-    const strip = $('strip');
+    const strip = $('strip'), sp = shownProf();
     strip.innerHTML = '';
-    p.buttons.forEach((b, i) => strip.appendChild(keyEl(b, el => press(p, i, el))));
-    const showStrip = !!p.strip && p.buttons.length > 0;
+    sp.buttons.forEach((b, i) => strip.appendChild(keyEl(b, el => press(sp, i, el))));
+    const showStrip = !!p.strip && sp.buttons.length > 0;
     document.body.classList.toggle('strip', showStrip);
     if (!showStrip) { strip.classList.remove('open'); $('tab').classList.remove('open'); }
     if (inDeck || editing) renderDeck();
   }
   function renderDeck() {
     if (!profiles) return;
-    const shown = (editing && prof(editName)) || activeProf();
+    const shown = (editing && prof(editName)) || shownProf();
     $('deck').classList.toggle('editing', editing);
     const chips = $('chips');
     chips.innerHTML = '';
@@ -1440,7 +1484,7 @@
   }
   function closeSheet() { $('sheetbg').classList.remove('open'); document.activeElement && document.activeElement.blur(); }
   async function saveAll(data, errEl) {
-    delete data.screen_control;
+    delete data.screen_control; delete data.focus; delete data.front;
     try { profiles = await api('profiles', 'PUT', data); }
     catch (e) { errEl.textContent = e.message; return false; }
     renderProfileUI();
@@ -1458,15 +1502,64 @@
     open: 'An app, file, folder or link: obs64.exe, C:\\Games\\game.exe, https://…, discord://, steam://',
     profile: 'Switch to another profile.',
   };
+  HINTS.ha = 'Pick a light, scene, script or switch. Tapping toggles it (scenes and scripts run). Set up Home Assistant in Settings > Buttons first.';
+  HINTS.steps = 'Runs each step in order. Use Wait between steps that need a moment, like an app opening.';
   const PLACE = { keys: 'ctrl+shift+m', text: 'gg wp', open: 'obs64.exe', profile: '' };
+  const TYPES = ['steps', 'ha', 'keys', 'text', 'open', 'profile'];
+  const STEP_TYPES = { keys: 'Press keys', text: 'Type text', open: 'Open', wait: 'Wait (ms)', ha: 'Smart home', profile: 'Profile' };
+  let ebSteps = [];
+  function renderSteps() {
+    const box = $('eb-steplist'); box.innerHTML = '';
+    ebSteps.forEach((st, i) => {
+      const row = document.createElement('div'); row.className = 'step';
+      const n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1;
+      const sel = document.createElement('select');
+      Object.entries(STEP_TYPES).forEach(([k, v]) => { const o = document.createElement('option'); o.value = k; o.textContent = v; sel.appendChild(o); });
+      sel.value = st.kind;
+      const inp = document.createElement('input');
+      inp.value = st.value; inp.autocapitalize = 'off'; inp.spellcheck = false;
+      inp.placeholder = { keys: 'ctrl+shift+m', text: 'brb', open: 'obs64.exe', wait: '500', ha: 'light.desk', profile: 'Gaming' }[st.kind];
+      if (st.kind === 'ha') inp.setAttribute('list', 'ha-ents');
+      inp.addEventListener('input', () => { st.value = inp.value; });
+      sel.addEventListener('change', () => { st.kind = sel.value; renderSteps(); });
+      const del = document.createElement('button'); del.type = 'button'; del.appendChild(ico('trash'));
+      del.addEventListener('click', () => { ebSteps.splice(i, 1); renderSteps(); });
+      row.append(n, sel, inp, del); box.appendChild(row);
+    });
+  }
+  function stepsFrom(b) {
+    return (b.steps || []).map(st => {
+      if ('wait' in st) return { kind: 'wait', value: String(st.wait) };
+      if ('ha' in st) return { kind: 'ha', value: st.ha.entity || st.ha.service || '' };
+      const k = ['keys', 'text', 'open', 'profile'].find(t => t in st) || 'keys';
+      return { kind: k, value: String(st[k] || '') };
+    });
+  }
+  function stepsOut() {
+    return ebSteps.filter(st => st.value.trim()).map(st =>
+      st.kind === 'wait' ? { wait: Math.max(0, Math.min(10000, parseInt(st.value, 10) || 0)) }
+      : st.kind === 'ha' ? { ha: { entity: st.value.trim() } } : { [st.kind]: st.value.trim() });
+  }
+  $('eb-addstep').addEventListener('click', () => { ebSteps.push({ kind: ebSteps.length % 2 ? 'wait' : 'keys', value: '' }); renderSteps(); });
+  let haLoaded = false;
+  async function loadEntities() {
+    if (haLoaded) return; haLoaded = true;
+    try {
+      const j = await api('ha');
+      const dl = $('ha-ents'); dl.innerHTML = '';
+      j.entities.forEach(e => { const o = document.createElement('option'); o.value = e.id; o.label = `${e.name} (${e.state})`; dl.appendChild(o); });
+    } catch (e) { haLoaded = false; }
+  }
   let eb = null;                                  // { name, i, type }
   function editButton(name, i) {
     const p = prof(name), b = i >= 0 ? p.buttons[i] : { icon: 'i:star', label: '' };
-    eb = { name, i, type: ['keys', 'text', 'open', 'profile'].find(t => t in b) || 'keys', icon: b.icon || 'i:star' };
+    eb = { name, i, type: TYPES.find(t => t in b) || 'keys', icon: b.icon || 'i:star' };
+    ebSteps = stepsFrom(b); if (!ebSteps.length) ebSteps = [{ kind: 'keys', value: '' }];
+    $('eb-ha-ent').value = b.ha ? (b.ha.entity || '') : ''; $('eb-ha-svc').value = b.ha ? (b.ha.service || '') : '';
     $('eb-icon').value = eb.icon.startsWith('i:') ? '' : eb.icon; $('eb-label').value = b.label || '';
     iconInto($('eb-prev'), eb.icon);
     iconPicker($('eb-pick'), eb.icon, v => { eb.icon = v; $('eb-icon').value = ''; iconInto($('eb-prev'), v); });
-    $('eb-value').value = eb.type !== 'profile' ? (b[eb.type] || '') : '';
+    $('eb-value').value = ['keys', 'text', 'open'].includes(eb.type) ? (b[eb.type] || '') : '';
     const sel = $('eb-prof'); sel.innerHTML = '';
     profiles.profiles.forEach(q => { const o = document.createElement('option'); o.value = o.textContent = q.name; sel.appendChild(o); });
     sel.value = b.profile || (profiles.profiles.find(q => q.name !== name) || p).name;
@@ -1476,9 +1569,13 @@
   }
   function markType() {
     document.querySelectorAll('#eb-type [data-t]').forEach(x => x.classList.toggle('on', x.dataset.t === eb.type));
-    $('eb-value').style.display = eb.type === 'profile' ? 'none' : '';
+    $('eb-value').style.display = ['keys', 'text', 'open'].includes(eb.type) ? '' : 'none';
     $('eb-prof').style.display = eb.type === 'profile' ? '' : 'none';
-    $('eb-value').placeholder = PLACE[eb.type];
+    $('eb-ha').style.display = eb.type === 'ha' ? '' : 'none';
+    $('eb-steps').style.display = eb.type === 'steps' ? '' : 'none';
+    if (eb.type === 'steps') renderSteps();
+    if (eb.type === 'ha' || eb.type === 'steps') loadEntities();
+    $('eb-value').placeholder = PLACE[eb.type] || '';
     $('eb-hint').textContent = HINTS[eb.type];
   }
   document.querySelectorAll('#eb-type [data-t]').forEach(x => x.addEventListener('click', () => { eb.type = x.dataset.t; markType(); }));
@@ -1488,9 +1585,16 @@
     $('eb-pick').querySelectorAll('.on').forEach(x => x.classList.remove('on'));
   });
   $('eb-save').addEventListener('click', async () => {
-    const v = eb.type === 'profile' ? $('eb-prof').value : $('eb-value').value.trim();
-    if (!v) { $('eb-err').textContent = 'Fill in what the button does.'; return; }
-    const b = { label: $('eb-label').value.trim() || v, icon: eb.icon || 'i:star', [eb.type]: v };
+    let v;
+    if (eb.type === 'profile') v = $('eb-prof').value;
+    else if (eb.type === 'steps') v = stepsOut();
+    else if (eb.type === 'ha') {
+      const ent = $('eb-ha-ent').value.trim(), svc = $('eb-ha-svc').value.trim();
+      v = (ent || svc) ? { entity: ent, ...(svc ? { service: svc } : {}) } : '';
+    } else v = $('eb-value').value.trim();
+    if (!v || (Array.isArray(v) && !v.length)) { $('eb-err').textContent = 'Fill in what the button does.'; return; }
+    const fallback = eb.type === 'steps' ? 'Macro' : eb.type === 'ha' ? (v.entity || v.service) : v;
+    const b = { label: $('eb-label').value.trim() || fallback, icon: eb.icon || 'i:star', [eb.type]: v };
     const data = clone(profiles), q = data.profiles.find(x => x.name === eb.name);
     if (eb.i >= 0) q.buttons[eb.i] = b; else q.buttons.push(b);
     if (await saveAll(data, $('eb-err'))) closeSheet();
@@ -1515,12 +1619,39 @@
     const p = name ? prof(name) : { name: '', icon: 'i:sliders', stream: false, strip: false, screen: false, cols: 4 };
     ep = { name, stream: p.stream !== false, strip: !!p.strip, screen: p.screen !== false, cols: p.cols || 4 };
     $('ep-icon').value = p.icon || 'i:sliders'; $('ep-name').value = p.name;
+    ep.apps = (p.apps || []).slice(); renderApps(); loadRecentApps();
     iconInto($('ep-prev'), $('ep-icon').value);
     iconPicker($('ep-pick'), $('ep-icon').value, v => { $('ep-icon').value = v; iconInto($('ep-prev'), v); });
     $('ep-edit').style.display = name && profiles.profiles.length > 1 ? '' : 'none';
     markProf();
     openSheet('prof');
   }
+  function renderApps() {
+    const box = $('ep-apps'); box.innerHTML = '';
+    if (!ep.apps.length) { box.innerHTML = '<span class="hint" style="margin:0">None: these buttons only show when you pick this profile.</span>'; }
+    ep.apps.forEach((a, i) => {
+      const c = document.createElement('button'); c.type = 'button'; c.className = 'chip on';
+      c.append(a, ico('close')); c.addEventListener('click', () => { ep.apps.splice(i, 1); renderApps(); });
+      box.appendChild(c);
+    });
+  }
+  function addApp(a) {
+    a = (a || '').trim(); if (!a) return;
+    if (!ep.apps.some(x => x.toLowerCase() === a.toLowerCase())) ep.apps.push(a);
+    $('ep-appin').value = ''; renderApps();
+  }
+  async function loadRecentApps() {
+    const box = $('ep-recent'); box.innerHTML = '';
+    try {
+      const j = await api('apps');
+      j.apps.slice(0, 14).forEach(a => {
+        const c = document.createElement('button'); c.type = 'button'; c.className = 'chip';
+        c.append(ico('plus'), a); c.addEventListener('click', () => addApp(a)); box.appendChild(c);
+      });
+    } catch (e) {}
+  }
+  $('ep-appadd').addEventListener('click', () => addApp($('ep-appin').value));
+  $('ep-appin').addEventListener('keydown', e => { if (e.key === 'Enter') addApp($('ep-appin').value); });
   function markProf() {
     $('ep-stream').classList.toggle('on', ep.stream);
     $('ep-strip').classList.toggle('on', ep.strip && ep.stream); $('ep-strip').classList.toggle('na', !ep.stream);
@@ -1545,7 +1676,7 @@
     const wasActive = ep.name && ep.name === data.active;
     const changed = wasActive && (q.stream !== false) !== ep.stream || wasActive && (q.screen !== false) !== ep.screen;
     Object.assign(q, { name: nm, icon: $('ep-icon').value.trim(), stream: ep.stream, strip: ep.strip,
-                       screen: ep.screen, cols: ep.cols });
+                       screen: ep.screen, cols: ep.cols, apps: ep.apps });
     if (ep.name && ep.name !== nm) {                // renamed: keep buttons that switch to it working
       data.profiles.forEach(x => x.buttons.forEach(b => { if (b.profile === ep.name) b.profile = nm; }));
       if (data.active === ep.name) data.active = nm;
@@ -1582,6 +1713,44 @@
     window.dispatchEvent(new Event('settingsopen'));
   }
   function closeSettings() { $('settings').classList.remove('open'); }
+  // Settings kept on the PC (settings.json), shared by every iPad.
+  let hostSet = null;
+  async function loadHostSettings() {
+    try { hostSet = await api('settings'); } catch (e) { hostSet = null; }
+    window.dispatchEvent(new Event('hostsettings'));
+  }
+  async function putHostSettings(ch) {
+    hostSet = await api('settings', 'PUT', ch);
+    window.dispatchEvent(new Event('hostsettings'));
+    return hostSet;
+  }
+  addEventListener('settingsopen', loadHostSettings);
+  addEventListener('hostsettings', () => {
+    const on = !!(hostSet && hostSet.auto_profiles);
+    $('s-auto').classList.toggle('on', on); $('s-auto').classList.toggle('na', !hostSet);
+    $('s-auto-sub').textContent = profiles && profiles.front
+      ? `In front now: ${profiles.front}. A profile's buttons appear while one of its apps is in front`
+      : "A profile's buttons appear while one of its apps is in front (set the apps in each profile)";
+    if (hostSet && document.activeElement !== $('ha-url')) $('ha-url').value = hostSet.ha_url || '';
+    if (hostSet) $('ha-token').placeholder = hostSet.ha_token ? 'Token saved (type a new one to change it)' : 'Long-lived access token';
+  });
+  $('s-auto').addEventListener('click', async () => {
+    if (!hostSet) return;
+    await putHostSettings({ auto_profiles: !hostSet.auto_profiles }).catch(() => {});
+    profiles = await api('profiles').catch(() => profiles); renderProfileUI();
+  });
+  $('ha-save').addEventListener('click', async () => {
+    $('ha-msg').textContent = 'Testing…';
+    try {
+      const ch = { ha_url: $('ha-url').value.trim() };
+      if ($('ha-token').value.trim()) ch.ha_token = $('ha-token').value.trim();
+      await putHostSettings(ch);
+      $('ha-token').value = '';
+      await api('ha', 'POST');
+      haLoaded = false;
+      $('ha-msg').textContent = 'Connected to Home Assistant. Add Smart home buttons in the button editor.';
+    } catch (e) { $('ha-msg').textContent = e.message; }
+  });
   $('m-settings').addEventListener('click', () => openSettings());
   $('s-close').addEventListener('click', closeSettings);
   $('settings').addEventListener('click', e => { if (e.target === $('settings')) closeSettings(); });
