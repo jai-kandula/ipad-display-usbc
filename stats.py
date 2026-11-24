@@ -94,7 +94,66 @@ def _nvidia_smi():
     return p if p and os.path.exists(p) else None
 
 
+class _Util(ctypes.Structure):
+    _fields_ = [("gpu", ctypes.c_uint), ("memory", ctypes.c_uint)]
+
+
+class _Mem(ctypes.Structure):
+    _fields_ = [("total", ctypes.c_ulonglong), ("free", ctypes.c_ulonglong), ("used", ctypes.c_ulonglong)]
+
+
+def _nvml():
+    """NVIDIA's own monitoring library, the one nvidia-smi uses, loaded once.
+    Asking it costs microseconds; starting nvidia-smi every 2 s cost a new
+    process each time. Returns a read() function, or None."""
+    names = ["nvml.dll", os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"),
+                                      "NVIDIA Corporation", "NVSMI", "nvml.dll")] if IS_WINDOWS \
+        else ["libnvidia-ml.so.1"]
+    lib = None
+    for n in names:
+        try:
+            lib = ctypes.CDLL(n)
+            break
+        except OSError:
+            continue
+    if lib is None or lib.nvmlInit_v2() != 0:
+        return None
+    dev = ctypes.c_void_p()
+    if lib.nvmlDeviceGetHandleByIndex_v2(0, ctypes.byref(dev)) != 0:
+        return None
+    buf = ctypes.create_string_buffer(96)
+    name = buf.value.decode(errors="replace") if lib.nvmlDeviceGetName(dev, buf, 96) == 0 else "NVIDIA GPU"
+
+    def read():
+        u, m, t, pw = _Util(), _Mem(), ctypes.c_uint(), ctypes.c_uint()
+        ok = lambda r: r == 0          # noqa: E731
+        return {"name": name,
+                "load": float(u.gpu) if ok(lib.nvmlDeviceGetUtilizationRates(dev, ctypes.byref(u))) else None,
+                "temp": float(t.value) if ok(lib.nvmlDeviceGetTemperature(dev, 0, ctypes.byref(t))) else None,
+                "mem_used": round(m.used / 2**20) if ok(lib.nvmlDeviceGetMemoryInfo(dev, ctypes.byref(m))) else None,
+                "mem_total": round(m.total / 2**20) if m.total else None,
+                "power": round(pw.value / 1000, 1) if ok(lib.nvmlDeviceGetPowerUsage(dev, ctypes.byref(pw))) else None}
+    read()
+    return read
+
+
 def _gpu_loop():
+    try:
+        nvml = _nvml()
+    except Exception:
+        nvml = None
+    if nvml is not None:
+        while time.time() - _last_ask < IDLE_AFTER:
+            try:
+                g = nvml()
+                with _lock:
+                    data["gpu"] = g
+                    if g["load"] is not None:
+                        history["gpu"].append(g["load"])
+            except Exception:
+                pass
+            time.sleep(2.0)
+        return
     exe = _nvidia_smi()
     if not exe:
         return
