@@ -13,9 +13,13 @@ A button runs one action:
   {"ha": {"service": "light.toggle", "entity": "light.desk"}}   Home Assistant
   {"steps": [{"keys": ...}, {"wait": 300}, {"open": ...}, ...]}  a macro: several
                                  actions in order, with pauses (ms) between them
-  {"tile": "cpu" | "gpu" | "ram" | "media" | "clock"}   a live tile that shows
-                                 numbers from the PC (see stats.py); tapping
-                                 the media tile plays or pauses
+  {"obs": {"do": "stream" | "record" | "replay" | "scene" | "mute" | ...,
+           "scene": "Game", "input": "Mic/Aux"}}   OBS Studio (see obs.py)
+  {"tile": "cpu" | "gpu" | "ram" | "media" | "clock" | "fps" | "obs" | "chat"}
+                                 a live tile that shows numbers from the PC
+                                 (see stats.py), what OBS is doing, or your
+                                 Twitch chat; tapping the media tile plays or
+                                 pauses
 
 A profile can list apps ("apps": ["obs64.exe", "photoshop.exe"]): while one
 of them is in front on the PC, the iPad shows that profile's buttons.
@@ -123,8 +127,8 @@ def save(data):
     return data
 
 
-STEP_KINDS = ("keys", "text", "open", "profile", "ha", "wait")
-TILES = ("cpu", "gpu", "ram", "media", "clock", "fps")
+STEP_KINDS = ("keys", "text", "open", "profile", "ha", "obs", "wait")
+TILES = ("cpu", "gpu", "ram", "media", "clock", "fps", "obs", "chat")
 MAX_STEPS, MAX_WAIT_MS = 30, 10000
 
 
@@ -138,6 +142,9 @@ def _check(b, in_macro=False):
         h = b["ha"]
         if not isinstance(h, dict) or not (h.get("service") or h.get("entity")):
             raise ValueError("a Home Assistant button needs an entity or a service")
+    if "obs" in b:
+        import obs
+        obs.check(b["obs"])
     if "wait" in b:
         b["wait"] = max(0, min(MAX_WAIT_MS, int(b["wait"])))
     if "steps" in b:
@@ -219,6 +226,10 @@ def run(button, inp, switch_profile):
         h = button["ha"]
         entity = str(h.get("entity", "")).strip()
         ha.call(h.get("service") or ha.default_service(entity), entity, h.get("data"))
+        return
+    if "obs" in button:
+        import obs
+        obs.do(button["obs"])
         return
     if "keys" in button:
         mods, vk = parse_keys(button["keys"])

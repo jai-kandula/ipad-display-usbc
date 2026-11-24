@@ -67,6 +67,7 @@ import stats  # noqa: E402  (live tiles: CPU, GPU, now playing)
 import screens  # noqa: E402  (which screen is the iPad's, the laptop's, a monitor)
 import tlsutil  # noqa: E402  (encrypted Wi-Fi)
 import clips  # noqa: E402  (replay clips from any clipping app)
+import obs  # noqa: E402  (OBS Studio buttons and tile)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -1010,7 +1011,11 @@ def make_app(cfg):
             body = await request.json()
             if not isinstance(body, dict):
                 raise ValueError("expected settings")
-            return web.json_response(hostsettings.update(body))
+            before = {k: hostsettings.get(k) for k in ("obs_url", "obs_password")}
+            out = hostsettings.update(body)
+            if any(hostsettings.get(k) != v for k, v in before.items()):
+                obs.reconnect()
+            return web.json_response(out)
         except (ValueError, TypeError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
@@ -1023,6 +1028,18 @@ def make_app(cfg):
             if request.method == "POST":
                 return web.json_response({"ok": await loop.run_in_executor(None, ha.check)})
             return web.json_response({"entities": await loop.run_in_executor(None, ha.entities)})
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=400)
+
+    async def obs_api(request):
+        """GET: OBS's scenes, sound sources and state for the button editor. POST: test the connection."""
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        loop = asyncio.get_running_loop()
+        try:
+            if request.method == "POST":
+                return web.json_response({"ok": await loop.run_in_executor(None, obs.test)})
+            return web.json_response(await loop.run_in_executor(None, obs.state))
         except Exception as e:
             return web.json_response({"error": str(e)}, status=400)
 
@@ -1044,10 +1061,13 @@ def make_app(cfg):
         """Numbers for the live tiles on screen: ?want=cpu,gpu,ram,media&ha=light.desk,..."""
         if not authorized(request):
             return web.json_response({"error": "bad pin"}, status=403)
-        want = [w for w in request.query.get("want", "").split(",") if w in stats.READERS]
+        asked = request.query.get("want", "").split(",")
+        want = [w for w in asked if w in stats.READERS]
         ids = [e.strip() for e in request.query.get("ha", "").split(",") if e.strip()]
         loop = asyncio.get_running_loop()
         out = stats.snapshot(want) if want else {}
+        if "obs" in asked:
+            out["obs"] = obs.state()
         if ids and hostsettings.get("ha_url") and hostsettings.get("ha_token"):
             out["ha"] = await loop.run_in_executor(None, ha.states, ids)
         return web.json_response(out)
@@ -1500,6 +1520,8 @@ def make_app(cfg):
     app.router.add_post("/api/action", deck_action)
     app.router.add_get("/api/settings", settings_get)
     app.router.add_put("/api/settings", settings_put)
+    app.router.add_get("/api/obs", obs_api)
+    app.router.add_post("/api/obs", obs_api)
     app.router.add_get("/api/ha", ha_api)
     app.router.add_post("/api/ha", ha_api)
     app.router.add_get("/api/apps", apps_api)
