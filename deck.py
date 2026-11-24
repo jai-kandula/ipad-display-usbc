@@ -124,7 +124,7 @@ def save(data):
 
 
 STEP_KINDS = ("keys", "text", "open", "profile", "ha", "wait")
-TILES = ("cpu", "gpu", "ram", "media", "clock")
+TILES = ("cpu", "gpu", "ram", "media", "clock", "fps")
 MAX_STEPS, MAX_WAIT_MS = 30, 10000
 
 
