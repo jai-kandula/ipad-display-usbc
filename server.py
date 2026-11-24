@@ -63,6 +63,7 @@ import winpin  # noqa: E402  (put app windows on the iPad)
 import hostsettings  # noqa: E402  (settings kept on the PC)
 import focus  # noqa: E402  (the app in front, for app-aware buttons)
 import ha  # noqa: E402  (Home Assistant buttons)
+import stats  # noqa: E402  (live tiles: CPU, GPU, now playing)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -990,6 +991,26 @@ def make_app(cfg):
             pass
         return web.json_response({"apps": names[:40], "front": focus.state["exe"]})
 
+    async def tiles_api(request):
+        """Numbers for the live tiles on screen: ?want=cpu,gpu,ram,media&ha=light.desk,..."""
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        want = [w for w in request.query.get("want", "").split(",") if w in stats.READERS]
+        ids = [e.strip() for e in request.query.get("ha", "").split(",") if e.strip()]
+        loop = asyncio.get_running_loop()
+        out = stats.snapshot(want) if want else {}
+        if ids and hostsettings.get("ha_url") and hostsettings.get("ha_token"):
+            out["ha"] = await loop.run_in_executor(None, ha.states, ids)
+        return web.json_response(out)
+
+    async def tiles_art(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        got = stats.art()
+        if not got:
+            return web.Response(status=404)
+        return web.Response(body=got[0], content_type=got[1], headers={"Cache-Control": "no-cache"})
+
     async def deck_action(request):
         """A deck button was tapped: {profile, index}."""
         if not authorized(request):
@@ -1351,6 +1372,8 @@ def make_app(cfg):
     app.router.add_get("/api/ha", ha_api)
     app.router.add_post("/api/ha", ha_api)
     app.router.add_get("/api/apps", apps_api)
+    app.router.add_get("/api/tiles", tiles_api)
+    app.router.add_get("/api/tiles/art", tiles_art)
     app.router.add_static("/", WEB_DIR, show_index=False)
 
     async def remember_loop(app):

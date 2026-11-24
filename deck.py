@@ -13,6 +13,9 @@ A button runs one action:
   {"ha": {"service": "light.toggle", "entity": "light.desk"}}   Home Assistant
   {"steps": [{"keys": ...}, {"wait": 300}, {"open": ...}, ...]}  a macro: several
                                  actions in order, with pauses (ms) between them
+  {"tile": "cpu" | "gpu" | "ram" | "media" | "clock"}   a live tile that shows
+                                 numbers from the PC (see stats.py); tapping
+                                 the media tile plays or pauses
 
 A profile can list apps ("apps": ["obs64.exe", "photoshop.exe"]): while one
 of them is in front on the PC, the iPad shows that profile's buttons.
@@ -119,10 +122,14 @@ def save(data):
 
 
 STEP_KINDS = ("keys", "text", "open", "profile", "ha", "wait")
+TILES = ("cpu", "gpu", "ram", "media", "clock")
 MAX_STEPS, MAX_WAIT_MS = 30, 10000
 
 
 def _check(b, in_macro=False):
+    if "tile" in b:
+        if in_macro or b["tile"] not in TILES:
+            raise ValueError(f"unknown tile '{b['tile']}'")
     if "keys" in b:
         parse_keys(b["keys"])
     if "ha" in b:
@@ -193,6 +200,10 @@ def parse_keys(combo):
 
 def run(button, inp, switch_profile):
     """Run one button's action. inp is the server's Input; switch_profile(name)."""
+    if "tile" in button:                  # tiles only show numbers; media plays / pauses
+        if button["tile"] == "media":
+            inp.combo(NAMED["playpause"], [])
+        return
     if "steps" in button:                 # a macro: each step in turn
         for st in button["steps"][:MAX_STEPS]:
             if "wait" in st:
