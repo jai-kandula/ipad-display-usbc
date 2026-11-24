@@ -177,6 +177,23 @@
   #deckbar button.on { background: var(--grad); color: #fff; box-shadow: 0 3px 12px rgba(91,140,255,.3); }
   #deckbar #d-edit { color: #fff; }
   body.deckedit #deckbar #d-edit, .editing #deckbar #d-edit { background: var(--ok); color: #0b0c10; font-weight: 600; }
+  .key.sz-big .tv { font-size: clamp(40px, 6.4vw, 72px) !important; }
+  .key.sz-big:not(.live) .i { width: clamp(70px, 10vw, 104px); height: clamp(70px, 10vw, 104px); font-size: clamp(32px, 5vw, 52px); }
+  .key.sz-big:not(.live) .l { font-size: 17px; }
+  #deck.editing #grid .key { touch-action: none; }
+  #grid .key.drag { z-index: 5; opacity: .85; transition: none; box-shadow: 0 18px 40px rgba(0,0,0,.6); pointer-events: none; }
+  #grid .key.drop { outline: 2px solid #7aa2ff; outline-offset: 2px; }
+  #qc { z-index: 31; }
+  #qc-list .qn { display: block; width: 100%; text-align: left; white-space: pre-wrap; padding: 10px 12px; border-radius: 12px; background: #101217; border: 1px solid #1b1f27; margin: 0 0 6px; font-size: 15px; color: #e6e9ef; }
+  #qc-list .qn small { display: block; color: #8f98a8; margin-bottom: 4px; }
+  #qc-list .imgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  #qc-list .imgs button { padding: 0; margin: 0; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 10; background: #101217; border: 1px solid #1b1f27; }
+  #qc-list .imgs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #qc-big { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.92); display: none; place-items: center; }
+  #qc-big.open { display: grid; } #qc-big img { max-width: 96vw; max-height: 84vh; border-radius: 10px; }
+  #qc-big .bar { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); display: flex; gap: 8px; }
+  #qc-big .bar button { width: auto; margin: 0; display: inline-flex; gap: 7px; align-items: center; padding: 9px 14px; }
+  #qc textarea { min-height: 120px; font-size: 17px; }
   #grid { flex: 1; display: grid; gap: 12px; min-height: 0; overflow-y: auto; grid-auto-flow: row dense; }
   .key { position: relative; margin: 0; padding: 8px; border: 1px solid rgba(255,255,255,.05); border-radius: 20px; min-height: 0; overflow: hidden;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #e8ebf0;
@@ -415,23 +432,23 @@
   #dev .trow { display: flex; gap: 6px; } #dev .trow input:first-child { flex: 0 0 30%; } #dev .trow button { width: auto; margin: 0; }
   .key.live.t-mc .tv small, .key.live.t-git .tv small { font-size: .42em; }
   .key.live.t-git .tv { font-size: clamp(20px, 3vw, 28px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #sch { position: fixed; inset: 0; z-index: 30; display: none; background: #08090c; }
-  #sch.open { display: block; }
-  #sch .cx { position: absolute; inset: 0; padding: calc(12px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
-  #sch .chead { display: flex; align-items: center; gap: 10px; }
-  #sch .chead h2 { margin: 0; font-size: 22px; flex: none; }
-  #sch .chead > button { margin: 0 0 0 auto; width: 40px; height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center; flex: none; }
-  #sch .chips { margin: 0; }
-  #sch .pane { flex: 1; min-height: 0; display: none; flex-direction: column; gap: 10px; overflow: auto; }
-  #sch .pane.on { display: flex; }
-  #sch .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  #sch .bar button { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; }
-  #sch .bar button.on { background: var(--grad); color: #fff; border-color: transparent; }
-  #sch .bar input { flex: 1; min-width: 160px; margin: 0; }
-  #sch .card { background: #101217; border: 1px solid #1b1f27; border-radius: 14px; padding: 12px 14px; max-width: none; width: auto; margin: 0; }
-  #sch .sub { color: #aeb6c3; font-size: 13.5px; }
-  #sch textarea { margin: 0; min-height: 70px; background: #0d0f13; color: #e6e9ef; border: 1px solid #2f3440; border-radius: 12px; padding: 10px 12px; font: inherit; }
-  #sch label.btnlike { font-size: 15px; color: #e6e9ef; background: #15171c; }
+  #sch, #qc { position: fixed; inset: 0; z-index: 30; display: none; background: #08090c; }
+  #sch.open, #qc.open { display: block; }
+  #sch .cx, #qc .cx { position: absolute; inset: 0; padding: calc(12px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
+  #sch .chead, #qc .chead { display: flex; align-items: center; gap: 10px; }
+  #sch .chead h2, #qc .chead h2 { margin: 0; font-size: 22px; flex: none; }
+  #sch .chead > button, #qc .chead > button { margin: 0 0 0 auto; width: 40px; height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center; flex: none; }
+  #sch .chips, #qc .chips { margin: 0; }
+  #sch .pane, #qc .pane { flex: 1; min-height: 0; display: none; flex-direction: column; gap: 10px; overflow: auto; }
+  #sch .pane.on, #qc .pane.on { display: flex; }
+  #sch .bar, #qc .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #sch .bar button, #qc .bar button { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; }
+  #sch .bar button.on, #qc .bar button.on { background: var(--grad); color: #fff; border-color: transparent; }
+  #sch .bar input, #qc .bar input { flex: 1; min-width: 160px; margin: 0; }
+  #sch .card, #qc .card { background: #101217; border: 1px solid #1b1f27; border-radius: 14px; padding: 12px 14px; max-width: none; width: auto; margin: 0; }
+  #sch .sub, #qc .sub { color: #aeb6c3; font-size: 13.5px; }
+  #sch textarea, #qc textarea { margin: 0; min-height: 70px; background: #0d0f13; color: #e6e9ef; border: 1px solid #2f3440; border-radius: 12px; padding: 10px 12px; font: inherit; }
+  #sch label.btnlike, #qc label.btnlike { font-size: 15px; color: #e6e9ef; background: #15171c; }
   .ring { position: relative; width: min(46vh, 300px); aspect-ratio: 1; margin: 6px auto 0; }
   .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
   .ring circle { fill: none; stroke-width: 9; } .ring .bgc { stroke: #1b1f27; } .ring .fg { stroke: url(#ring-grad); stroke-linecap: round; transition: stroke-dashoffset .9s linear; }
@@ -561,6 +578,7 @@
   <button class="qrow" id="m-zoom"><svg class="ic"><use href="#i-fit"/></svg>Fit whole screen</button>
   <button class="qrow" id="m-clips"><svg class="ic"><use href="#i-film"/></svg>Clips<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-dev"><svg class="ic"><use href="#i-text"/></svg>Dev: tasks, Git, logs, server<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
+  <button class="qrow" id="m-qc"><svg class="ic"><use href="#i-pen"/></svg>Quick capture: notes, photos, screenshots<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-school"><svg class="ic"><use href="#i-clock"/></svg>School: focus, calendar, math, lab, notes<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-callouts"><svg class="ic"><use href="#i-target"/></svg>Callouts<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-rec"><svg class="ic"><use href="#i-record"/></svg><span id="m-rec-t">Record the iPad screen</span></button>
@@ -717,6 +735,7 @@
     <button id="d-callouts"><svg class="ic"><use href="#i-target"/></svg>Callouts</button>
     <button id="d-dev"><svg class="ic"><use href="#i-text"/></svg>Dev</button>
     <button id="d-school"><svg class="ic"><use href="#i-clock"/></svg>School</button>
+    <button id="d-qc"><svg class="ic"><use href="#i-pen"/></svg>Capture</button>
     <button id="d-edit">Edit</button>
   </div>
   <div id="grid"></div>
@@ -774,6 +793,17 @@
       <button id="sn-erase"><svg class="ic"><use href="#i-eraser"/></svg>Eraser</button><button id="sn-finger"><svg class="ic"><use href="#i-hand"/></svg>Finger</button>
       <button id="sn-undo"><svg class="ic"><use href="#i-undo"/></svg></button><button id="sn-save" class="primary"><svg class="ic"><use href="#i-save"/></svg>Save</button><button id="sn-close"><svg class="ic"><use href="#i-close"/></svg></button></div></div>
 </div></div>
+<div id="qc"><div class="cx">
+  <div class="chead"><h2>Quick capture</h2><span class="sub" id="qc-root" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <button id="qc-close" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></div>
+  <textarea id="qc-text" placeholder="Write anything: an idea, a to-do, a strat, a homework question… (write with the Pencil, it turns into text)"></textarea>
+  <div class="bar"><button id="qc-save" class="primary"><svg class="ic"><use href="#i-save"/></svg>Save note</button><button id="qc-clip"><svg class="ic"><use href="#i-copy"/></svg>Copy to PC</button>
+    <label class="btnlike" for="qc-photo" style="display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:12px;border:1px solid #2f3440;cursor:pointer"><svg class="ic" style="width:16px;height:16px"><use href="#i-screenshot"/></svg>Photo</label><input id="qc-photo" type="file" accept="image/*" style="display:none">
+    <button id="qc-shot"><svg class="ic"><use href="#i-monitor"/></svg>PC screenshot</button><span style="flex:1"></span><button id="qc-folder"><svg class="ic"><use href="#i-folder"/></svg>Open on PC</button></div>
+  <div class="sub" id="qc-msg">Everything goes into one inbox folder on the PC. The screenshot is of the PC screen your mouse is on.</div>
+  <div class="pane on" id="qc-list"></div>
+</div></div>
+<div id="qc-big"><img id="qc-img" alt=""><div class="bar"><button id="qc-del" class="danger"><svg class="ic"><use href="#i-trash"/></svg>Delete</button><button id="qc-bclose"><svg class="ic"><use href="#i-close"/></svg>Close</button></div></div>
 <div id="dev"><div class="cx">
   <div class="chead"><h2>Dev</h2><div class="chips" id="dv-tabs">
     <button class="chip on" data-p="tasks">Tasks</button><button class="chip" data-p="git">Git</button><button class="chip" data-p="log">Logs</button>
@@ -873,6 +903,8 @@
     <div id="eb-steps"><div class="steps" id="eb-steplist"></div>
       <button class="addstep" id="eb-addstep" type="button"><svg class="ic"><use href="#i-plus"/></svg>Add step</button></div>
     <div class="hint" id="eb-hint"></div>
+    <label>Size <span style="color:#5d6573">(in Edit, drag buttons and tiles to arrange them)</span></label>
+    <div class="seg" id="eb-size"><button data-s="">Auto</button><button data-s="1x1">Small</button><button data-s="2x1">Wide</button><button data-s="1x2">Tall</button><button data-s="2x2">Big</button><button data-s="3x2">Huge</button></div>
     <div class="btns" id="eb-edit"><button id="eb-left"><svg class="ic"><use href="#i-chev-left"/></svg> Move</button><button id="eb-right">Move <svg class="ic"><use href="#i-chev-right"/></svg></button><button id="eb-del" class="danger">Delete</button></div>
     <div class="err" id="eb-err"></div>
     <div class="btns"><button id="eb-cancel">Cancel</button><button id="eb-save" class="primary">Save</button></div>
@@ -891,6 +923,10 @@
     <div class="chips" id="ep-apps"></div>
     <div class="icrow" style="margin-top:6px"><input id="ep-appin" placeholder="obs64.exe, photoshop.exe, RainbowSix.exe…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button id="ep-appadd" type="button" style="width:auto;margin:0">Add</button></div>
     <div class="chips" id="ep-recent"></div>
+    <label>When you switch to this profile, also do</label>
+    <div class="steps" id="ep-steplist"></div>
+    <button class="addstep" id="ep-addstep" type="button"><svg class="ic"><use href="#i-plus"/></svg>Add step</button>
+    <div class="hint" style="margin-top:4px">Makes the profile a context, like Study or Stream: start the focus timer, open apps, switch the OBS scene. It runs when you pick the profile, not when the buttons follow the app in front.</div>
     <label>Buttons per row</label>
     <div class="seg" id="ep-cols"><button data-c="3">3</button><button data-c="4">4</button><button data-c="5">5</button><button data-c="6">6</button></div>
     <div class="btns" id="ep-edit"><button id="ep-del" class="danger">Delete profile</button></div>
@@ -2354,6 +2390,65 @@
   $('d-dev').addEventListener('click', openDev);
   $('dv-close').addEventListener('click', closeDev);
 
+  // ---- Quick capture: notes, photos and PC screenshots into an inbox folder on the PC
+  const qc = { big: null };
+  function openCapture() { closeMenu(); $('qc').classList.add('open'); qcLoad(); }
+  function qcMsg(t) { $('qc-msg').textContent = t; }
+  async function qcLoad() {
+    let j; try { j = await api('capture/list'); } catch (e) { qcMsg(e.message); return; }
+    $('qc-root').textContent = j.root;
+    const box = $('qc-list'); box.innerHTML = '';
+    if (j.files.length) {
+      const g = document.createElement('div'); g.className = 'imgs';
+      j.files.forEach(f => {
+        const b = document.createElement('button'), im = document.createElement('img');
+        im.loading = 'lazy'; im.alt = f; im.src = `/api/capture/file?${pinQ()}&name=${encodeURIComponent(f)}`;
+        b.appendChild(im); b.addEventListener('click', () => { qc.big = f; $('qc-img').src = im.src; $('qc-big').classList.add('open'); });
+        g.appendChild(b);
+      });
+      box.appendChild(g);
+    }
+    j.notes.forEach(n => {
+      const b = document.createElement('button'); b.className = 'qn';
+      const sm = document.createElement('small'); sm.textContent = n.id + '  ·  tap to copy to the PC';
+      b.append(sm, n.text);
+      b.addEventListener('click', async () => { try { await api('capture/clip', 'POST', { text: n.text }); toast('On the PC clipboard'); } catch (e) { qcMsg(e.message); } });
+      box.appendChild(b);
+    });
+    if (!j.files.length && !j.notes.length) { const d = document.createElement('div'); d.className = 'sub'; d.textContent = 'Nothing captured yet.'; box.appendChild(d); }
+  }
+  $('qc-save').addEventListener('click', async () => {
+    const t = $('qc-text').value; if (!t.trim()) { qcMsg('Write something first.'); return; }
+    try { await api('capture/note', 'POST', { text: t }); $('qc-text').value = ''; qcMsg('Saved.'); qcLoad(); } catch (e) { qcMsg(e.message); }
+  });
+  $('qc-clip').addEventListener('click', async () => {
+    const t = $('qc-text').value; if (!t.trim()) { qcMsg('Write something first.'); return; }
+    try { await api('capture/clip', 'POST', { text: t }); qcMsg('On the PC clipboard: paste it with Ctrl+V.'); } catch (e) { qcMsg(e.message); }
+  });
+  $('qc-shot').addEventListener('click', async () => {
+    qcMsg('Taking the screenshot…');
+    try { const j = await api('capture/screenshot', 'POST', {}); qcMsg(`Saved ${j.saved}`); qcLoad(); } catch (e) { qcMsg(e.message); }
+  });
+  $('qc-photo').addEventListener('change', async () => {
+    const f = $('qc-photo').files[0]; $('qc-photo').value = '';
+    if (!f) return;
+    qcMsg('Sending the photo…');
+    try {
+      const r = await fetch(`/api/capture/photo?${pinQ()}&name=${encodeURIComponent(f.name)}`, { method: 'POST', body: f });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+      qcMsg(`Saved ${j.saved}`); qcLoad();
+    } catch (e) { qcMsg(e.message); }
+  });
+  $('qc-folder').addEventListener('click', async () => { try { await api('capture/folder', 'POST', {}); qcMsg('Opened on the PC.'); } catch (e) { qcMsg(e.message); } });
+  const qcBigClose = () => { $('qc-big').classList.remove('open'); $('qc-img').removeAttribute('src'); };
+  $('qc-bclose').addEventListener('click', qcBigClose);
+  $('qc-del').addEventListener('click', e => armDelete(e.currentTarget, 'Tap again', async () => {
+    try { await api('capture/delete', 'POST', { kind: 'file', id: qc.big }); qcBigClose(); qcLoad(); } catch (err) { qcMsg(err.message); }
+  }));
+  $('qc-close').addEventListener('click', () => $('qc').classList.remove('open'));
+  $('m-qc').addEventListener('click', openCapture);
+  $('d-qc').addEventListener('click', openCapture);
+
   // ---- School: focus timer and blocker, calendar, math pad, lab capture, PDF notes
   const sc = { tab: 'focus', timer: null, focus: 25, brk: 5, hist: [], lab: null, pdfs: [] };
   async function openSchool(tab) {
@@ -3143,11 +3238,20 @@
     const grid = $('grid');
     grid.innerHTML = '';
     const cols = PHONE ? Math.min(3, shown.cols || 4) : (shown.cols || 4);
-    const n = shown.buttons.reduce((a, b) => a + (b.tile === 'media' ? 2 : 1), 0) + (editing ? 1 : 0);
+    const size = b => { const w = b.w || (b.tile === 'media' || b.tile === 'chat' ? 2 : 1), h = b.h || (b.tile === 'chat' ? 2 : 1); return [Math.min(w, cols), h]; };
+    const n = shown.buttons.reduce((a, b) => { const [w, h] = size(b); return a + w * h; }, 0) + (editing ? 1 : 0);
     grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
     grid.style.gridTemplateRows = PHONE ? `repeat(${Math.ceil(n / cols)}, 104px)`
       : `repeat(${Math.max(2, Math.ceil(n / cols))}, minmax(96px, 1fr))`;
-    shown.buttons.forEach((b, i) => grid.appendChild(keyEl(b, el => editing ? editButton(shown.name, i) : press(shown, i, el))));
+    shown.buttons.forEach((b, i) => {
+      const k = keyEl(b, el => { if (Date.now() - dragEnd < 400) return; editing ? editButton(shown.name, i) : press(shown, i, el); });
+      const [w, h] = size(b);
+      if (b.w || b.h) { k.style.gridColumn = `span ${w}`; k.style.gridRow = `span ${h}`; }
+      if (w * h >= 4 || h >= 2) k.classList.add('sz-big');
+      k.dataset.i = i;
+      if (editing) dragKey(k, shown.name, i);
+      grid.appendChild(k);
+    });
     if (editing) {
       const a = keyEl({ icon: 'i:plus', label: 'Add button' }, () => editButton(shown.name, -1));
       a.classList.add('add');
@@ -3155,6 +3259,33 @@
     }
     $('d-edit').textContent = editing ? 'Done' : 'Edit';
     $('d-prof').style.display = $('d-add').style.display = editing ? '' : 'none';
+  }
+  // Edit mode: drag a button or tile onto another to move it there (a canvas of widgets).
+  let dragEnd = 0;
+  function dragKey(k, name, from) {
+    k.addEventListener('pointerdown', e => {
+      const x0 = e.clientX, y0 = e.clientY; let on = false, over = null;
+      const move = ev => {
+        const dx = ev.clientX - x0, dy = ev.clientY - y0;
+        if (!on && Math.hypot(dx, dy) < 12) return;
+        on = true; k.classList.add('drag'); k.style.transform = `translate(${dx}px, ${dy}px) scale(1.04)`;
+        const t = document.elementFromPoint(ev.clientX, ev.clientY), key = t && t.closest('#grid .key');
+        if (over && over !== key) over.classList.remove('drop');
+        over = key && key !== k && key.dataset.i != null ? key : null;
+        if (over) over.classList.add('drop');
+      };
+      const up = async () => {
+        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+        if (!on) return;
+        dragEnd = Date.now(); k.classList.remove('drag'); k.style.transform = '';
+        if (!over) return;
+        over.classList.remove('drop');
+        const to = +over.dataset.i, data = clone(profiles), q = data.profiles.find(x => x.name === name);
+        const [b] = q.buttons.splice(from, 1); q.buttons.splice(to, 0, b);
+        if (await saveAll(data, { set textContent(t) { if (t) toast(t); } })) renderDeck();
+      };
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+    });
   }
   function startEditing() {
     if (!profiles) return;
@@ -3230,7 +3361,7 @@
   };
   const PLACE = { keys: 'ctrl+shift+m', text: 'gg wp', open: 'obs64.exe', profile: '', mc: 'say Server restarting in 5 minutes' };
   const TYPES = ['tile', 'steps', 'ha', 'obs', 'dev', 'mc', 'keys', 'text', 'open', 'profile'];
-  const STEP_TYPES = { keys: 'Press keys', text: 'Type text', open: 'Open', wait: 'Wait (ms)', ha: 'Smart home', obs: 'OBS', mc: 'Server command', profile: 'Profile' };
+  const STEP_TYPES = { keys: 'Press keys', text: 'Type text', open: 'Open', wait: 'Wait (ms)', ha: 'Smart home', obs: 'OBS', mc: 'Server command', study: 'Focus timer', capture: 'Screenshot', profile: 'Profile' };
   const OBS_DO = { stream: ['Go live / end', 'broadcast', 'Go live'], record: ['Record', 'record', 'Record'],
     pause: ['Pause recording', 'pause', 'Pause rec'], replay: ['Save replay', 'clip', 'Save replay'],
     replay_buffer: ['Replay buffer on / off', 'save', 'Replay buffer'], scene: ['Switch scene', 'film', ''],
@@ -3239,9 +3370,9 @@
   const obsStep = v => { const i = v.indexOf(':'), d = (i < 0 ? v : v.slice(0, i)).trim().toLowerCase(), n = i < 0 ? '' : v.slice(i + 1).trim();
     return OBS_NEED[d] ? { do: d, [OBS_NEED[d]]: n } : { do: d }; };
   let ebSteps = [];
-  function renderSteps() {
-    const box = $('eb-steplist'); box.innerHTML = '';
-    ebSteps.forEach((st, i) => {
+  function renderSteps(box = $('eb-steplist'), list = ebSteps) {
+    box.innerHTML = '';
+    list.forEach((st, i) => {
       const row = document.createElement('div'); row.className = 'step';
       const n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1;
       const sel = document.createElement('select');
@@ -3249,30 +3380,34 @@
       sel.value = st.kind;
       const inp = document.createElement('input');
       inp.value = st.value; inp.autocapitalize = 'off'; inp.spellcheck = false;
-      inp.placeholder = { keys: 'ctrl+shift+m', text: 'brb', open: 'obs64.exe', wait: '500', ha: 'light.desk', obs: 'stream, record, replay, scene:Game, mute:Mic/Aux', mc: 'say Restarting in 1 minute', profile: 'Gaming' }[st.kind];
+      if (st.kind === 'capture') st.value = 'screenshot';
+      inp.value = st.value;
+      inp.placeholder = { keys: 'ctrl+shift+m', text: 'brb', open: 'obs64.exe', wait: '500', ha: 'light.desk', obs: 'stream, record, replay, scene:Game, mute:Mic/Aux', mc: 'say Restarting in 1 minute', study: 'start, stop, pause or skip', capture: 'screenshot', profile: 'Gaming' }[st.kind];
       if (st.kind === 'ha') inp.setAttribute('list', 'ha-ents');
       inp.addEventListener('input', () => { st.value = inp.value; });
-      sel.addEventListener('change', () => { st.kind = sel.value; renderSteps(); });
+      sel.addEventListener('change', () => { st.kind = sel.value; if (st.kind === 'study' && !st.value) st.value = 'start'; renderSteps(box, list); });
       const del = document.createElement('button'); del.type = 'button'; del.appendChild(ico('trash'));
-      del.addEventListener('click', () => { ebSteps.splice(i, 1); renderSteps(); });
+      del.addEventListener('click', () => { list.splice(i, 1); renderSteps(box, list); });
       row.append(n, sel, inp, del); box.appendChild(row);
     });
   }
-  function stepsFrom(b) {
-    return (b.steps || []).map(st => {
+  function stepsFrom(arr) {
+    return (arr || []).map(st => {
       if ('wait' in st) return { kind: 'wait', value: String(st.wait) };
       if ('ha' in st) return { kind: 'ha', value: st.ha.entity || st.ha.service || '' };
       if ('obs' in st) return { kind: 'obs', value: st.obs.do + (st.obs.scene || st.obs.input ? ':' + (st.obs.scene || st.obs.input) : '') };
-      const k = ['keys', 'text', 'open', 'profile', 'mc'].find(t => t in st) || 'keys';
+      const k = ['keys', 'text', 'open', 'profile', 'mc', 'study', 'capture'].find(t => t in st) || 'keys';
       return { kind: k, value: String(st[k] || '') };
     });
   }
-  function stepsOut() {
-    return ebSteps.filter(st => st.value.trim()).map(st =>
+  function stepsOut(list = ebSteps) {
+    return list.filter(st => st.value.trim()).map(st =>
       st.kind === 'wait' ? { wait: Math.max(0, Math.min(10000, parseInt(st.value, 10) || 0)) }
+      : st.kind === 'study' ? { study: st.value.trim().toLowerCase() } : st.kind === 'capture' ? { capture: 'screenshot' }
       : st.kind === 'ha' ? { ha: { entity: st.value.trim() } } : st.kind === 'obs' ? { obs: obsStep(st.value) } : { [st.kind]: st.value.trim() });
   }
   $('eb-addstep').addEventListener('click', () => { ebSteps.push({ kind: ebSteps.length % 2 ? 'wait' : 'keys', value: '' }); renderSteps(); });
+  $('ep-addstep').addEventListener('click', () => { ep.enter.push({ kind: 'open', value: '' }); renderSteps($('ep-steplist'), ep.enter); loadEntities(); });
   let haLoaded = false;
   async function loadEntities() {
     if (haLoaded) return; haLoaded = true;
@@ -3329,7 +3464,7 @@
     eb = { name, i, type: TYPES.find(t => t in b) || 'keys', icon: b.icon || 'i:star', tile: b.tile || 'cpu',
       obs: b.obs ? clone(b.obs) : { do: 'stream' } };
     $('eb-obs-name').value = b.obs ? (b.obs.scene || b.obs.input || '') : '';
-    ebSteps = stepsFrom(b); if (!ebSteps.length) ebSteps = [{ kind: 'keys', value: '' }];
+    ebSteps = stepsFrom(b.steps); if (!ebSteps.length) ebSteps = [{ kind: 'keys', value: '' }];
     $('eb-ha-ent').value = b.ha ? (b.ha.entity || '') : ''; $('eb-ha-svc').value = b.ha ? (b.ha.service || '') : '';
     $('eb-icon').value = eb.icon.startsWith('i:') ? '' : eb.icon; $('eb-label').value = b.label || '';
     iconInto($('eb-prev'), eb.icon);
@@ -3340,9 +3475,12 @@
     profiles.profiles.forEach(q => { const o = document.createElement('option'); o.value = o.textContent = q.name; sel.appendChild(o); });
     sel.value = b.profile || (profiles.profiles.find(q => q.name !== name) || p).name;
     $('eb-edit').style.display = i >= 0 ? '' : 'none';
+    eb.size = b.w ? `${b.w}x${b.h || 1}` : ''; markSize();
     markType();
     openSheet('btn');
   }
+  function markSize() { document.querySelectorAll('#eb-size [data-s]').forEach(x => x.classList.toggle('on', x.dataset.s === eb.size)); }
+  document.querySelectorAll('#eb-size [data-s]').forEach(x => x.addEventListener('click', () => { eb.size = x.dataset.s; markSize(); }));
   function markType() {
     document.querySelectorAll('#eb-type [data-t]').forEach(x => x.classList.toggle('on', x.dataset.t === eb.type));
     $('eb-value').style.display = ['keys', 'text', 'open', 'mc'].includes(eb.type) ? '' : 'none';
@@ -3403,6 +3541,7 @@
     const fallback = eb.type === 'steps' ? 'Macro' : eb.type === 'ha' ? (v.entity || v.service) : eb.type === 'tile' ? TILE_KINDS[v][0]
       : eb.type === 'obs' ? (v.scene || (v.input ? `Mute ${v.input}` : OBS_DO[v.do][2])) : eb.type === 'dev' ? v.task : v;
     const b = { label: $('eb-label').value.trim() || fallback, icon: eb.icon || 'i:star', [eb.type]: v };
+    if (eb.size) { const [w, h] = eb.size.split('x').map(Number); b.w = w; b.h = h; }
     const data = clone(profiles), q = data.profiles.find(x => x.name === eb.name);
     if (eb.i >= 0) q.buttons[eb.i] = b; else q.buttons.push(b);
     if (await saveAll(data, $('eb-err'))) closeSheet();
@@ -3428,6 +3567,7 @@
     ep = { name, stream: p.stream !== false, strip: !!p.strip, screen: p.screen !== false, cols: p.cols || 4 };
     $('ep-icon').value = p.icon || 'i:sliders'; $('ep-name').value = p.name;
     ep.apps = (p.apps || []).slice(); renderApps(); loadRecentApps();
+    ep.enter = stepsFrom(p.enter); renderSteps($('ep-steplist'), ep.enter);
     iconInto($('ep-prev'), $('ep-icon').value);
     iconPicker($('ep-pick'), $('ep-icon').value, v => { $('ep-icon').value = v; iconInto($('ep-prev'), v); });
     $('ep-edit').style.display = name && profiles.profiles.length > 1 ? '' : 'none';
@@ -3485,6 +3625,7 @@
     const changed = wasActive && (q.stream !== false) !== ep.stream || wasActive && (q.screen !== false) !== ep.screen;
     Object.assign(q, { name: nm, icon: $('ep-icon').value.trim(), stream: ep.stream, strip: ep.strip,
                        screen: ep.screen, cols: ep.cols, apps: ep.apps });
+    const enter = stepsOut(ep.enter); if (enter.length) q.enter = enter; else delete q.enter;
     if (ep.name && ep.name !== nm) {                // renamed: keep buttons that switch to it working
       data.profiles.forEach(x => x.buttons.forEach(b => { if (b.profile === ep.name) b.profile = nm; }));
       if (data.active === ep.name) data.active = nm;
