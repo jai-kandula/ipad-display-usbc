@@ -826,8 +826,24 @@ class DeckProfiles:
     match when screen control is set up (display-setup.bat)."""
 
     def __init__(self):
-        self.screen_ctl = False      # main() turns this on when vdd can switch the screen
+        self.allowed = False         # main() sets this on Windows unless --keep-screen
+        self._ctl = False
+        self._next_check = 0.0
         self.lock = threading.Lock()
+
+    @property
+    def screen_ctl(self):
+        """True once display-setup.bat's tasks exist. Checked again every 10 s
+        until then, so running display-setup.bat works without a restart."""
+        if self.allowed and not self._ctl and time.monotonic() >= self._next_check:
+            checked_before = self._next_check > 0
+            self._next_check = time.monotonic() + 10
+            import vdd
+            self._ctl = vdd.available()
+            if self._ctl and checked_before:
+                print("[screen] display-setup.bat is set up: the iPad screen now turns on and off "
+                      "with the iPad and the profile.", flush=True)
+        return self._ctl
 
     def data(self):
         d = deck.load()
@@ -1330,29 +1346,33 @@ def main():
         print("   (No cable link found. For a wired connection, see WIRED.md.)")
     print(f"\n Pairing PIN:  {cfg['pin']}")
     on_plug = None
+    if IS_WINDOWS and not args.keep_screen:
+        import vdd
+        DECK.allowed = True
+        ready = DECK.screen_ctl
     if IS_WINDOWS and not args.keep_screen and args.background:
-        import vdd
-        if vdd.available():
+        if ready:
             print("\n The iPad's virtual screen turns on while an iPad is plugged in over USB-C.")
+        else:
+            print("\n Tip: run display-setup.bat once, so the iPad's virtual screen turns on")
+            print("      when the iPad is plugged in and off when it's unplugged.")
 
-            DECK.screen_ctl = True
-
-            def on_plug(plugged):
-                # Switching takes a few seconds; do it off the event loop.
-                def work():
-                    if plugged and not DECK.active().get("screen", True):
-                        print("[screen] iPad plugged in; this profile doesn't use the screen.", flush=True)
-                    elif plugged:
-                        print("[screen] iPad plugged in: turning the virtual screen on.", flush=True)
-                        vdd.turn_on(lambda: len(list_monitors()))
-                    else:
-                        print("[screen] iPad unplugged: turning the virtual screen off.", flush=True)
-                        vdd.turn_off()
-                threading.Thread(target=work, daemon=True).start()
+        def on_plug(plugged):
+            # Switching takes a few seconds; do it off the event loop.
+            def work():
+                if not DECK.screen_ctl:
+                    return
+                if plugged and not DECK.active().get("screen", True):
+                    print("[screen] iPad plugged in; this profile doesn't use the screen.", flush=True)
+                elif plugged:
+                    print("[screen] iPad plugged in: turning the virtual screen on.", flush=True)
+                    vdd.turn_on(lambda: len(list_monitors()))
+                else:
+                    print("[screen] iPad unplugged: turning the virtual screen off.", flush=True)
+                    vdd.turn_off()
+            threading.Thread(target=work, daemon=True).start()
     elif IS_WINDOWS and not args.keep_screen:
-        import vdd
-        if vdd.available():
-            DECK.screen_ctl = True
+        if ready:
             res = None
             if DECK.active().get("screen", True):
                 print("\n Turning on the iPad's virtual screen (it turns off when you close this window)...")

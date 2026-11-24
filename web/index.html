@@ -1147,7 +1147,11 @@
     else { document.body.classList.add('waiting'); $('status').textContent = `Switching to ${name}…`; }
     try {
       profiles = await api('profile', 'POST', { name });
-      deckMsg('');
+      // A profile without the screen can only remove it from Windows once
+      // display-setup.bat has been run; until then windows can still open there.
+      deckMsg(target.screen === false && !profiles.screen_control
+        ? 'The iPad is still a screen in Windows, so apps can open behind this. Run display-setup.bat on the PC once to fix that.'
+        : '');
       // A screen was just added: reconnect so the picture follows it.
       if (live && ws && profiles.screen_control && target.screen !== false && !screenWasOn) ws.close();
       else document.body.classList.remove('waiting');
