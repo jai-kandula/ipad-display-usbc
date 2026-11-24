@@ -54,6 +54,7 @@ if IS_WINDOWS:
 import mss  # noqa: E402
 import numpy as np  # noqa: E402
 import video  # noqa: E402  (H.264 for moving content)
+import dxdirty  # noqa: E402  (GPU capture of only what changed)
 import pcaudio  # noqa: E402  (PC sound on the iPad)
 import clip  # noqa: E402  (shared clipboard)
 import deck  # noqa: E402  (profiles and the button deck)
@@ -407,9 +408,39 @@ class _Grabber(threading.Thread):
         self.cap_total = 0.0       # grab time and count, ever (readers keep deltas)
         self.refs = 0
         self.gap = GRAB_GAP        # shortest time between grabs (the fastest viewer's frame rate)
+        self.dirty = None          # dxdirty.DirtyGrab: copies only what changed into one frame
+        self.hist = []             # (frame number, changed rects or None for all) of recent frames
+
+    def _start_dirty(self):
+        try:
+            self.dirty = dxdirty.DirtyGrab(self.cam)
+            if not getattr(_Grabber, "_said_dirty", False):
+                _Grabber._said_dirty = True
+                print("[capture] GPU capture copies only the parts of the screen that changed.", flush=True)
+        except dxdirty.Unsupported as e:
+            self.dirty = None
+            print(f"[capture] GPU capture copies the whole screen each frame ({e}).", flush=True)
+
+    def _grab_dirty(self):
+        """(frame, rects) from the changed-parts grabber, (None, None) if nothing new."""
+        try:
+            rects = self.dirty.grab()
+        except dxdirty.ScreenChanged:
+            raise
+        except Exception as e:                # anything unexpected: plain dxcam grabs from now on
+            print(f"[capture] copying only what changed stopped working ({type(e).__name__}: {e}); "
+                  "copying the whole screen instead.", flush=True)
+            self.dirty = None
+            return None, None
+        return (None, None) if rects is None else (self.dirty.frame, rects)
 
     def run(self):
         nxt = 0.0
+        try:
+            self._start_dirty()
+        except Exception as e:
+            print(f"[capture] {e}", flush=True)
+            self.dirty = None
         try:
             while not self.stopping:
                 # The iPad shows 60 frames a second: on a faster screen (a 144 or
@@ -418,8 +449,12 @@ class _Grabber(threading.Thread):
                 if wait > 0:
                     time.sleep(wait)
                 t0 = time.perf_counter()
+                rects = None
                 try:
-                    f = self.cam.grab(new_frame_only=True)
+                    if self.dirty is not None:
+                        f, rects = self._grab_dirty()
+                    else:
+                        f = self.cam.grab(new_frame_only=True)
                 except Exception as e:      # display mode changed, driver reset, ...
                     with self.cond:
                         self.err = e
@@ -433,6 +468,9 @@ class _Grabber(threading.Thread):
                 with self.cond:
                     self.frame = f          # newest frame wins; older ones are dropped
                     self.seq += 1
+                    self.hist.append((self.seq, rects))
+                    if len(self.hist) > 120:
+                        del self.hist[:60]
                     self.cap_total += dt
                     self.cond.notify_all()
         finally:
@@ -442,15 +480,30 @@ class _Grabber(threading.Thread):
                 pass
 
     def take(self, seen, timeout):
-        """(frame newer than `seen` or None after timeout, its number, grab seconds total)."""
+        """(frame newer than `seen` or None after timeout, its number, grab seconds total,
+        changed rects since `seen` or None if the whole frame may have changed,
+        True if the frame is the grabber's own buffer that it keeps writing into)."""
         with self.cond:
             if self.seq <= seen and self.err is None:
                 self.cond.wait(timeout)
             if self.err is not None:
                 raise self.err
             if self.seq <= seen:
-                return None, seen, self.cap_total
-            return self.frame, self.seq, self.cap_total
+                return None, seen, self.cap_total, None, False
+            live = self.dirty is not None and self.frame is self.dirty.frame
+            rects = None
+            if live and self.hist and self.hist[0][0] <= seen + 1:
+                rects = []
+                for n, r in self.hist:
+                    if n > seen:
+                        if r is None:
+                            rects = None
+                            break
+                        rects.extend(r)
+                if rects is not None:
+                    h, w = self.frame.shape[:2]
+                    rects = dxdirty.merge(rects, w, h, TILE)
+            return self.frame, self.seq, self.cap_total, rects, live
 
     @property
     def broken(self):
@@ -631,7 +684,7 @@ class Session:
         if self.grab is not None:
             try:
                 tw = time.perf_counter()
-                frame, seq, cap = self.grab.take(self.grab_seq, self.wait)
+                frame, seq, cap, rects, live = self.grab.take(self.grab_seq, self.wait)
                 self.stats["idle"] = self.stats.get("idle", 0.0) + time.perf_counter() - tw
             except Exception as e:      # display mode changed, driver reset, ...
                 self._say(f"GPU capture stopped, using GDI for a moment: {e}")
@@ -644,14 +697,14 @@ class Session:
                 self.stats["cap"] += t
                 self.stats["caps"] = self.stats.get("caps", 0) + n
                 self.stats["new"] = self.stats.get("new", 0) + n
-                return None if frame is None else (frame, "BGRA")
+                return None if frame is None else (frame, "BGRA", rects, live)
         t0 = time.perf_counter()
         shot = self.sct.grab(self.mon)
         self.stats["cap"] += time.perf_counter() - t0
         self.stats["caps"] = self.stats.get("caps", 0) + 1
         self.stats["new"] = self.stats.get("new", 0) + 1
         w, h = shot.size
-        return np.frombuffer(shot.raw, dtype=np.uint8).reshape(h, w, 4), "BGRA"
+        return np.frombuffer(shot.raw, dtype=np.uint8).reshape(h, w, 4), "BGRA", None, False
 
     def step(self, force=False):
         """Capture once. Returns (packet bytes | None, (w, h))."""
@@ -667,16 +720,18 @@ class Session:
             self.monitor()
         self._check_geometry()
         cap = self._capture()
-        if cap is not None and self.recorder is not None:
-            self.recorder.offer(cap[0])        # recording reuses this frame: no second capture
+        if cap is not None and self.recorder is not None:   # recording reuses this frame: no second capture
+            self.recorder.offer(cap[0].copy() if cap[3] else cap[0])
         unchanged = cap is None
         if unchanged:
             if self.last is None:
                 return None, self.dims
             cap = self.last
         self.last = cap
-        arr, cs = cap
+        arr, cs, rects, live = cap
         h, w = arr.shape[:2]
+        if self.video_wanted and cs == "BGRA" and (self.video is None or (self.video.w, self.video.h) != (w, h)):
+            self._video_prepare(w, h)          # ready before anything moves
         self.scale = w / self.mon["width"]
         # Compare two pixels at a time when the width allows (half the work).
         px = 2 if w % 2 == 0 else 1
@@ -691,18 +746,30 @@ class Session:
             self.reset, force = False, True
         if force or self.prev is None or self.prev.shape != cur.shape:
             self.dims = (w, h)
-            self.prev = cur
+            self.prev = cur.copy() if live else cur
             self.blurry = np.zeros((trows, tcols), bool)
             self.last_change = now
             return self._pack(arr, cs, self._stripes(w, h), hi, prof["hi_sub"], key=True), self.dims
 
         if unchanged:
-            diff = None
+            mask = None
+        elif live and rects is not None:      # only these parts can have changed: look only there
+            mask = self._rect_mask(cur, rects, trows, tcols, px)
         else:
             if self._diff is None or self._diff.shape != cur.shape:
                 self._diff = np.empty(cur.shape, bool)
             diff = np.not_equal(cur, self.prev, out=self._diff)
-        if diff is None or not diff.any():
+            if diff.any():
+                mask = np.logical_or.reduceat(
+                    np.logical_or.reduceat(diff, np.arange(0, h, TILE), axis=0),
+                    np.arange(0, w // px, TILE // px), axis=1)
+                if live:
+                    np.copyto(self.prev, cur)   # the grabber keeps writing into cur
+                else:
+                    self.prev = cur             # every capture is a new array: no copy needed
+            else:
+                mask = None
+        if mask is None:
             # Nothing moved. If something was sent blurry, sharpen it now.
             # Done in slices (top to bottom) so no single update is huge: if
             # things start moving again, the next motion frame isn't stuck
@@ -718,11 +785,8 @@ class Session:
             return None, self.dims
 
         self.last_change = now
-        mask = np.logical_or.reduceat(
-            np.logical_or.reduceat(diff, np.arange(0, h, TILE), axis=0),
-            np.arange(0, w // px, TILE // px), axis=1)
-        self.prev = cur        # every capture is a new array, so no copy is needed
         frac = mask.mean()
+        self._note_change(mask, frac)
 
         lo_sub = prof.get("lo_sub", "420")
         if frac < prof.get("small", SMALL_CHANGE):   # typing, hovering: crisp straight away
@@ -744,6 +808,37 @@ class Session:
             return self._pack(arr, cs, self._stripes(w, h), lo, lo_sub), self.dims
         self.blurry |= mask
         return self._pack(arr, cs, self._px(tiles_to_rects(mask), w, h), lo, lo_sub), self.dims
+
+    def _rect_mask(self, cur, rects, trows, tcols, px):
+        """Changed tiles, comparing only inside rects (on the tile grid), or None.
+        Keeps self.prev up to date there."""
+        mask = np.zeros((trows, tcols), bool)
+        found = False
+        for l, t, r, b in rects:
+            lx, rx = l // px, r // px
+            c, p = cur[t:b, lx:rx], self.prev[t:b, lx:rx]
+            d = c != p
+            if not d.any():
+                continue
+            sub = np.logical_or.reduceat(np.logical_or.reduceat(d, np.arange(0, b - t, TILE), axis=0),
+                                         np.arange(0, rx - lx, TILE // px), axis=1)
+            mask[t // TILE:t // TILE + sub.shape[0], l // TILE:l // TILE + sub.shape[1]] |= sub
+            p[...] = c
+            found = True
+        return mask if found else None
+
+    def _note_change(self, mask, frac):
+        """For the [speed] line: how much of the screen changes, and where small changes are."""
+        st = self.stats
+        st["area"] = st.get("area", 0.0) + frac
+        st["areas"] = st.get("areas", 0) + 1
+        if frac < 0.05:
+            rows, cols = np.nonzero(mask)
+            if rows.size:
+                box = (int(cols.min()) * TILE, int(rows.min()) * TILE, int(cols.max() + 1) * TILE, int(rows.max() + 1) * TILE)
+                b = st.get("small_box")
+                st["small_box"] = box if b is None else (min(b[0], box[0]), min(b[1], box[1]), max(b[2], box[2]), max(b[3], box[3]))
+                st["small"] = st.get("small", 0) + 1
 
     @staticmethod
     def _px(rects, w, h):
@@ -783,15 +878,43 @@ class Session:
             _grabber_put(self.grab)
             self.grab = None
 
+    def _video_prepare(self, w, h):
+        """Open the H.264 encoder on another thread. Opening NVENC takes up to a
+        second; doing it in the stream froze the picture that long the first
+        time something moved. Until it's ready, motion goes out as pictures."""
+        if getattr(self, "_vprep", None) == (w, h) or self.video_failed:
+            return
+        self._vprep = (w, h)
+
+        def work():
+            try:
+                enc = video.Encoder(w, h)
+            except Exception as e:
+                self._vready = e
+                return
+            if getattr(self, "_closed", False) or self._vprep != (w, h):
+                enc.close()
+            else:
+                self._vready = enc
+        threading.Thread(target=work, daemon=True, name="video-open").start()
+
     def _video(self, arr, cs):
         if not self.video_wanted or self.video_failed or cs != "BGRA":
             return None
         h, w = arr.shape[:2]
         try:
             if self.video is None or (self.video.w, self.video.h) != (w, h):
+                ready, self._vready = getattr(self, "_vready", None), None
+                if isinstance(ready, Exception):
+                    raise ready
+                if ready is None or (ready.w, ready.h) != (w, h):
+                    if ready is not None:
+                        ready.close()
+                    self._video_prepare(w, h)
+                    return None               # pictures until the encoder is open
                 if self.video is not None:
                     self.video.close()
-                self.video = video.Encoder(w, h)
+                self.video = ready
                 self.video_key = True
             t0 = time.perf_counter()
             body, is_key = self.video.encode(arr, key=self.video_key)
@@ -810,6 +933,10 @@ class Session:
         return data
 
     def close(self):
+        self._closed = True
+        ready, self._vready = getattr(self, "_vready", None), None
+        if ready is not None and not isinstance(ready, Exception):
+            ready.close()
         IN_USE.pop(id(self), None)
         if self.recorder is not None:
             path, secs = self.recorder.stop()
@@ -1555,6 +1682,7 @@ def make_app(cfg):
                           "mbit": st['bytes'] * 8 / 1e6 / secs,
                           "rtt": state['rtt_sum'] * 1000 / acks, "q": st.get('q', '-'),
                           "moves": state.get('moves', 0) / secs,
+                          "area": 100 * st.get('area', 0.0) / max(1, st.get('areas', 0)),
                           "encoder": sess.video.name if sess.video is not None else None}
                     print(f"[speed] {sp['screen']:4.0f} screen fps | "
                           f"{sp['updates']:4.0f} updates/s ({sp['video']:.0f} video) | "
@@ -1565,7 +1693,21 @@ def make_app(cfg):
                           f"{sp['mbit']:5.1f} Mbit/s | "
                           f"round trip {sp['rtt']:4.0f} ms | "
                           f"quality {sp['q']} | "
-                          f"touch moves {sp['moves']:3.0f}/s", flush=True)
+                          f"touch moves {sp['moves']:3.0f}/s | "
+                          f"changed {sp['area']:4.1f}% of the screen", flush=True)
+                    # Something small that redraws all the time (an animation, a video, a
+                    # spinner) keeps the laptop capturing even when nobody touches the iPad.
+                    # Say once where it is, so it can be found and closed if it's not wanted.
+                    if st.get("small", 0) / secs > 20 and sp["area"] < 5 and sp["moves"] < 1:
+                        state["busy"] = state.get("busy", 0) + 1
+                        if state["busy"] == 3 and st.get("small_box"):
+                            l, t, r, b = st["small_box"]
+                            print(f"[speed] Note: something small on the iPad's screen keeps changing about "
+                                  f"{st['small'] / secs:.0f} times a second, around x {l}-{r}, y {t}-{b} of the "
+                                  f"iPad's {sess.dims[0]}x{sess.dims[1]} screen (an animation, video or spinner). "
+                                  "It's shown as it should be; it just keeps the laptop a little busy.", flush=True)
+                    else:
+                        state["busy"] = 0
                     # The same numbers for the iPad's status corner.
                     await ws.send_str(json.dumps({"type": "speed", **sp}))
                     state["moves"] = 0
