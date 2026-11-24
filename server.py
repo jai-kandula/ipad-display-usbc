@@ -500,6 +500,7 @@ class Session:
         self.grab_seq, self.grab_cap = 0, 0.0
         self.wait = 1 / 60         # how long a step waits for a new GPU frame
         self.max_fps = 60          # the iPad's screen rate (120 on ProMotion iPads)
+        self.recorder = None       # recorder.Recorder while recording
         self.backend = "GDI"
         self.last = None           # last captured (array, colourspace)
         self.stats = {"frames": 0, "cap": 0.0, "enc": 0.0, "bytes": 0}
@@ -656,6 +657,8 @@ class Session:
             self.monitor()
         self._check_geometry()
         cap = self._capture()
+        if cap is not None and self.recorder is not None:
+            self.recorder.offer(cap[0])        # recording reuses this frame: no second capture
         unchanged = cap is None
         if unchanged:
             if self.last is None:
@@ -798,6 +801,11 @@ class Session:
 
     def close(self):
         IN_USE.pop(id(self), None)
+        if self.recorder is not None:
+            path, secs = self.recorder.stop()
+            self.recorder = None
+            if path:
+                print(f"[record] saved {os.path.basename(path)} ({secs:.0f} s)", flush=True)
         if self.video is not None:
             self.video.close()
             self.video = None
@@ -1197,6 +1205,8 @@ def make_app(cfg):
                         INPUT.text(str(m.get("s", ""))[:2000])
                     elif t == "key":
                         INPUT.key(str(m.get("k", "")), m.get("mods", []))
+                    elif t == "record":         # record what the iPad shows to recordings/
+                        await ws.send_str(json.dumps(await loop.run_in_executor(None, record, bool(m.get("on")))))
                     elif t == "combo":          # "ctrl+shift+m", as on deck buttons (gestures, pen tools)
                         mods, vk = deck.parse_keys(str(m.get("k", ""))[:60])
                         INPUT.combo(vk, mods)
@@ -1368,6 +1378,28 @@ def make_app(cfg):
 
         # Shared clipboard: anything copied on the PC goes to the iPad.
         clip_seen = {"seq": clip.sequence()}
+
+        def record(on):
+            import recorder
+            if on and sess.recorder is None:
+                try:
+                    if sess.last is not None:                   # the size frames really come in
+                        h, w = sess.last[0].shape[:2]
+                    else:
+                        w, h = sess.mon["width"], sess.mon["height"]
+                    sess.recorder = recorder.Recorder(w, h)
+                    print(f"[record] recording to {os.path.basename(sess.recorder.path)} ({sess.recorder.name})", flush=True)
+                except Exception as e:
+                    return {"type": "record", "on": False, "error": str(e)}
+                return {"type": "record", "on": True}
+            if not on and sess.recorder is not None:
+                rec, sess.recorder = sess.recorder, None
+                path, secs = rec.stop()
+                if path:
+                    print(f"[record] saved {os.path.basename(path)} ({secs:.0f} s)", flush=True)
+                return {"type": "record", "on": False, "file": os.path.basename(path) if path else None,
+                        "secs": round(secs), "error": rec.error}
+            return {"type": "record", "on": sess.recorder is not None}
 
         def set_pc_clip(m):
             try:

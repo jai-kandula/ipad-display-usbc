@@ -244,6 +244,10 @@ monitor is never picked by accident. Screen capture is capped at the iPad's
 - **iPhone:** open the PC's Wi-Fi address in Safari on the iPhone (or add
   it in the app). It opens as a button deck and never streams the screen.
 - **From anywhere:** see [REMOTE.md](REMOTE.md) (Tailscale, about 5 minutes).
+- **Recording:** in the iPad menu, tap **Record the iPad screen**. A red dot
+  shows while it records. Tap it again to stop, and the video is saved in the
+  **recordings** folder on the PC. It reuses the stream's captured frames
+  and encodes on the graphics card, so it adds little load.
 
 ## Self-test
 
