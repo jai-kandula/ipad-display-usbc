@@ -289,6 +289,8 @@
   .key.live .tv small { font-size: .42em; font-weight: 600; letter-spacing: 0; color: #8f98a8; margin-left: 3px; }
   .key.live .ts { position: relative; font-size: 13px; color: #aeb6c3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 16px; }
   .key.live .spark { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 48%; pointer-events: none; }
+  .key.live.graph { justify-content: flex-start; }
+  .key.live.graph .spark { position: relative; flex: 1 1 0; height: auto; min-height: 16px; width: calc(100% + 28px); margin: 2px -14px -12px; }
   .key.live .spark path.a { fill: url(#spark-fill); } .key.live .spark path.l { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
   .key.live .bar { position: relative; height: 6px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; }
   .key.live .bar > i { display: block; height: 100%; width: 0; background: var(--grad); border-radius: 3px; transition: width .6s; }
@@ -2822,12 +2824,13 @@
       const th = span('th'); iconInto(th, b.icon && b.icon !== 'i:star' ? b.icon : 'i:' + TILE_KINDS[b.tile][1]);
       th.appendChild(span('', b.label || TILE_KINDS[b.tile][0]));
       t.tv = span('tv', '–'); t.ts = span('ts');
-      if (b.tile === 'cpu' || b.tile === 'gpu' || b.tile === 'fps') {
+      k.append(th, t.tv, t.ts);
+      if (b.tile === 'cpu' || b.tile === 'gpu' || b.tile === 'fps') {    // the graph gets its own space below the text
+        k.classList.add('graph');
         t.spark = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         t.spark.setAttribute('class', 'spark'); t.spark.setAttribute('viewBox', '0 0 59 100'); t.spark.setAttribute('preserveAspectRatio', 'none');
         k.appendChild(t.spark);
       }
-      k.append(th, t.tv, t.ts);
       if (b.tile === 'ram') { t.bar = span('bar'); t.fill = document.createElement('i'); t.bar.appendChild(t.fill); k.appendChild(t.bar); }
       k.appendChild(em);
     }

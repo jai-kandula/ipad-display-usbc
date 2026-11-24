@@ -545,6 +545,10 @@ def _grabber_put(g):
             g.stop()
 
 
+VIDEO_REST_SECS = 45      # close the H.264 encoder after this long with no motion (see Session._video_rest)
+_VREST_SAID = False
+
+
 class Session:
     def __init__(self, monitor_index, profile):
         self.monitor_index = monitor_index
@@ -569,6 +573,8 @@ class Session:
         self.stats = {"frames": 0, "cap": 0.0, "enc": 0.0, "bytes": 0}
         self._diff = None          # reused buffer for the changed-pixel mask
         self.video_wanted = False  # the iPad can decode H.264 and asked for it
+        self._vlast = 0.0          # when the encoder last made a frame
+        self._vrest = False        # encoder closed while nothing moves (frees GPU memory)
         self.video = None          # video.Encoder for moving content
         self.video_key = False     # next video frame must be a key frame
         self.video_failed = False
@@ -730,8 +736,11 @@ class Session:
         self.last = cap
         arr, cs, rects, live = cap
         h, w = arr.shape[:2]
-        if self.video_wanted and cs == "BGRA" and (self.video is None or (self.video.w, self.video.h) != (w, h)):
+        if self.video_wanted and cs == "BGRA" and not self._vrest and \
+                (self.video is None or (self.video.w, self.video.h) != (w, h)):
             self._video_prepare(w, h)          # ready before anything moves
+        elif self.video is not None and time.perf_counter() - self._vlast > VIDEO_REST_SECS:
+            self._video_rest()
         self.scale = w / self.mon["width"]
         # Compare two pixels at a time when the width allows (half the work).
         px = 2 if w % 2 == 0 else 1
@@ -898,10 +907,29 @@ class Session:
                 self._vready = enc
         threading.Thread(target=work, daemon=True, name="video-open").start()
 
+    def _video_rest(self):
+        """Nothing has moved for a while: close the encoder. NVENC holds a GPU
+        context and frame buffers (a few hundred MB of video memory) for as
+        long as it's open; it reopens in the background on the next motion,
+        with pictures in between."""
+        global _VREST_SAID
+        if self.video is not None:
+            self.video.close()
+            self.video = None
+        ready, self._vready = getattr(self, "_vready", None), None
+        if ready is not None and not isinstance(ready, Exception):
+            ready.close()
+        self._vprep, self._vrest = None, True
+        if not _VREST_SAID:
+            _VREST_SAID = True
+            print(f"[video] Nothing has moved for {VIDEO_REST_SECS} s, so the video encoder is closed to free "
+                  "GPU memory. It opens again by itself when something moves.", flush=True)
+
     def _video(self, arr, cs):
         if not self.video_wanted or self.video_failed or cs != "BGRA":
             return None
         h, w = arr.shape[:2]
+        self._vrest = False
         try:
             if self.video is None or (self.video.w, self.video.h) != (w, h):
                 ready, self._vready = getattr(self, "_vready", None), None
@@ -916,9 +944,11 @@ class Session:
                     self.video.close()
                 self.video = ready
                 self.video_key = True
+                self._vlast = time.perf_counter()
             t0 = time.perf_counter()
             body, is_key = self.video.encode(arr, key=self.video_key)
-            self.stats["enc"] += time.perf_counter() - t0
+            self._vlast = time.perf_counter()
+            self.stats["enc"] += self._vlast - t0
         except Exception as e:
             print("[video] turned off, using pictures instead:", e)
             self.video_failed = True
