@@ -69,6 +69,8 @@ import tlsutil  # noqa: E402  (encrypted Wi-Fi)
 import clips  # noqa: E402  (replay clips from any clipping app)
 import obs  # noqa: E402  (OBS Studio buttons and tile)
 import callouts  # noqa: E402  (map callouts from your own pictures)
+import dev  # noqa: E402  (build/test tasks, Git, logs, snippets)
+import mc  # noqa: E402  (Minecraft server over RCON)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -1013,9 +1015,14 @@ def make_app(cfg):
             if not isinstance(body, dict):
                 raise ValueError("expected settings")
             before = {k: hostsettings.get(k) for k in ("obs_url", "obs_password")}
+            mc_before = {k: hostsettings.get(k) for k in ("mc_host", "mc_port", "mc_password")}
+            if "dev_projects" in body:
+                body["dev_projects"] = dev.check_projects(body["dev_projects"])
             out = hostsettings.update(body)
             if any(hostsettings.get(k) != v for k, v in before.items()):
                 obs.reconnect()
+            if any(hostsettings.get(k) != v for k, v in mc_before.items()):
+                mc.reset()
             return web.json_response(out)
         except (ValueError, TypeError) as e:
             return web.json_response({"error": str(e)}, status=400)
@@ -1043,6 +1050,61 @@ def make_app(cfg):
             return web.json_response(await loop.run_in_executor(None, obs.state))
         except Exception as e:
             return web.json_response({"error": str(e)}, status=400)
+
+    async def dev_api(request):
+        """The coding companion: /api/dev/<what> (see dev.py and mc.py)."""
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        what, q, loop = request.match_info["what"], request.query, asyncio.get_running_loop()
+        try:
+            body = await request.json() if request.method in ("POST", "PUT") and request.can_read_body else {}
+            if not isinstance(body, (dict, list)):
+                raise ValueError("expected an object")
+            b = body if isinstance(body, dict) else {}
+            run = lambda f, *a: loop.run_in_executor(None, f, *a)     # noqa: E731
+            since = lambda k: int(q[k]) if q.get(k, "").isdigit() else None   # noqa: E731
+            if what == "projects":
+                out = {"projects": dev.projects(), "status": dev.status()}
+            elif what == "run":
+                out = await run(dev.run, str(b.get("project")), str(b.get("task")))
+            elif what == "stop":
+                await run(dev.stop, str(b.get("project")), str(b.get("task")))
+                out = {"ok": True}
+            elif what == "output":
+                out = dev.output(q.get("project", ""), q.get("task", ""), since("since") or 0) or {"lines": [], "n": 0}
+            elif what == "git":
+                out = await (run(dev.git_do, str(b.get("project")), str(b.get("do"))) if request.method == "POST"
+                             else run(dev.git, q.get("project", "")))
+                if isinstance(out, str):
+                    out = {"ok": out}
+            elif what == "log":
+                if q.get("source") == "mc":
+                    path = mc.log_path()
+                    if not path:
+                        raise ValueError("set the server folder in Settings to see its log")
+                    out = await run(dev.tail, path, since("since"))
+                else:
+                    out = await run(dev.project_log, q.get("project", ""), since("since"))
+            elif what == "snippets":
+                out = {"snippets": await (run(dev.save_snippets, body) if request.method == "PUT" else run(dev.snippets))}
+            elif what == "snippet":                         # type it, or put it on the PC's clipboard
+                text = str(b.get("text") or "")
+                if b.get("do") == "copy":
+                    await run(clip.write_text, text)
+                else:
+                    await run(INPUT.text, text)
+                out = {"ok": True}
+            elif what == "mc":
+                out = await (run(mc.command, str(b.get("cmd", ""))) if request.method == "POST" else run(mc.state))
+                if isinstance(out, str):
+                    out = {"answer": out}
+            else:
+                return web.json_response({"error": "unknown"}, status=404)
+        except json.JSONDecodeError:
+            return web.json_response({"error": "expected JSON"}, status=400)
+        except (ValueError, TypeError, RuntimeError, OSError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+        return web.json_response(out)
 
     async def callouts_list(request):
         if not authorized(request):
@@ -1091,6 +1153,10 @@ def make_app(cfg):
         out = stats.snapshot(want) if want else {}
         if "obs" in asked:
             out["obs"] = obs.state()
+        if "mc" in asked:
+            out["mc"] = await loop.run_in_executor(None, mc.state)
+        if "git" in asked:
+            out["git"] = await loop.run_in_executor(None, dev.git_tile)
         if ids and hostsettings.get("ha_url") and hostsettings.get("ha_token"):
             out["ha"] = await loop.run_in_executor(None, ha.states, ids)
         return web.json_response(out)
@@ -1543,6 +1609,8 @@ def make_app(cfg):
     app.router.add_post("/api/action", deck_action)
     app.router.add_get("/api/settings", settings_get)
     app.router.add_put("/api/settings", settings_put)
+    for m in ("GET", "POST", "PUT"):
+        app.router.add_route(m, "/api/dev/{what}", dev_api)
     app.router.add_get("/api/callouts", callouts_list)
     app.router.add_get("/api/callouts/image", callouts_image)
     app.router.add_post("/api/callouts/folder", callouts_folder)
