@@ -316,6 +316,8 @@ it runs.
 - **Only "Screen 1" appears.** The virtual monitor isn't active. Check Display settings shows it set to Extend, then restart `start.bat`.
 - **Black bars around the picture.** The PC resolution isn't your iPad's shape. Use the table above.
 - **Clicks land in the wrong place.** Restart `start.bat` after changing resolution or scale.
+- **The picture on the iPad has a part that doesn't update, or flickers.** The host copies only the parts of the screen Windows says changed (and the whole screen every 2 seconds). If your PC reports changes wrongly, turn that off: open a Command Prompt in this folder, run `set IPD_DIRTY=0`, then `start.bat`.
+- **"something small on the iPad's screen keeps changing" in the host window.** Something on the iPad's screen (an animation, a paused video's thumbnail, a loading spinner) redraws all the time. It's shown as it should be, but it keeps the laptop capturing. The message says where it is, so you can close it or move it to another screen.
 - **New PIN:** run `start.bat --new-pin`.
 - **Stopping:** close the host window. To remove the virtual monitor, uninstall it from VDC, or disable it in Device Manager > Display adapters.
 

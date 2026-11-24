@@ -25,6 +25,7 @@ import platform
 import statistics
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -306,17 +307,40 @@ def animate(x, y, w, h, seconds):
     boxes = [c.create_rectangle(0, 0, w // 6, h // 4, fill=col, outline="")
              for col in ("#e63946", "#2a9d8f", "#e9c46a", "#457b9d", "#f4a261", "#8338ec")]
     txt = c.create_text(w // 2, h // 2, text="iPad Display self-test", fill="white", font=("Segoe UI", 48, "bold"))
+    # Windows' timers tick every 15.6 ms unless asked for 1 ms, and Tk's after(16)
+    # then waits 31 ms: the window moved only ~35 times a second, so the test
+    # measured its own window, not the capture. Ask for 1 ms timers and draw on a
+    # 60 Hz clock, and write down how many frames really got drawn.
+    try:
+        ctypes.windll.winmm.timeBeginPeriod(1)
+    except Exception:
+        pass
     end, t = time.time() + seconds, [0]
+    nxt, t0, last_write = [time.perf_counter()], time.perf_counter(), [0.0]
+    fps_file = os.path.join(tempfile.gettempdir(), f"ipd-motion-{os.getpid()}.txt")
 
     def tick():
-        t[0] += 1
-        for i, b in enumerate(boxes):
-            px = (t[0] * (7 + i * 3)) % (w + w // 6) - w // 6
-            py = (i * h // 6 + t[0] * (2 + i)) % h
-            c.coords(b, px, py, px + w // 6, py + h // 4)
-        c.itemconfigure(txt, text=f"iPad Display self-test  {t[0]}")
+        now = time.perf_counter()
+        if now >= nxt[0]:
+            t[0] += 1
+            for i, b in enumerate(boxes):
+                px = (t[0] * (7 + i * 3)) % (w + w // 6) - w // 6
+                py = (i * h // 6 + t[0] * (2 + i)) % h
+                c.coords(b, px, py, px + w // 6, py + h // 4)
+            c.itemconfigure(txt, text=f"iPad Display self-test  {t[0]}")
+            c.update_idletasks()
+            nxt[0] += 1 / 60
+            if now - nxt[0] > 0.05:
+                nxt[0] = now + 1 / 60
+            if now - last_write[0] > 0.5:
+                last_write[0] = now
+                try:
+                    with open(fps_file, "w") as f:
+                        f.write(f"{t[0] / max(0.001, now - t0):.1f}")
+                except OSError:
+                    pass
         if time.time() < end:
-            root.after(16, tick)
+            root.after(1, tick)
         else:
             root.destroy()
     tick()
@@ -327,6 +351,22 @@ def start_motion(mon, seconds):
     return subprocess.Popen([sys.executable, os.path.abspath(__file__), "--animate",
                              str(mon["left"]), str(mon["top"]), str(mon["width"]), str(mon["height"]),
                              str(seconds)], creationflags=_NO_WINDOW)
+
+
+def drawn_fps(mp):
+    """How many frames a second the motion window really drew (None if unknown)."""
+    if mp is None:
+        return None
+    try:
+        with open(os.path.join(tempfile.gettempdir(), f"ipd-motion-{mp.pid}.txt")) as f:
+            return float(f.read().strip() or 0) or None
+    except (OSError, ValueError):
+        return None
+
+
+def keeps_up(got, drawn, need=55):
+    """Fast enough: 55 fps, or nearly every frame the test window managed to draw."""
+    return got >= need or (drawn is not None and drawn < need and got >= drawn * 0.9)
 
 
 # ---------------------------------------------------------------- 3. capture and encode
@@ -383,10 +423,13 @@ def section_bench(scr, quick):
                     times.append((time.perf_counter() - t) * 1000)
                 cam.release()
                 fps = n / (time.perf_counter() - t_start)
+                drawn = drawn_fps(motion)
                 out.update(gpu_fps=round(fps, 1), gpu_ms=round(statistics.mean(times), 2) if times else None,
                            gpu_p95_ms=round(pct(times, 95), 2) if times else None)
                 say(f"  GPU capture: {out['gpu_fps']} new frames/s, {out['gpu_ms']} ms each (p95 {out['gpu_p95_ms']})")
-                result("GPU capture keeps up with 60 fps", fps >= 55, f"{fps:.0f} fps of motion captured")
+                out["drawn_fps"] = drawn
+                result("GPU capture keeps up with the motion", keeps_up(fps, drawn),
+                       f"{fps:.0f} fps captured" + (f" of {drawn:.0f} drawn" if drawn else ""))
         except Exception as e:
             result("GPU capture", None, f"unavailable: {e}")
         if frame is None:
@@ -491,10 +534,12 @@ def section_stream(base, proc, scr, seconds):
         def during(s):
             box["r"] = asyncio.run(stream_client(base, s))
         cost = measure(proc, secs, during)
+        drawn = drawn_fps(mp)
         if mp:
             mp.kill()
         s = summarize_stream(box["r"], secs)
         s.update(cost)
+        s["drawn_fps"] = drawn
         out[label] = s
         say(f"  {label}: {s['fps']} fps to the client, frame gap p99 {s['gap_p99_ms']} ms, max {s['gap_max_ms']} ms, "
             f"{s['mbit']} Mbit/s | host: capture {s['host_capture_ms']} ms ({s['backend']}), encode "
@@ -503,11 +548,14 @@ def section_stream(base, proc, scr, seconds):
         return s
     still = run("still screen", max(6, seconds // 2), False)
     moving = run("moving picture", seconds, True)
-    result("stream runs at 60 fps with motion", moving["fps"] >= 55, f"{moving['fps']} fps")
+    d = moving.get("drawn_fps")
+    result("stream keeps up with motion", keeps_up(moving["fps"], d),
+           f"{moving['fps']} fps" + (f" (the test window drew {d:.0f})" if d else ""))
     result("no stutters (gaps over 50 ms)", moving["stutters_over_50ms"] == 0,
            f"{moving['stutters_over_50ms']} in {seconds} s, worst {moving['gap_max_ms']} ms")
     result("still screen costs almost nothing", (still["cpu_total_pct"] or 0) < 1.5,
-           f"{still['cpu_total_pct']}% CPU, {still['fps']} updates/s")
+           f"{still['cpu_total_pct']}% CPU, {still['fps']} updates/s"
+           + (" (something on the iPad's screen keeps changing: see the host's [speed] note)" if still["fps"] > 20 else ""))
     after = get_screens()
     changed = [f"{s['name'] or s['index']}: {before_hz.get(s['gdi'] or s['index'])} -> {s['hz']} Hz"
                for s in after if s["kind"] != "ipad" and before_hz.get(s["gdi"] or s["index"]) not in (None, s["hz"])]
@@ -574,12 +622,15 @@ async def stress(base, proc):
                 await asyncio.gather(*(one(p) for p in paths))
                 await asyncio.sleep(0.05)
         r, _ = await asyncio.gather(stream_client(base, 6), chatter(6))
+        drawn = drawn_fps(mp)
         if mp:
             mp.kill()
         s = summarize_stream(r, 6)
+        s["drawn_fps"] = drawn
         out["smooth_under_load"] = s
-        result("picture stays smooth while ~100 requests/s arrive", s["stutters_over_50ms"] == 0 and s["fps"] >= 50,
-               f"{s['fps']} fps, worst gap {s['gap_max_ms']} ms")
+        result("picture stays smooth while ~100 requests/s arrive",
+               s["stutters_over_50ms"] == 0 and keeps_up(s["fps"], drawn, 50),
+               f"{s['fps']} fps" + (f" of {drawn:.0f} drawn" if drawn else "") + f", worst gap {s['gap_max_ms']} ms")
 
         # Rapid reconnects, plus messages that make no sense (never input that moves or types).
         fails = 0
