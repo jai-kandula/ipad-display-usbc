@@ -66,6 +66,7 @@ import ha  # noqa: E402  (Home Assistant buttons)
 import stats  # noqa: E402  (live tiles: CPU, GPU, now playing)
 import screens  # noqa: E402  (which screen is the iPad's, the laptop's, a monitor)
 import tlsutil  # noqa: E402  (encrypted Wi-Fi)
+import clips  # noqa: E402  (replay clips from any clipping app)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -1059,6 +1060,42 @@ def make_app(cfg):
             return web.Response(status=404)
         return web.Response(body=got[0], content_type=got[1], headers={"Cache-Control": "no-cache"})
 
+    async def clips_list(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        loop = asyncio.get_running_loop()
+        items = await loop.run_in_executor(None, clips.listing, request.query.get("fresh") == "1")
+        return web.json_response({"sources": [{k: v for k, v in s.items() if v is not None}
+                                              for s in await loop.run_in_executor(None, clips.sources)],
+                                  "clips": [clips.public(c) for c in items]})
+
+    async def clips_thumb(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        data = await asyncio.get_running_loop().run_in_executor(None, clips.thumb, request.query.get("id", ""))
+        if not data:
+            return web.Response(status=404)
+        return web.Response(body=data, content_type="image/jpeg", headers={"Cache-Control": "max-age=86400"})
+
+    async def clips_video(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        c = await asyncio.get_running_loop().run_in_executor(None, clips.get, request.query.get("id", ""))
+        if not c or not os.path.isfile(c["path"]):
+            return web.Response(status=404)
+        return web.FileResponse(c["path"])        # supports seeking (Range requests)
+
+    async def clips_action(request):
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        try:
+            body = await request.json()
+            fn = {"reveal": clips.reveal, "play": clips.play_on_pc}[body["do"]]
+            await asyncio.get_running_loop().run_in_executor(None, fn, str(body["id"]))
+        except (ValueError, KeyError, TypeError, AttributeError, OSError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+        return web.json_response({"ok": True})
+
     async def deck_action(request):
         """A deck button was tapped: {profile, index}."""
         if not authorized(request):
@@ -1468,6 +1505,10 @@ def make_app(cfg):
     app.router.add_get("/api/apps", apps_api)
     app.router.add_get("/api/tiles", tiles_api)
     app.router.add_get("/api/tiles/art", tiles_art)
+    app.router.add_get("/api/clips", clips_list)
+    app.router.add_get("/api/clips/thumb", clips_thumb)
+    app.router.add_get("/api/clips/video", clips_video)
+    app.router.add_post("/api/clips/action", clips_action)
     app.router.add_static("/", WEB_DIR, show_index=False)
 
     async def remember_loop(app):
