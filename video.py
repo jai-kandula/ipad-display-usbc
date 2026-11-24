@@ -31,6 +31,28 @@ CANDIDATES = [
 ]
 
 
+def warm():
+    """Load the NVIDIA driver's CUDA and NVENC libraries and start CUDA, ahead
+    of the first encoder. Opening an encoder holds Python's lock (PyAV calls
+    the open without releasing it), so the whole host, picture included, waits
+    for it; done here through ctypes, which lets go of the lock, the slowest
+    part (loading the driver) no longer happens inside that wait. Uses no video
+    memory: no GPU context is made. Safe to call anywhere; does nothing
+    without an NVIDIA driver."""
+    import ctypes
+    import sys
+    try:
+        if sys.platform == "win32":
+            cuda = ctypes.WinDLL("nvcuda.dll")
+            ctypes.WinDLL("nvEncodeAPI64.dll")
+        else:
+            cuda = ctypes.CDLL("libcuda.so.1")
+            ctypes.CDLL("libnvidia-encode.so.1")
+        return cuda.cuInit(0) == 0
+    except Exception:
+        return False
+
+
 def _nals(annexb):
     """Split an Annex B byte stream into NAL units (without start codes)."""
     out, i, n = [], 0, len(annexb)

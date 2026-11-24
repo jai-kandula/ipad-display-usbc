@@ -532,10 +532,11 @@ def section_bench(scr, quick):
 # ---------------------------------------------------------------- 4. stream to a test client
 async def stream_client(base, seconds, query="monitor=auto&mode=wired&fps=60&video=1", motion_mon=None):
     import aiohttp
-    res = {"frames": 0, "bytes": 0, "gaps": [], "speed": [], "info": None, "errors": []}
+    res = {"frames": 0, "bytes": 0, "gaps": [], "gap_at": [], "speed": [], "info": None, "errors": []}
     async with aiohttp.ClientSession() as http:
         async with http.ws_connect(f"{base.replace('http', 'ws')}/ws?{query}", max_msg_size=64 << 20) as ws:
             last, end = None, time.perf_counter() + seconds
+            t0 = time.perf_counter()
             while time.perf_counter() < end:
                 try:
                     msg = await ws.receive(timeout=max(0.1, end - time.perf_counter()))
@@ -549,6 +550,7 @@ async def stream_client(base, seconds, query="monitor=auto&mode=wired&fps=60&vid
                     res["bytes"] += len(msg.data)
                     if last is not None:
                         res["gaps"].append((now - last) * 1000)
+                        res["gap_at"].append(round(last - t0, 2))      # seconds after connecting
                     last = now
                 elif msg.type == aiohttp.WSMsgType.TEXT:
                     m = json.loads(msg.data)
@@ -571,6 +573,7 @@ def summarize_stream(r, seconds):
             "gap_p50_ms": round(pct(gaps, 50), 1) if gaps else None,
             "gap_p99_ms": round(pct(gaps, 99), 1) if gaps else None,
             "gap_max_ms": round(max(gaps), 1) if gaps else None,
+            "gap_max_at_s": r["gap_at"][gaps.index(max(gaps))] if gaps and r.get("gap_at") else None,
             "stutters_over_50ms": sum(1 for g in gaps if g > 50),
             "host_capture_ms": avg("cap"), "host_work_ms": avg("work"), "host_encode_ms": avg("enc"),
             "host_screen_fps": avg("screen"), "backend": sp[-1].get("backend") if sp else None,
@@ -616,7 +619,8 @@ def section_stream(base, proc, scr, seconds):
     result("stream keeps up with motion", keeps_up(moving["fps"], d),
            f"{moving['fps']} fps" + (f" (the test window drew {d:.0f})" if d else ""))
     result("no stutters (gaps over 50 ms)", moving["stutters_over_50ms"] == 0,
-           f"{moving['stutters_over_50ms']} in {seconds} s, worst {moving['gap_max_ms']} ms")
+           f"{moving['stutters_over_50ms']} in {seconds} s, worst {moving['gap_max_ms']} ms"
+           + (f" at {moving['gap_max_at_s']} s" if moving.get("gap_max_at_s") is not None else ""))
     if moving.get("host_vram_mb") is not None:
         result("the host's video memory stays small", moving["host_vram_mb"] < 500,
                f"{moving['host_vram_mb']} MB while streaming motion, {still['host_vram_mb']} MB on a still screen")
@@ -697,7 +701,8 @@ async def stress(base, proc):
         out["smooth_under_load"] = s
         result("picture stays smooth while ~100 requests/s arrive",
                s["stutters_over_50ms"] == 0 and keeps_up(s["fps"], drawn, 50),
-               f"{s['fps']} fps" + (f" of {drawn:.0f} drawn" if drawn else "") + f", worst gap {s['gap_max_ms']} ms")
+               f"{s['fps']} fps" + (f" of {drawn:.0f} drawn" if drawn else "") + f", worst gap {s['gap_max_ms']} ms"
+               + (f" at {s['gap_max_at_s']} s" if s.get("gap_max_at_s") is not None else ""))
 
         # Rapid reconnects, plus messages that make no sense (never input that moves or types).
         fails = 0
