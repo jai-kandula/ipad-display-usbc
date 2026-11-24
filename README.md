@@ -201,6 +201,29 @@ Quality modes (in the ☰ menu or on the connect screen):
 
 The ☰ menu shows live stats: updates per second, Mbit/s and decode time.
 
+## Several monitors
+
+The iPad shows its own virtual screen by default, whichever monitors are
+plugged in and whether the laptop lid is open or closed. Windows renumbers
+screens when that changes, so the app remembers a screen by what it is
+(the iPad's, the laptop's, or a named monitor), not by its number. A gaming
+monitor is never picked by accident. Screen capture is capped at the iPad's
+60 frames a second, so a 144 or 240 Hz monitor costs no more than a 60 Hz one.
+
+## Self-test
+
+With start.bat running and the iPad showing the screen, run
+**selftest.bat**. In about two minutes it:
+- lists the PC's parts and screens;
+- measures capture and video encoding;
+- streams to a test client to check frame rate, smoothness and what it
+  costs the PC;
+- runs a stress test.
+
+The results are saved in selftest-report.txt. It never presses keys or
+changes settings, but windows of moving colours flash on the iPad while
+it runs.
+
 ## Troubleshooting
 
 - **Safari can't connect.** Make sure both devices are on the same Wi-Fi and the host window is open. Allow Python through the firewall: Windows Security > Firewall & network protection > Allow an app through firewall, and tick Python for Private (and Public if your Wi-Fi is set to Public).

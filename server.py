@@ -64,6 +64,7 @@ import hostsettings  # noqa: E402  (settings kept on the PC)
 import focus  # noqa: E402  (the app in front, for app-aware buttons)
 import ha  # noqa: E402  (Home Assistant buttons)
 import stats  # noqa: E402  (live tiles: CPU, GPU, now playing)
+import screens  # noqa: E402  (which screen is the iPad's, the laptop's, a monitor)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -396,8 +397,14 @@ class _Grabber(threading.Thread):
         self.refs = 0
 
     def run(self):
+        nxt = 0.0
         try:
             while not self.stopping:
+                # The iPad shows 60 frames a second: on a faster screen (a 144 or
+                # 240 Hz monitor) don't copy frames it would never show.
+                wait = nxt - time.perf_counter()
+                if wait > 0:
+                    time.sleep(wait)
                 t0 = time.perf_counter()
                 try:
                     f = self.cam.grab(new_frame_only=True)
@@ -407,8 +414,9 @@ class _Grabber(threading.Thread):
                         self.cond.notify_all()
                     return
                 if f is None:
-                    time.sleep(0.001)
+                    time.sleep(GRAB_POLL)
                     continue
+                nxt = t0 + GRAB_GAP
                 dt = time.perf_counter() - t0
                 with self.cond:
                     self.frame = f          # newest frame wins; older ones are dropped
@@ -443,6 +451,9 @@ class _Grabber(threading.Thread):
 
 
 _GRABBERS = {}                     # (device, output) -> shared _Grabber
+# Tunables (the self-test measures them on the real PC).
+GRAB_GAP = 1.0 / float(os.environ.get("IPD_GRAB_MAX_FPS", "60")) - 0.002   # slack keeps a 60 Hz screen at 60
+GRAB_POLL = float(os.environ.get("IPD_GRAB_POLL_MS", "1")) / 1000.0         # look for a new frame this often
 
 
 def _grabber_get(key, open_cam):
@@ -501,10 +512,16 @@ class Session:
     def monitor(self):
         if self.sct is None:
             self.sct = _MSS()
-        mons = self.sct.monitors
-        idx = self.monitor_index if 0 < self.monitor_index < len(mons) else len(mons) - 1
-        self.mon = dict(mons[idx])
+        self.mon = dict(self._pick(self.sct.monitors))
         return self.mon
+
+    def _pick(self, mons):
+        """The screen asked for, or (auto, or that screen is gone) the iPad's
+        own virtual screen, never a gaming monitor by accident."""
+        if 0 < self.monitor_index < len(mons):
+            return mons[self.monitor_index]
+        s = screens.pick_ipad(screens.describe(mons))
+        return mons[s["index"]] if s else mons[-1]
 
     def _check_geometry(self):
         """Every 2 s, notice if Windows moved or resized this screen (new
@@ -516,8 +533,7 @@ class Session:
         try:
             with _MSS() as fresh:
                 mons = fresh.monitors
-            idx = self.monitor_index if 0 < self.monitor_index < len(mons) else len(mons) - 1
-            new = dict(mons[idx])
+            new = dict(self._pick(mons))
         except Exception:
             return
         if all(new[k] == self.mon[k] for k in ("left", "top", "width", "height")):
@@ -804,10 +820,9 @@ def screen_change(mon, m):
 
 
 def list_monitors():
+    """Every screen with what it is (ipad / laptop / external), name and refresh rate."""
     with _MSS() as sct:
-        return [{"index": i, "left": m["left"], "top": m["top"],
-                 "width": m["width"], "height": m["height"]}
-                for i, m in enumerate(sct.monitors) if i > 0]
+        return screens.describe(sct.monitors)
 
 
 # --------------------------------------------------------------------------
@@ -902,23 +917,32 @@ def make_app(cfg):
             return True
         return secrets.compare_digest(request.query.get("pin", ""), pin)
 
+    page = {"key": None, "body": b""}
+
     async def index(request):
         # The page with the icon set (web/icons.svg) placed inline, so every
-        # <use href="#i-..."> works from the first paint.
-        with open(os.path.join(WEB_DIR, "index.html"), encoding="utf-8") as f:
-            html = f.read()
-        try:
-            with open(os.path.join(WEB_DIR, "icons.svg"), encoding="utf-8") as f:
-                icons = f.read().replace("<svg ", '<svg style="display:none" aria-hidden="true" ', 1)
-        except OSError:
-            icons = ""
-        return web.Response(text=html.replace("<!--ICONS-->", icons, 1), content_type="text/html",
+        # <use href="#i-..."> works from the first paint. Built once, again
+        # only when a file changes.
+        paths = [os.path.join(WEB_DIR, n) for n in ("index.html", "icons.svg")]
+        key = tuple(os.path.getmtime(p) if os.path.exists(p) else 0 for p in paths)
+        if key != page["key"]:
+            with open(paths[0], encoding="utf-8") as f:
+                html = f.read()
+            try:
+                with open(paths[1], encoding="utf-8") as f:
+                    icons = f.read().replace("<svg ", '<svg style="display:none" aria-hidden="true" ', 1)
+            except OSError:
+                icons = ""
+            page["body"], page["key"] = html.replace("<!--ICONS-->", icons, 1).encode(), key
+        return web.Response(body=page["body"], content_type="text/html", charset="utf-8",
                             headers={"Cache-Control": "no-cache"})
 
     async def monitors(request):
         if not authorized(request):
             return web.json_response({"error": "bad pin"}, status=403)
-        return web.json_response({"monitors": list_monitors(), "input": INPUT.ok, "pen": PEN.ok,
+        # Off the event loop: reading the screens takes ~10 ms and would hold up the stream.
+        mons = await asyncio.get_running_loop().run_in_executor(None, list_monitors)
+        return web.json_response({"monitors": mons, "input": INPUT.ok, "pen": PEN.ok,
                                   "fastjpeg": simplejpeg is not None,
                                   "wired": is_wired(request.remote),
                                   "usb": request.remote == "127.0.0.1"})
@@ -926,8 +950,8 @@ def make_app(cfg):
     async def profiles_get(request):
         if not authorized(request):
             return web.json_response({"error": "bad pin"}, status=403)
-        STATUS["deck_seen"] = time.time()          # the deck checks in every 5 s
-        return web.json_response(DECK.data())
+        STATUS["deck_seen"] = time.time()          # the deck checks in every 1.5 s
+        return web.json_response(await asyncio.get_running_loop().run_in_executor(None, DECK.data))
 
     async def profiles_put(request):
         """Save edited profiles and buttons from the iPad."""
@@ -937,10 +961,10 @@ def make_app(cfg):
             body = await request.json()
             for k in ("screen_control", "focus", "front"):
                 body.pop(k, None)
-            deck.save(body)
-        except (ValueError, TypeError) as e:
+            await asyncio.get_running_loop().run_in_executor(None, deck.save, body)
+        except (ValueError, TypeError, AttributeError) as e:
             return web.json_response({"error": str(e)}, status=400)
-        return web.json_response(DECK.data())
+        return web.json_response(await asyncio.get_running_loop().run_in_executor(None, DECK.data))
 
     async def profile_switch(request):
         if not authorized(request):
@@ -961,7 +985,10 @@ def make_app(cfg):
         if not authorized(request):
             return web.json_response({"error": "bad pin"}, status=403)
         try:
-            return web.json_response(hostsettings.update(await request.json()))
+            body = await request.json()
+            if not isinstance(body, dict):
+                raise ValueError("expected settings")
+            return web.json_response(hostsettings.update(body))
         except (ValueError, TypeError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
@@ -1066,7 +1093,11 @@ def make_app(cfg):
                 pass
 
         q = request.query
-        sess = Session(int(q.get("monitor", "-1")), q.get("mode", "balanced"))
+        try:
+            mon_idx = int(q.get("monitor", "-1"))
+        except ValueError:                  # "auto": the iPad's own screen
+            mon_idx = -1
+        sess = Session(mon_idx, q.get("mode", "balanced"))
         fps = max(10, min(60, int(q.get("fps", "60"))))
         sess.video_wanted = q.get("video") == "1" and video.AVAILABLE
         loop = asyncio.get_running_loop()
@@ -1476,8 +1507,14 @@ def main():
             print("\n Tip: run display-setup.bat once, so the iPad's virtual screen turns on")
             print("      with this window and off when you close it.")
     print("\n Screens found:")
-    for m in list_monitors():
-        print(f"   #{m['index']}: {m['width']}x{m['height']} at ({m['left']},{m['top']})")
+    found = list_monitors()
+    for m in found:
+        hz = f" {m['hz']:.0f} Hz" if m.get("hz") else ""
+        print(f"   #{m['index']}: {m['width']}x{m['height']}{hz} at ({m['left']},{m['top']})  "
+              f"{m['kind']}{' ' + m['name'] if m.get('name') else ''}{'  (main)' if m.get('primary') else ''}")
+    pick = screens.pick_ipad(found)
+    if pick:
+        print(f"   The iPad shows #{pick['index']} unless you pick another screen on it.")
     if not IS_WINDOWS:
         print("\n (Not on Windows: streaming works, but touch input is disabled.)")
     if simplejpeg is None:
