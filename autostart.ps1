@@ -10,7 +10,9 @@ $server = Join-Path $PSScriptRoot 'server.py'
 # Stop a host that is already running in the background from this folder.
 Get-CimInstance Win32_Process -Filter "Name = 'pythonw.exe'" -ErrorAction SilentlyContinue |
     Where-Object { $_.CommandLine -like "*$server*--background*" } |
-    ForEach-Object { Invoke-CimMethod -InputObject $_ -MethodName Terminate | Out-Null }
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+# (The venv's pythonw.exe starts a second pythonw.exe; stopping one can end the
+# other before it's reached, which isn't an error.)
 
 if ($Mode -eq 'off') {
     Remove-Item $lnk -ErrorAction SilentlyContinue
