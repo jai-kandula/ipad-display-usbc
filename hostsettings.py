@@ -14,6 +14,7 @@ DEFAULT = {
     "auto_profiles": True,        # show a profile's buttons while one of its apps is in front
     "ha_url": "",                 # Home Assistant, e.g. http://homeassistant.local:8123
     "ha_token": "",               # a long-lived access token from your HA profile page
+    "wifi_plain": True,           # also answer on the unencrypted Wi-Fi address
 }
 SECRET = {"ha_token"}
 _lock = threading.Lock()

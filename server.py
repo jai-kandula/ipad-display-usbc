@@ -65,6 +65,7 @@ import focus  # noqa: E402  (the app in front, for app-aware buttons)
 import ha  # noqa: E402  (Home Assistant buttons)
 import stats  # noqa: E402  (live tiles: CPU, GPU, now playing)
 import screens  # noqa: E402  (which screen is the iPad's, the laptop's, a monitor)
+import tlsutil  # noqa: E402  (encrypted Wi-Fi)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -452,6 +453,7 @@ class _Grabber(threading.Thread):
 
 
 _GRABBERS = {}                     # (device, output) -> shared _Grabber
+IN_USE = {}                        # id(Session) -> (left, top) of the screen it shows (several iPads)
 # Tunables (the self-test measures them on the real PC).
 GRAB_GAP = 1.0 / float(os.environ.get("IPD_GRAB_MAX_FPS", "60")) - 0.002   # slack keeps a 60 Hz screen at 60
 GRAB_POLL = float(os.environ.get("IPD_GRAB_POLL_MS", "1")) / 1000.0         # look for a new frame this often
@@ -515,6 +517,7 @@ class Session:
         if self.sct is None:
             self.sct = _MSS()
         self.mon = dict(self._pick(self.sct.monitors))
+        IN_USE[id(self)] = (self.mon["left"], self.mon["top"])
         return self.mon
 
     def _pick(self, mons):
@@ -522,7 +525,8 @@ class Session:
         own virtual screen, never a gaming monitor by accident."""
         if 0 < self.monitor_index < len(mons):
             return mons[self.monitor_index]
-        s = screens.pick_ipad(screens.describe(mons))
+        busy = {v for k, v in IN_USE.items() if k != id(self)}     # screens other iPads show
+        s = screens.pick_ipad(screens.describe(mons), busy)
         return mons[s["index"]] if s else mons[-1]
 
     def _check_geometry(self):
@@ -545,6 +549,7 @@ class Session:
         if winpin.target["mon"] == self.mon:
             winpin.target["mon"] = dict(new)
         self.mon = new
+        IN_USE[id(self)] = (new["left"], new["top"])
         if self.sct is not None:
             self.sct.close()
         self.sct = _MSS()
@@ -792,6 +797,7 @@ class Session:
         return data
 
     def close(self):
+        IN_USE.pop(id(self), None)
         if self.video is not None:
             self.video.close()
             self.video = None
@@ -833,6 +839,7 @@ def list_monitors():
 # --------------------------------------------------------------------------
 # What the iPad is doing right now, for the tray icon.
 STATUS = {"streams": 0, "deck_seen": 0.0}
+TLS = {"port": None}               # the encrypted Wi-Fi port, when it's on
 
 
 def status_text():
@@ -918,6 +925,8 @@ def make_app(cfg):
         # a physical cable to a trusted iPad, so no PIN is needed.
         if request.remote == "127.0.0.1":
             return True
+        if not request.secure and not hostsettings.get("wifi_plain"):
+            return False           # Wi-Fi only over the encrypted address (Settings > Connection)
         return secrets.compare_digest(request.query.get("pin", ""), pin)
 
     page = {"key": None, "body": b""}
@@ -946,6 +955,7 @@ def make_app(cfg):
         # Off the event loop: reading the screens takes ~10 ms and would hold up the stream.
         mons = await asyncio.get_running_loop().run_in_executor(None, list_monitors)
         return web.json_response({"monitors": mons, "input": INPUT.ok, "pen": PEN.ok,
+                                  "tls_port": TLS["port"], "secure": request.secure,
                                   "fastjpeg": simplejpeg is not None,
                                   "wired": is_wired(request.remote),
                                   "usb": request.remote == "127.0.0.1"})
@@ -1434,6 +1444,27 @@ def make_app(cfg):
     return app
 
 
+def _serve_both(app, port, tls_ctx):
+    """Like web.run_app, but listening on the plain port (the USB-C cable and
+    older setups) and on port + 1 with TLS (encrypted Wi-Fi)."""
+    from aiohttp.web_runner import GracefulExit
+
+    async def serve():
+        runner = web.AppRunner(app, handle_signals=True)
+        await runner.setup()
+        try:
+            await web.TCPSite(runner, "0.0.0.0", port).start()
+            await web.TCPSite(runner, "0.0.0.0", port + 1, ssl_context=tls_ctx).start()
+            while True:
+                await asyncio.sleep(3600)
+        finally:
+            await runner.cleanup()
+    try:
+        asyncio.run(serve())
+    except (GracefulExit, KeyboardInterrupt):
+        pass
+
+
 def _quit_from_tray(app):
     """Stop the host as Ctrl+C would (so the iPad screen is switched off too)."""
     from aiohttp.web_runner import GracefulExit
@@ -1490,6 +1521,13 @@ def main():
     if not any(is_wired(a) for a in addrs):
         print("   (No cable link found. For a wired connection, see WIRED.md.)")
     print(f"\n Pairing PIN:  {cfg['pin']}")
+    tls_ctx, tls_info = tlsutil.context()
+    if tls_ctx is not None:
+        TLS["port"] = args.port + 1
+        print(f"\n Encrypted Wi-Fi (recommended):  https://{(sorted(addrs) or ['<this-PC-IP>'])[0]}:{TLS['port']}")
+        print(f"   Pairing code: {tls_info}   (the iPad app asks you to check it the first time)")
+    else:
+        print(f"\n (Encrypted Wi-Fi is off: {tls_info}.)")
     on_plug = None
     if IS_WINDOWS and not args.keep_screen:
         import vdd
@@ -1554,7 +1592,10 @@ def main():
     import usb_bridge
     usb_bridge.start(app, args.port, on_plug)
     try:
-        web.run_app(app, host="0.0.0.0", port=args.port, print=None)
+        if tls_ctx is None:
+            web.run_app(app, host="0.0.0.0", port=args.port, print=None)
+        else:
+            _serve_both(app, args.port, tls_ctx)
     except OSError as e:
         if getattr(e, "errno", None) in (10048, 98, 48):
             sys.exit("\n The host is already running, either in another window or in the "

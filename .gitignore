@@ -18,3 +18,4 @@ recordings/
 .nowplaying-art
 selftest-report.txt
 selftest-report.json
+tls/
