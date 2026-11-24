@@ -115,7 +115,16 @@ def save(data):
         p["buttons"] = [b for b in p.get("buttons", []) if isinstance(b, dict)][:60]
         for b in p["buttons"]:
             _check(b)                     # say now if a key name is wrong, not on first tap
+            for k, top in (("w", 4), ("h", 3)):          # widget size in grid cells
+                if k in b:
+                    b[k] = max(1, min(top, int(b[k])))
         p["cols"] = max(2, min(8, int(p.get("cols", 4))))
+        enter = p.get("enter")
+        if isinstance(enter, list) and enter:
+            _check({"steps": enter})          # same rules as a macro
+            p["enter"] = enter
+        else:
+            p.pop("enter", None)
         apps = p.get("apps", [])
         p["apps"] = [str(a).strip()[:80] for a in apps if str(a).strip()][:20] if isinstance(apps, list) else []
     names = [p["name"] for p in data["profiles"]]
@@ -129,7 +138,9 @@ def save(data):
     return data
 
 
-STEP_KINDS = ("keys", "text", "open", "profile", "ha", "obs", "dev", "mc", "wait")
+STEP_KINDS = ("keys", "text", "open", "profile", "ha", "obs", "dev", "mc", "study", "capture", "wait")
+STUDY_DO = ("start", "stop", "pause", "skip")
+CAPTURE_DO = ("screenshot",)
 TILES = ("cpu", "gpu", "ram", "media", "clock", "fps", "obs", "chat", "mc", "git", "study", "cal")
 MAX_STEPS, MAX_WAIT_MS = 30, 10000
 
@@ -151,6 +162,10 @@ def _check(b, in_macro=False):
         d = b["dev"]
         if not isinstance(d, dict) or not d.get("project") or not d.get("task"):
             raise ValueError("a task button needs a project and a task")
+    if "study" in b and b["study"] not in STUDY_DO:
+        raise ValueError("the focus timer step must be start, stop, pause or skip")
+    if "capture" in b and b["capture"] not in CAPTURE_DO:
+        raise ValueError("unknown capture")
     if "mc" in b and not str(b["mc"]).strip():
         raise ValueError("a Minecraft button needs a command")
     if "wait" in b:
@@ -242,6 +257,14 @@ def run(button, inp, switch_profile):
     if "dev" in button:                   # run a build / test task (its output shows in Dev on the iPad)
         import dev
         dev.run(str(button["dev"]["project"]), str(button["dev"]["task"]))
+        return
+    if "study" in button:                 # the focus timer (School)
+        import study
+        getattr(study, button["study"])()
+        return
+    if "capture" in button:               # a PC screenshot into the quick-capture inbox
+        import capture
+        capture.screenshot()
         return
     if "mc" in button:                    # a Minecraft server console command
         import mc

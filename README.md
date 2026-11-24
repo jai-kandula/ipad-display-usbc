@@ -173,6 +173,18 @@ Tap **Dev** on the deck (or **☰ > Dev**). Everything here runs only when you o
 
 Tap **Callouts** on the deck (or **☰ > Callouts**) to see your map callout pictures on the iPad. Put them on the laptop in the `callouts` folder in this folder (the Callouts screen has a button that opens it): one folder per map, one picture per floor, for example `callouts\Bank\1 Basement.png`, `2 First floor.png`, `3 Second floor.png`, `4 Roof.png`. The number in front only sets the order. Pinch to zoom, drag to move, double-tap to see the whole floor. Draw on the map with the Pencil (or turn on **Draw with finger**) to plan a strat with your team; each floor keeps its own drawing until you tap **Clear**.
 
+### Contexts: a profile that sets things up when you pick it
+
+In **Edit**, tap **Profile**, then **When you switch to this profile, also do** and add steps. For example, a **Study** profile can start the focus timer and open OneNote, and a **Stream** profile can open OBS, switch to your Game scene and turn on the light. The steps run when you tap the profile (or a button that switches to it). They don't run when the buttons just follow the app in front, so a game coming to the front never sets anything off. A step that fails, like an app that isn't installed, is skipped and the rest still run. Steps can also be **Focus timer** (`start`, `stop`, `pause`, `skip`) and **Screenshot**, in macros too.
+
+### Quick capture
+
+Tap **Capture** on the deck (or **☰ > Quick capture**) to save something without leaving what you're doing: write a note with the Pencil (or type it), take a photo with the iPad, or grab a **PC screenshot** of the screen your mouse is on. Everything goes into the `inbox` folder in this folder (or `inbox_folder` in settings.json): notes in `notes.md`, newest at the bottom, and the pictures next to it. Tap a saved note to put it on the PC's clipboard, or **Copy to PC** to send what you wrote without saving it. A macro step **Screenshot** does the same from a deck button.
+
+### Arrange the deck like a widget board
+
+Every button and live tile has a **Size** in its editor: Small, Wide, Tall, Big (2 by 2) or Huge (3 by 2). Big tiles show their numbers bigger. In **Edit**, drag a button or tile onto another to move it there. Gaps are filled automatically, so a profile can be a dashboard: a big FPS tile, CPU and GPU next to it, Now playing across the bottom.
+
 ## Video mode (smoother scrolling and dragging)
 
 While things move, the picture is sent as **H.264 video**, encoded by the laptop's graphics card (NVIDIA, AMD or Intel) and decoded by the iPad's video chip. That needs far less data than pictures, so scrolling, dragging windows and videos stay smooth. Typing and small changes are still sent as sharp pictures straight away, and once things stop moving, the moved areas are re-sent at full sharpness, exactly as before.

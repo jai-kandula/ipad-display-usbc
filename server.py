@@ -75,6 +75,7 @@ import study  # noqa: E402  (focus timer and distraction blocker)
 import ical  # noqa: E402  (calendar from a private iCal link)
 import mathpad  # noqa: E402  (math pad: numbers, algebra, units)
 import school  # noqa: E402  (lab capture and PDF notes)
+import capture  # noqa: E402  (quick-capture inbox)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -913,9 +914,11 @@ class DeckProfiles:
             else:
                 vdd.turn_off(force=True)
 
-    def switch(self, name):
+    def switch(self, name, enter=True):
         """Make `name` active and match the screen to it (blocks while Windows
-        adds or removes the screen, a few seconds). Returns the new data."""
+        adds or removes the screen, a few seconds), then run the profile's
+        "enter" steps (a context: start the focus timer, open apps, switch the
+        OBS scene...). Returns the new data."""
         d = deck.load()
         prof = deck.find(d, name)
         if prof is None:
@@ -925,6 +928,12 @@ class DeckProfiles:
         deck.save(d)
         print(f"[profile] {name}", flush=True)
         self.apply_screen(prof)
+        if enter and prof.get("enter"):
+            for st in prof["enter"][:deck.MAX_STEPS]:   # one failing step (an app not found) doesn't stop the rest
+                try:                      # a "profile" step here switches without its own steps: no loops
+                    deck.run({"steps": [st]}, INPUT, lambda n: self.switch(n, enter=False))
+                except Exception as e:
+                    print(f"[profile] {name}: a step failed: {e}", flush=True)
         return self.data()
 
 
@@ -1153,6 +1162,51 @@ def make_app(cfg):
             return web.json_response({"error": str(e)}, status=400)
         except Exception as e:                                   # sympy can raise its own kinds
             return web.json_response({"error": f"couldn't work that out ({type(e).__name__})"}, status=400)
+        return web.json_response(out)
+
+    async def capture_api(request):
+        """Quick capture: /api/capture/<what> (capture.py)."""
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        what, q, loop = request.match_info["what"], request.query, asyncio.get_running_loop()
+        run = lambda f, *a: loop.run_in_executor(None, f, *a)     # noqa: E731
+        try:
+            if what == "file":
+                path = await run(capture.file_path, q.get("name", ""))
+                if not path:
+                    return web.Response(status=404)
+                return web.FileResponse(path, headers={"Cache-Control": "max-age=86400"})
+            if what == "photo":
+                out = await run(capture.photo, q.get("name", ""), await request.read())
+                return web.json_response(out)
+            b = await request.json() if request.method == "POST" and request.can_read_body else {}
+            if not isinstance(b, dict):
+                raise ValueError("expected an object")
+            if what == "list":
+                out = await run(capture.listing)
+            elif what == "note":
+                out = await run(capture.note, b.get("text"))
+            elif what == "screenshot":
+                out = await run(capture.screenshot)
+            elif what == "delete":
+                out = await run(capture.delete, str(b.get("kind", "")), str(b.get("id", "")))
+            elif what == "clip":                                     # put a note on the PC clipboard
+                text = str(b.get("text") or "")
+                if not text.strip():
+                    raise ValueError("nothing to copy")
+                await run(clip.write_text, text)
+                out = {"ok": True}
+            elif what == "folder":
+                await run(capture.open_folder)
+                out = {"ok": True}
+            else:
+                return web.json_response({"error": "unknown"}, status=404)
+        except json.JSONDecodeError:
+            return web.json_response({"error": "expected JSON"}, status=400)
+        except (ValueError, TypeError, OSError, RuntimeError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+        except Exception as e:                                       # mss / PIL
+            return web.json_response({"error": f"couldn't capture ({type(e).__name__}: {e})"}, status=400)
         return web.json_response(out)
 
     async def callouts_list(request):
@@ -1666,6 +1720,7 @@ def make_app(cfg):
         app.router.add_route(m, "/api/dev/{what}", dev_api)
     for m in ("GET", "POST"):
         app.router.add_route(m, "/api/school/{what}", school_api)
+        app.router.add_route(m, "/api/capture/{what}", capture_api)
     app.router.add_get("/api/callouts", callouts_list)
     app.router.add_get("/api/callouts/image", callouts_image)
     app.router.add_post("/api/callouts/folder", callouts_folder)
