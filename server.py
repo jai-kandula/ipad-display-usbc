@@ -2169,7 +2169,8 @@ def main():
         if ready:
             print("\n The iPad's virtual screen turns on while an iPad is plugged in over USB-C.")
         else:
-            print("\n Tip: run display-setup.bat once, so the iPad's virtual screen turns on")
+            print("\n Tip: run display-setup.bat (again, if you already have: it was fixed on 2026-11-24),")
+            print("      so the iPad's virtual screen turns on")
             print("      when the iPad is plugged in and off when it's unplugged.")
 
         def on_plug(plugged):
@@ -2195,7 +2196,8 @@ def main():
             if res == "failed":
                 print("   It didn't appear. Check vdd.log in this folder, or turn it on in Device Manager.")
         else:
-            print("\n Tip: run display-setup.bat once, so the iPad's virtual screen turns on")
+            print("\n Tip: run display-setup.bat (again, if you already have: it was fixed on 2026-11-24),")
+            print("      so the iPad's virtual screen turns on")
             print("      with this window and off when you close it.")
     print("\n Screens found:")
     found = list_monitors()
