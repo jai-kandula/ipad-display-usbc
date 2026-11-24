@@ -615,7 +615,7 @@
     let html = `For your <b>${m.name}</b>, set the PC's virtual screen to:<br>` +
       `• <b>${m.w}×${m.h}</b> at 200% scale: sharpest, pixel-perfect<br>` +
       `• <b>${half}</b> at 100% scale: fastest, slightly softer`;
-    const mon = monitors.find(x => String(x.index) === monEl.value);
+    const mon = chosenMon();
     if (mon) {
       const exact = mon.width === m.w && mon.height === m.h;
       const halfOk = mon.width === Math.round(m.w / 2) && mon.height === Math.round(m.h / 2);
@@ -626,6 +626,16 @@
         : `<span class="warn">Screen ${mon.index} is ${mon.width}×${mon.height}, a different shape, so you'll see black bars. Change it in Windows Display settings.</span>`);
     }
     $('resinfo').innerHTML = html;
+  }
+  const monKey = m => `${m.kind}|${m.name || ''}|${m.width}x${m.height}`;
+  function chosenMon() {                       // the picked screen, or the one the PC will choose
+    const v = monEl.value || store.get('screen', 'auto');
+    return monitors.find(m => monKey(m) === v) || monitors.find(m => m.kind === 'ipad') || null;
+  }
+  function monParam() {
+    const v = store.get('screen', 'auto');
+    const m = v !== 'auto' && monitors.find(x => monKey(x) === v);
+    return m ? m.index : 'auto';
   }
   modelEl.addEventListener('change', () => { store.set('model', modelEl.value); showResInfo(); });
   monEl.addEventListener('change', showResInfo);
@@ -648,16 +658,22 @@
         pinEl.style.display = 'none'; $('pinlabel').style.display = 'none';
       }
       store.set('pin', pinEl.value);
-      const saved = store.get('monitor', '');
+      // Screens are remembered by what they are, not their number: Windows
+      // renumbers them when monitors are plugged in or the laptop lid closes.
+      const saved = store.get('screen', 'auto');
       monEl.innerHTML = '';
+      const auto = document.createElement('option'); auto.value = 'auto';
+      const ip = monitors.find(m => m.kind === 'ipad');
+      auto.textContent = ip ? `The iPad's screen (${ip.width}×${ip.height})` : 'Automatic';
+      monEl.appendChild(auto);
       monitors.forEach(m => {
         const o = document.createElement('option');
-        o.value = m.index;
-        o.textContent = `Screen ${m.index}: ${m.width}×${m.height}` + (m.left === 0 && m.top === 0 ? ' (main)' : '');
+        o.value = monKey(m);
+        const what = { ipad: 'iPad screen', laptop: 'Laptop screen' }[m.kind] || (m.name || 'Monitor');
+        o.textContent = `${what}: ${m.width}×${m.height}` + (m.hz ? ` ${Math.round(m.hz)} Hz` : '') + (m.primary ? ' (main)' : '');
         monEl.appendChild(o);
       });
-      monEl.value = [...monEl.options].some(o => o.value === saved) ? saved
-        : monitors.length ? String(monitors[monitors.length - 1].index) : '';
+      monEl.value = [...monEl.options].some(o => o.value === saved) ? saved : 'auto';
       goEl.disabled = !monEl.value;
       showResInfo();
       if (!j.input) errEl.textContent = 'Note: touch control is off (host is not Windows).';
@@ -675,7 +691,7 @@
   }
   pinEl.addEventListener('input', () => { pinEl.value = pinEl.value.replace(/\D/g, ''); loadMonitors(); });
   goEl.addEventListener('click', () => {
-    store.set('monitor', monEl.value); store.set('mode', modeEl.value); store.set('auto', '1');
+    store.set('screen', monEl.value || 'auto'); store.set('mode', modeEl.value); store.set('auto', '1');
     start();
   });
 
@@ -825,9 +841,13 @@
 
   async function connect() {
     videoOK = (await videoCheck) && !!worker;
+    if (store.get('screen', 'auto') !== 'auto') {      // screen numbers change with the setup: look them up again
+      try { monitors = (await (await fetch('/api/monitors?pin=' + encodeURIComponent(store.get('pin', '')))).json()).monitors || monitors; }
+      catch (e) { /* use the last list */ }
+    }
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const url = `${proto}://${location.host}/ws?pin=${encodeURIComponent(store.get('pin', ''))}` +
-      `&monitor=${store.get('monitor', '-1')}&mode=${store.get('mode', 'balanced')}&fps=60` +
+      `&monitor=${monParam()}&mode=${store.get('mode', 'balanced')}&fps=60` +
       `&video=${videoOK && store.get('video', '1') === '1' ? 1 : 0}`;
     $('status').textContent = retry ? 'Reconnecting…' : 'Connecting…';
     document.body.classList.add('waiting');
@@ -2077,7 +2097,7 @@
 
   if (IN_APP) noPin = true;              // try without a PIN; the server says if one is needed
   if (noPin || pinEl.value.length === 6) loadMonitors().then(() => {
-    if (!goEl.disabled && store.get('auto', '1') === '1' && store.get('monitor', '')) start();
+    if (!goEl.disabled && store.get('auto', '1') === '1' && (store.get('screen', '') || store.get('monitor', ''))) start();
   });
 })();
 </script>

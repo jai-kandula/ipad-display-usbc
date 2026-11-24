@@ -102,6 +102,8 @@ def save(data):
     if not isinstance(data, dict) or not isinstance(data.get("profiles"), list) or not data["profiles"]:
         raise ValueError("need at least one profile")
     for p in data["profiles"]:
+        if not isinstance(p, dict):
+            raise ValueError("a profile must be an object")
         if not isinstance(p.get("name"), str) or not p["name"].strip():
             raise ValueError("every profile needs a name")
         p["buttons"] = [b for b in p.get("buttons", []) if isinstance(b, dict)][:60]
