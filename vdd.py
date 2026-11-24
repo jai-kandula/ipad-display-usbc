@@ -4,8 +4,8 @@ runs and off when it stops, including when the window is closed with the X.
 Switching a display adapter needs admin rights, so display-setup.bat creates
 two scheduled tasks once (as admin, running as SYSTEM) and this module just
 starts them. Windows hides SYSTEM tasks from normal programs and refuses to
-start them, so display-setup.bat also lets signed-in users read and run those
-two tasks (vdd-access.ps1). Without that, nothing changes."""
+start them, so display-setup.bat (display-setup.ps1) also lets your account
+see and run those two tasks. Without that, nothing changes."""
 import atexit
 import ctypes
 import subprocess

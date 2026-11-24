@@ -1,50 +1,41 @@
 @echo off
-rem One-time setup: lets start.bat turn the iPad's virtual screen on when it
-rem starts and off when you close it, without an admin prompt every time.
-rem Run it again if you move this folder. Run "display-setup.bat remove" to undo.
+rem One-time setup: lets the host turn the iPad's virtual screen on and off
+rem (when it starts and stops, when the iPad is plugged in or out, and for
+rem profiles like Gaming) without an admin prompt every time.
+rem Run it again after updating the app. "display-setup.bat remove" undoes it.
 title iPad Display - automatic screen setup
 cd /d "%~dp0"
 
 net session >nul 2>nul
-if errorlevel 1 (
-  echo Asking Windows for admin rights...
-  if "%~1"=="" (
-    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
-  ) else (
-    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -ArgumentList '%~1' -Verb RunAs"
-  )
+if not errorlevel 1 goto admin
+rem Not admin yet: note which account this is (the one the host runs as),
+rem then ask Windows for admin rights and run this file again.
+echo Asking Windows for admin rights...
+if /i "%~1"=="remove" (
+  powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -ArgumentList 'remove' -Verb RunAs"
   exit /b
 )
+for /f %%s in ('powershell -NoProfile -Command "[Security.Principal.WindowsIdentity]::GetCurrent().User.Value"') do set "ME=%%s"
+powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -ArgumentList '%ME%' -Verb RunAs"
+exit /b
 
+:admin
 if /i "%~1"=="remove" (
-  schtasks /delete /tn "iPad Display\Screen on" /f >nul 2>nul
-  schtasks /delete /tn "iPad Display\Screen off" /f >nul 2>nul
-  echo Removed. The virtual screen now stays as you leave it in Device Manager.
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0display-setup.ps1" -Remove
   pause
   exit /b 0
 )
 
-set "PS=powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File \"%~dp0vdd.ps1\""
-rem "on" only ever runs when start.bat asks for it. "off" also runs at boot,
-rem so the screen is gone after a restart even if the laptop crashed.
-schtasks /create /tn "iPad Display\Screen on"  /tr "%PS% -Mode on"  /sc once /st 00:00 /ru SYSTEM /rl highest /f >nul 2>nul
-if errorlevel 1 ( echo Could not create the task. & pause & exit /b 1 )
-schtasks /create /tn "iPad Display\Screen off" /tr "%PS% -Mode off" /sc onstart /ru SYSTEM /rl highest /f >nul 2>nul
-if errorlevel 1 ( echo Could not create the task. & pause & exit /b 1 )
-rem Tasks that run as SYSTEM are hidden from normal programs, and starting them
-rem is refused unless the user is allowed to: let the host (not an admin) run them.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0vdd-access.ps1"
-if errorlevel 1 ( echo Could not let the host start the tasks ^(see above^). Send me that message. & pause & exit /b 1 )
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0display-setup.ps1" -UserSid "%~1"
+if errorlevel 1 ( echo. & echo Setting up failed ^(see above^). Send me that message. & pause & exit /b 1 )
 
 echo.
-echo Done. From now on:
-echo   - start.bat turns the iPad's virtual screen ON
-echo   - closing the start.bat window turns it OFF again
+echo Done. From now on the host turns the iPad's virtual screen on and off by itself.
 echo.
 echo Testing: turning the virtual screen off and on once...
 schtasks /run /tn "iPad Display\Screen off" >nul
 timeout /t 4 /nobreak >nul
 schtasks /run /tn "iPad Display\Screen on" >nul
 timeout /t 4 /nobreak >nul
-type "%~dp0vdd.log" 2>nul
+type "%ProgramFiles%\iPad Display\vdd.log" 2>nul
 pause
