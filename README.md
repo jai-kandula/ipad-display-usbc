@@ -231,6 +231,20 @@ screens when that changes, so the app remembers a screen by what it is
 monitor is never picked by accident. Screen capture is capped at the iPad's
 60 frames a second, so a 144 or 240 Hz monitor costs no more than a 60 Hz one.
 
+## Encrypted Wi-Fi, more iPads, iPhone and remote access
+
+- **Encrypted Wi-Fi:** the PC's window also shows an `https://…:8766`
+  address and a **pairing code**. Add that address in the app's PC list.
+  The first time you connect, the app shows the code: check it matches,
+  and from then on the connection is encrypted and the iPad only talks to
+  that PC. Under Settings > Connection you can switch off the unencrypted
+  address for Wi-Fi. The USB-C cable is never affected.
+- **More than one iPad:** set the Virtual Display Driver to two (or more)
+  monitors. Each iPad then gets its own screen automatically.
+- **iPhone:** open the PC's Wi-Fi address in Safari on the iPhone (or add
+  it in the app). It opens as a button deck and never streams the screen.
+- **From anywhere:** see [REMOTE.md](REMOTE.md) (Tailscale, about 5 minutes).
+
 ## Self-test
 
 With start.bat running and the iPad showing the screen, run

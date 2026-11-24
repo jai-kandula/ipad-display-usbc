@@ -149,10 +149,14 @@ def describe(mss_monitors):
     return out
 
 
-def pick_ipad(screens):
-    """The screen to stream when the iPad didn't pick one: its virtual screen,
-    else the laptop's own panel, else the main screen. Never a fast gaming
-    monitor unless it's the only screen."""
+def pick_ipad(screens, busy=()):
+    """The screen to stream when the iPad didn't pick one: its virtual screen
+    (one no other iPad is showing, when there are several), else the
+    laptop's own panel, else the main screen. Never a fast gaming monitor
+    unless it's the only screen. busy: (left, top) of screens in use."""
+    free = [s for s in screens if s["kind"] == "ipad" and (s["left"], s["top"]) not in busy]
+    if free:
+        return free[0]
     for test in (lambda s: s["kind"] == "ipad", lambda s: s["kind"] == "laptop",
                  lambda s: s["primary"] and (s["hz"] or 60) <= 75, lambda s: (s["hz"] or 60) <= 75):
         hit = [s for s in screens if test(s)]

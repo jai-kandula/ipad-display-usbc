@@ -1,3 +1,4 @@
+import CryptoKit
 import SwiftUI
 import UIKit
 import WebKit
@@ -134,13 +135,13 @@ final class Viewer: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
     private var wifiURL: URL? { defaults.string(forKey: "lastWifi").flatMap(URL.init(string:)) }
     private var autoWifi: Bool { defaults.object(forKey: "autoWifi") as? Bool ?? true }
 
-    /// "192.168.1.20" -> "http://192.168.1.20:8765/"
+    /// "192.168.1.20" -> "http://192.168.1.20:8765/", "https://192.168.1.20" -> "https://192.168.1.20:8766/"
     private static func normalize(_ raw: String) -> String? {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !s.isEmpty else { return nil }
         if !s.contains("://") { s = "http://" + s }
         guard var c = URLComponents(string: s), let host = c.host, !host.isEmpty else { return nil }
-        if c.port == nil { c.port = 8765 }
+        if c.port == nil { c.port = c.scheme == "https" ? 8766 : 8765 }
         c.path = "/"
         c.query = nil
         return c.string
@@ -239,6 +240,69 @@ final class Viewer: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
             screen.brightness = before
             brightnessBeforeDim = nil
         }
+    }
+
+    // MARK: Encrypted Wi-Fi
+
+    /// The PC's certificate is its own (not from a certificate authority), so
+    /// it's trusted by its fingerprint: the first time, the app shows the
+    /// pairing code and you check it matches the one in the PC's window.
+    /// After that only that PC is accepted at that address.
+    private var pendingTrust: [String: [(URLSession.AuthChallengeDisposition, URLCredential?) -> Void]] = [:]
+
+    static func pairCode(_ fp: String) -> String {
+        let p = Array(fp.prefix(8))
+        return p.count == 8 ? String(p[0..<4]) + "-" + String(p[4..<8]) : fp
+    }
+
+    func webView(_ webView: WKWebView, didReceive challenge: URLAuthenticationChallenge,
+                 completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let trust = challenge.protectionSpace.serverTrust,
+              let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
+              let leaf = chain.first else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        let host = "\(challenge.protectionSpace.host):\(challenge.protectionSpace.port)"
+        let der = SecCertificateCopyData(leaf) as Data
+        let fp = SHA256.hash(data: der).map { String(format: "%02X", $0) }.joined()
+        var pins = defaults.dictionary(forKey: "pins") as? [String: String] ?? [:]
+        if pins[host] == fp {
+            completionHandler(.useCredential, URLCredential(trust: trust))
+            return
+        }
+        // Not paired yet (or the PC's certificate changed): ask once, answer every waiting load.
+        if pendingTrust[host] != nil {
+            pendingTrust[host]?.append(completionHandler)
+            return
+        }
+        pendingTrust[host] = [completionHandler]
+        let changed = pins[host] != nil
+        let code = Viewer.pairCode(fp)
+        let alert = UIAlertController(
+            title: changed ? "This PC's pairing code changed" : "Pair with this PC?",
+            message: (changed ? "If you didn't reinstall iPad Display on the PC, don't continue. " : "") +
+                "Check that the PC's window shows the pairing code \(code). If it does, the connection is " +
+                "encrypted and the iPad will only talk to this PC.",
+            preferredStyle: .alert)
+        let finish: (Bool) -> Void = { [weak self] ok in
+            guard let self else { return }
+            if ok {
+                pins[host] = fp
+                self.defaults.set(pins, forKey: "pins")
+            }
+            let waiting = self.pendingTrust.removeValue(forKey: host) ?? []
+            for h in waiting {
+                if ok { h(.useCredential, URLCredential(trust: trust)) } else { h(.cancelAuthenticationChallenge, nil) }
+            }
+        }
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in finish(false) })
+        alert.addAction(UIAlertAction(title: "It matches", style: .default) { _ in finish(true) })
+        let root = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.rootViewController
+        var top = root
+        while let next = top?.presentedViewController { top = next }
+        if let top { top.present(alert, animated: true) } else { finish(false) }
     }
 
     // MARK: WKNavigationDelegate

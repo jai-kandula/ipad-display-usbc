@@ -282,7 +282,7 @@
     background: linear-gradient(145deg, rgba(91,140,255,.22), rgba(143,107,255,.16)) center / cover; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
   .key.live.media .art svg.ic { width: 40%; height: 40%; color: #fff; }
   .key.live.media .art.has svg.ic { display: none; }
-  .key.live.media .mt { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+  .key.live.media .mt { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; padding-right: 30px; }
   .key.live.media .tt { font-size: 17px; font-weight: 650; color: #fff; line-height: 1.2; overflow: hidden; display: -webkit-box;
     -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .key.live.media .ta { font-size: 14px; color: #c3c9d4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -317,6 +317,13 @@
   .gest .stx { flex: 1; min-width: 140px; }
   .gest select { flex: 0 0 52%; margin: 0; padding: 9px 8px; }
   .gest input { flex: 1 0 100%; min-width: 0; margin: 0; }
+  /* iPhone: a pocket deck */
+  body.phone #grid { gap: 9px; }
+  body.phone .key { border-radius: 16px; gap: 6px; }
+  body.phone .key .i { width: 44px; height: 44px; font-size: 20px; }
+  body.phone .key .l { font-size: 12.5px; }
+  body.phone .key.live .tv { font-size: 26px; }
+  body.phone #deckbar { flex-wrap: wrap; gap: 6px; }
   #toast { position: fixed; z-index: 25; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     padding: 9px 16px; border-radius: 18px; background: rgba(20,22,28,.85); font-size: 15px; pointer-events: none;
     opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
@@ -512,6 +519,12 @@
         <div class="gtitle">This connection</div>
         <div class="group" id="g-conn">
           <div class="srow"><span class="tile t-teal" id="s-linkic"><svg class="ic"><use href="#i-cable"/></svg></span><span class="stx" id="s-link">Connected</span></div>
+          <button class="srow" id="s-secure" style="display:none"><span class="tile t-green"><svg class="ic"><use href="#i-lock"/></svg></span><span class="stx" id="s-secure-t">Encrypted</span><svg class="ic chev"><use href="#i-chev-right"/></svg></button>
+        </div>
+        <div class="gtitle">Wi-Fi</div>
+        <div class="group" id="g-wifi">
+          <button class="tog srow" id="s-plain"><span class="tile t-orange"><svg class="ic"><use href="#i-wifi"/></svg></span><span class="stx">Allow the unencrypted address<small id="s-plain-sub">Off: over Wi-Fi the PC only answers on its encrypted address (the cable is never affected)</small></span></button>
+          <div class="srow"><span class="tile t-blue"><svg class="ic"><use href="#i-globe"/></svg></span><span class="stx">From anywhere<small>Install Tailscale on the PC and the iPad, sign in to both with the same account, then add the PC's Tailscale address (100.x.y.z) in the app's PC list. See REMOTE.md</small></span></div>
         </div>
       </section>
       <section data-sec="about">
@@ -763,6 +776,7 @@
         ? '<span style="color:var(--ok)">✓ Connected by cable. Wired mode picked for full quality.</span>'
         : 'Connected over Wi-Fi. For a cable connection, see WIRED.md.';
       if (j.wired && store.get('mode-auto', '1') === '1') modeEl.value = 'wired';
+      linkSecurity(j);
       await loadProfiles();
     } catch (e) {
       errEl.textContent = 'Can\'t reach the PC. Is the host window still open?';
@@ -1777,9 +1791,12 @@
     }
   }
 
+  // An iPhone is a pocket button deck: it never streams the PC screen.
+  const PHONE = Math.min(screen.width, screen.height) < 600;
+  if (PHONE) document.body.classList.add('phone');
   function applyProfile() {
     const p = activeProf();
-    if (p && p.stream === false) enterDeck(); else enterStream();
+    if (PHONE || (p && p.stream === false)) enterDeck(); else enterStream();
     renderProfileUI();
   }
   function enterDeck() {
@@ -1890,9 +1907,11 @@
     });
     const grid = $('grid');
     grid.innerHTML = '';
-    const cols = shown.cols || 4, n = shown.buttons.reduce((a, b) => a + (b.tile === 'media' ? 2 : 1), 0) + (editing ? 1 : 0);
+    const cols = PHONE ? Math.min(3, shown.cols || 4) : (shown.cols || 4);
+    const n = shown.buttons.reduce((a, b) => a + (b.tile === 'media' ? 2 : 1), 0) + (editing ? 1 : 0);
     grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-    grid.style.gridTemplateRows = `repeat(${Math.max(2, Math.ceil(n / cols))}, minmax(96px, 1fr))`;
+    grid.style.gridTemplateRows = PHONE ? `repeat(${Math.ceil(n / cols)}, 104px)`
+      : `repeat(${Math.max(2, Math.ceil(n / cols))}, minmax(96px, 1fr))`;
     shown.buttons.forEach((b, i) => grid.appendChild(keyEl(b, el => editing ? editButton(shown.name, i) : press(shown, i, el))));
     if (editing) {
       const a = keyEl({ icon: 'i:plus', label: 'Add button' }, () => editButton(shown.name, -1));
@@ -2195,6 +2214,39 @@
   function closeSettings() { $('settings').classList.remove('open'); }
   // Settings kept on the PC (settings.json), shared by every iPad.
   let hostSet = null;
+  // ---- encrypted Wi-Fi
+  let tlsPort = null;
+  function linkSecurity(j) {
+    tlsPort = j.tls_port || null;
+    const b = $('s-secure'), plainWifi = !j.usb && !j.secure;
+    b.style.display = (j.secure || (plainWifi && tlsPort)) ? '' : 'none';
+    $('s-secure-t').innerHTML = j.secure ? 'Encrypted<small>Only your paired PC can read the picture, typing and clipboard</small>'
+      : 'Not encrypted: switch to the encrypted address<small>Others on this Wi-Fi could see the picture and what you type</small>';
+    b.querySelector('.tile').className = 'tile ' + (j.secure ? 't-green' : 't-orange');
+    b.onclick = j.secure ? null : goSecure;
+    if (plainWifi && tlsPort) $('link').innerHTML += ' <a href="#" id="go-secure">Use the encrypted address</a>';
+    const gs = $('go-secure'); if (gs) gs.onclick = e => { e.preventDefault(); goSecure(); };
+  }
+  function goSecure() {
+    if (!tlsPort) return;
+    const url = `https://${location.hostname}:${tlsPort}/`;
+    const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pc;
+    if (h) { h.postMessage({ add: url, name: location.hostname + ' (encrypted)' }); h.postMessage({ connect: url }); }
+    else location.href = url;                  // Safari asks once to trust the PC's certificate
+  }
+  $('s-plain').addEventListener('click', async () => {
+    if (!hostSet) return;
+    const turnOff = hostSet.wifi_plain !== false;
+    if (turnOff && location.protocol === 'http:' && !/^(127\.|localhost)/.test(location.hostname)) {
+      $('s-plain-sub').textContent = 'Switch to the encrypted address first, or you\'d lock this iPad out.'; return;
+    }
+    try { await putHostSettings({ wifi_plain: !turnOff }); } catch (e) { $('s-plain-sub').textContent = e.message; }
+  });
+  addEventListener('hostsettings', () => {
+    $('s-plain').classList.toggle('on', !!(hostSet && hostSet.wifi_plain !== false));
+    $('s-plain').classList.toggle('na', !hostSet || !tlsPort);
+  });
+
   async function loadHostSettings() {
     try { hostSet = await api('settings'); } catch (e) { hostSet = null; }
     window.dispatchEvent(new Event('hostsettings'));
