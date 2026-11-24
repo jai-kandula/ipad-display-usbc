@@ -278,49 +278,42 @@ class GpuSampler(threading.Thread):
 
 
 class HostGpu(threading.Thread):
-    """The host's own share of the GPU, as Task Manager counts it: its busiest
-    GPU engine (%) and its dedicated video memory (MB), from Windows' GPU
-    performance counters, once a second."""
-    PS = ("$t=Get-Counter -Counter '\\GPU Engine(pid_{pid}_*)\\Utilization Percentage',"
-          "'\\GPU Process Memory(pid_{pid}_*)\\Dedicated Usage' -SampleInterval 1 -MaxSamples {n} "
-          "-ErrorAction SilentlyContinue; foreach($s in $t){{$e=@{{}};$m=0;"
-          "foreach($x in $s.CounterSamples){{if($x.Path -match 'engtype_([^)]*)\\)'){{$e[$Matches[1]]+=$x.CookedValue}}"
-          "elseif($x.Path -match 'dedicated usage'){{$m+=$x.CookedValue}}}};"
-          "$b=($e.Values|Measure-Object -Maximum).Maximum; if($b -eq $null){{$b=0}}; ([string][int]$b)+';'+([string][int64]$m)}}")
+    """The host's own share of each graphics card, from Windows' GPU counters
+    (gpucheck.py): on the gaming card, its busiest engine (average and the
+    highest second, as Task Manager's GPU column counts it) and its memory on
+    the card, with shared memory (borrowed from RAM) kept apart."""
 
-    def __init__(self, pid, seconds):
+    def __init__(self, seconds):
         super().__init__(daemon=True)
-        self.pid, self.n, self.samples = pid, max(1, int(seconds) - 1), []
+        self.seconds, self.data = seconds, None
 
     def run(self):
-        if not IS_WINDOWS or not self.pid:
+        if not IS_WINDOWS:
             return
         try:
-            out = subprocess.run(["powershell", "-NoProfile", "-Command", self.PS.format(pid=self.pid, n=self.n)],
-                                 capture_output=True, text=True, timeout=self.n + 20,
-                                 creationflags=_NO_WINDOW).stdout
-            for line in out.splitlines():
-                try:
-                    e, m = (float(x) for x in line.strip().split(";"))
-                    self.samples.append((e, m))
-                except ValueError:
-                    pass
+            import gpucheck
+            self.data = gpucheck.host_summary(gpucheck.sample(max(2, int(self.seconds) - 1), host_only=True))
         except Exception:
-            pass
+            self.data = None
 
     def result(self):
-        self.join(timeout=25)
-        if not self.samples:
-            return None, None
-        return (round(statistics.mean(e for e, _ in self.samples), 1),
-                round(max(m for _, m in self.samples) / 2**20))
+        self.join(timeout=self.seconds * 4 + 70)
+        return self.data or {}
+
+
+def host_gpu_text(m):
+    """The host's own GPU numbers in words, card by name."""
+    eng = f", mostly {m['host_gpu_engine']}" if m.get("host_gpu_engine") else ""
+    return (f"the host on {m.get('host_gpu') or 'the GPU'}: {m['host_gpu_pct']}% average, "
+            f"{m['host_gpu_peak']}% highest second{eng}, {m['host_vram_mb']} MB of its memory "
+            f"+ {m.get('host_shared_mb')} MB shared from RAM")
 
 
 def measure(proc, seconds, during=None):
     """Average host CPU (% of one core and % of the whole CPU), GPU and encoder load over `seconds`."""
     g = GpuSampler()
     g.start()
-    hg = HostGpu(getattr(proc, "pid", None), seconds)
+    hg = HostGpu(seconds)
     hg.start()
     c0, t0 = proc.cpu(), time.perf_counter()
     if during:
@@ -329,11 +322,13 @@ def measure(proc, seconds, during=None):
         time.sleep(seconds)
     c1, t1 = proc.cpu(), time.perf_counter()
     g.stop_ = True
-    host_gpu, host_vram = hg.result()
+    h = hg.result()
     core = round(100 * (c1 - c0) / (t1 - t0), 1) if c0 is not None else None
     return {"cpu_core_pct": core, "cpu_total_pct": round(core / (os.cpu_count() or 1), 2) if core is not None else None,
             "gpu_pct": g.mean(0), "encoder_pct": g.mean(1), "gpu_temp": g.mean(2), "gpu_watts": g.mean(3),
-            "host_gpu_pct": host_gpu, "host_vram_mb": host_vram, "ram_mb": proc.mem_mb()}
+            "host_gpu_pct": h.get("avg"), "host_gpu_peak": h.get("peak"), "host_gpu_engine": h.get("engine"),
+            "host_vram_mb": h.get("dedicated_mb"), "host_shared_mb": h.get("shared_mb"),
+            "host_gpu": h.get("gpu"), "ram_mb": proc.mem_mb()}
 
 
 # ---------------------------------------------------------------- moving picture on a screen
@@ -589,8 +584,7 @@ def section_stream(base, proc, scr, seconds):
     out = {}
     out["idle"] = measure(proc, 5)
     say(f"  Host doing nothing: {out['idle']['cpu_total_pct']}% CPU, {out['idle']['ram_mb']} MB"
-        + (f", its own GPU use {out['idle']['host_gpu_pct']}%, {out['idle']['host_vram_mb']} MB of video memory"
-           if out['idle']['host_vram_mb'] is not None else ""))
+        + (", " + host_gpu_text(out['idle']) if out['idle'].get('host_vram_mb') is not None else ""))
 
     def run(label, secs, motion):
         box = {}
@@ -611,8 +605,7 @@ def section_stream(base, proc, scr, seconds):
             f"{s['mbit']} Mbit/s | host: capture {s['host_capture_ms']} ms ({s['backend']}), encode "
             f"{s['host_encode_ms']} ms ({s['encoder']}) | cost: {s['cpu_total_pct']}% CPU "
             f"({s['cpu_core_pct']}% of a core), GPU {s['gpu_pct']}%, encoder {s['encoder_pct']}%, {s['ram_mb']} MB"
-            + (f" | the host's own GPU use {s['host_gpu_pct']}%, {s['host_vram_mb']} MB of video memory"
-               if s['host_vram_mb'] is not None else ""))
+            + (" | " + host_gpu_text(s) if s.get('host_vram_mb') is not None else ""))
         return s
     still = run("still screen", max(6, seconds // 2), False)
     moving = run("moving picture", seconds, True)
@@ -631,6 +624,12 @@ def section_stream(base, proc, scr, seconds):
         result("the host's video memory stays small", each < 400,
                f"{moving['host_vram_mb']} MB while streaming motion, {still['host_vram_mb']} MB on a still screen"
                + (f" ({n} video encoders open, such as the iPad's and the test's: {each:.0f} MB each)" if n > 1 else ""))
+    if moving.get("host_gpu_peak") is not None:
+        result("the host never takes much of the gaming card", (moving["host_gpu_peak"] or 0) < 40
+               and (still.get("host_gpu_peak") or 0) < 10,
+               f"highest second {moving['host_gpu_peak']}% while streaming motion"
+               + (f" ({moving['host_gpu_engine']})" if moving.get("host_gpu_engine") else "")
+               + f", {still.get('host_gpu_peak')}% on a still screen")
     result("still screen costs almost nothing", (still["cpu_total_pct"] or 0) < 1.5,
            f"{still['cpu_total_pct']}% CPU, {still['fps']} updates/s"
            + (" (something on the iPad's screen keeps changing: see the host's [speed] note)" if still["fps"] > 20 else ""))
