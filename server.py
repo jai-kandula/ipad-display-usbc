@@ -71,6 +71,10 @@ import obs  # noqa: E402  (OBS Studio buttons and tile)
 import callouts  # noqa: E402  (map callouts from your own pictures)
 import dev  # noqa: E402  (build/test tasks, Git, logs, snippets)
 import mc  # noqa: E402  (Minecraft server over RCON)
+import study  # noqa: E402  (focus timer and distraction blocker)
+import ical  # noqa: E402  (calendar from a private iCal link)
+import mathpad  # noqa: E402  (math pad: numbers, algebra, units)
+import school  # noqa: E402  (lab capture and PDF notes)
 from aiohttp import web, WSMsgType  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -1106,6 +1110,51 @@ def make_app(cfg):
             return web.json_response({"error": str(e)}, status=400)
         return web.json_response(out)
 
+    async def school_api(request):
+        """School: /api/school/<what> (study.py, ical.py, mathpad.py, school.py)."""
+        if not authorized(request):
+            return web.json_response({"error": "bad pin"}, status=403)
+        what, q, loop = request.match_info["what"], request.query, asyncio.get_running_loop()
+        run = lambda f, *a: loop.run_in_executor(None, f, *a)     # noqa: E731
+        try:
+            if what == "pdf" and request.method == "GET":       # the PDF itself, by id
+                path = await run(school.pdf_path, q.get("id", ""))
+                if not path:
+                    return web.Response(status=404)
+                return web.FileResponse(path, headers={"Content-Type": "application/pdf", "Cache-Control": "no-cache"})
+            if what in ("pdf", "photo"):                          # raw uploads
+                body = await request.read()
+                out = await (run(school.pdf_save, q.get("id", ""), body) if what == "pdf"
+                             else run(school.lab_photo, q.get("folder", ""), q.get("name", ""), body))
+                return web.json_response(out)
+            b = await request.json() if request.method == "POST" and request.can_read_body else {}
+            if not isinstance(b, dict):
+                raise ValueError("expected an object")
+            if what == "study":
+                do = b.get("do") if request.method == "POST" else None
+                out = (study.start(b.get("focus"), b.get("break")) if do == "start" else study.stop() if do == "stop"
+                       else study.pause() if do == "pause" else await run(study.skip) if do == "skip" else study.state())
+            elif what == "calendar":
+                out = await run(ical.events, q.get("fresh") == "1")
+            elif what == "math":
+                out = await run(mathpad.solve, str(b.get("q", "")))
+            elif what == "lab":
+                out = await (run(school.lab_save, b) if request.method == "POST" else run(school.lab_list))
+            elif what == "labopen":
+                await run(school.lab_open, b.get("folder"))
+                out = {"ok": True}
+            elif what == "pdfs":
+                out = await run(school.pdfs, q.get("fresh") == "1")
+            else:
+                return web.json_response({"error": "unknown"}, status=404)
+        except json.JSONDecodeError:
+            return web.json_response({"error": "expected JSON"}, status=400)
+        except (ValueError, TypeError, RuntimeError, OSError, ArithmeticError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+        except Exception as e:                                   # sympy can raise its own kinds
+            return web.json_response({"error": f"couldn't work that out ({type(e).__name__})"}, status=400)
+        return web.json_response(out)
+
     async def callouts_list(request):
         if not authorized(request):
             return web.json_response({"error": "bad pin"}, status=403)
@@ -1155,6 +1204,10 @@ def make_app(cfg):
             out["obs"] = obs.state()
         if "mc" in asked:
             out["mc"] = await loop.run_in_executor(None, mc.state)
+        if "study" in asked:
+            out["study"] = study.state()
+        if "cal" in asked:
+            out["cal"] = await loop.run_in_executor(None, ical.events)
         if "git" in asked:
             out["git"] = await loop.run_in_executor(None, dev.git_tile)
         if ids and hostsettings.get("ha_url") and hostsettings.get("ha_token"):
@@ -1598,7 +1651,7 @@ def make_app(cfg):
             print(f"[-] iPad disconnected ({request.remote})")
         return ws
 
-    app = web.Application()
+    app = web.Application(client_max_size=64 << 20)      # photos and PDFs from the iPad
     app.router.add_get("/", index)
     app.router.add_get("/api/monitors", monitors)
     app.router.add_get("/ws", ws_handler)
@@ -1611,6 +1664,8 @@ def make_app(cfg):
     app.router.add_put("/api/settings", settings_put)
     for m in ("GET", "POST", "PUT"):
         app.router.add_route(m, "/api/dev/{what}", dev_api)
+    for m in ("GET", "POST"):
+        app.router.add_route(m, "/api/school/{what}", school_api)
     app.router.add_get("/api/callouts", callouts_list)
     app.router.add_get("/api/callouts/image", callouts_image)
     app.router.add_post("/api/callouts/folder", callouts_folder)

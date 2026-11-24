@@ -149,6 +149,16 @@ Buttons can drive OBS Studio directly (no hotkeys needed): go live or end the st
 
 The **Twitch chat** tile shows your chat live. Type your channel name in **Settings > Buttons > Twitch chat**. It reads chat straight from Twitch on the iPad (read-only, no login), so the laptop does nothing for it.
 
+### School: focus timer, calendar, math pad, lab capture, PDF notes
+
+Tap **School** on the deck (or **☰ > School**).
+
+- **Focus**: a 25, 50 or 90 minute focus block, then a break. While you focus, the laptop minimises apps on your block list (Discord, Steam, Siege...) and browser tabs with words like YouTube or Twitch in their title the moment they come to the front. Edit both lists under **What gets blocked**. Nothing is watched outside a focus block. The **Focus timer** live tile shows the time left.
+- **Calendar**: your classes, exams and due dates for the next 7 days. Paste your calendar's private iCal link once (Google Calendar on a computer: Settings, click your calendar, "Secret address in iCal format"). Weekly classes, moved and cancelled ones are handled. The **Next class** live tile shows what's next.
+- **Math**: write a line with the Pencil (Scribble turns it into text) and tap **=**: `x^2 - 5x + 6 = 0`, `diff(x^2 sin(x), x)`, `integrate(x e^x, x)`, `factor(...)`, and units like `300 knots to m/s`, `14.7 psi to kPa`, `1.225 kg/m^3 to slug/ft^3`, `20 C to F`. Tap an answer to put it on the laptop's clipboard. Algebra uses sympy, which start.bat installs.
+- **Lab**: name the experiment, set the columns with units, type readings (Enter adds the next row) and take photos of the setup. **Save to PC** writes a folder in `lab` with `data.csv` (opens in Excel), your notes and the photos. The sheet is kept on the iPad until you start a new one.
+- **PDF notes**: lecture slides and worksheets from your Documents folder (or `notes_folder` in settings.json). Write on them with the Pencil (fingers scroll; **Finger** lets a finger write), with a highlighter, eraser and undo. **Save** writes `<name> (notes).pdf` next to the original, which is never changed. The PDF viewer loads from the internet the first time.
+
 ### Dev: build and test, Git, logs, Minecraft server, snippets
 
 Tap **Dev** on the deck (or **☰ > Dev**). Everything here runs only when you open it or tap something.

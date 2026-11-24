@@ -415,6 +415,59 @@
   #dev .trow { display: flex; gap: 6px; } #dev .trow input:first-child { flex: 0 0 30%; } #dev .trow button { width: auto; margin: 0; }
   .key.live.t-mc .tv small, .key.live.t-git .tv small { font-size: .42em; }
   .key.live.t-git .tv { font-size: clamp(20px, 3vw, 28px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #sch { position: fixed; inset: 0; z-index: 30; display: none; background: #08090c; }
+  #sch.open { display: block; }
+  #sch .cx { position: absolute; inset: 0; padding: calc(12px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
+  #sch .chead { display: flex; align-items: center; gap: 10px; }
+  #sch .chead h2 { margin: 0; font-size: 22px; flex: none; }
+  #sch .chead > button { margin: 0 0 0 auto; width: 40px; height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center; flex: none; }
+  #sch .chips { margin: 0; }
+  #sch .pane { flex: 1; min-height: 0; display: none; flex-direction: column; gap: 10px; overflow: auto; }
+  #sch .pane.on { display: flex; }
+  #sch .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #sch .bar button { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; }
+  #sch .bar button.on { background: var(--grad); color: #fff; border-color: transparent; }
+  #sch .bar input { flex: 1; min-width: 160px; margin: 0; }
+  #sch .card { background: #101217; border: 1px solid #1b1f27; border-radius: 14px; padding: 12px 14px; max-width: none; width: auto; margin: 0; }
+  #sch .sub { color: #aeb6c3; font-size: 13.5px; }
+  #sch textarea { margin: 0; min-height: 70px; background: #0d0f13; color: #e6e9ef; border: 1px solid #2f3440; border-radius: 12px; padding: 10px 12px; font: inherit; }
+  #sch label.btnlike { font-size: 15px; color: #e6e9ef; background: #15171c; }
+  .ring { position: relative; width: min(46vh, 300px); aspect-ratio: 1; margin: 6px auto 0; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 9; } .ring .bgc { stroke: #1b1f27; } .ring .fg { stroke: url(#ring-grad); stroke-linecap: round; transition: stroke-dashoffset .9s linear; }
+  .ring.brk .fg { stroke: #3ddc84; }
+  .ring .in { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding: 0 20%; }
+  .ring .t { font-size: clamp(40px, 9vh, 64px); font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .ring .p { color: #aeb6c3; font-size: 15px; }
+  #sc-agenda .day { font-size: 13px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: #8f98a8; margin: 10px 0 4px; }
+  #sc-agenda .ev { display: flex; gap: 12px; padding: 9px 12px; border-radius: 12px; background: #101217; border: 1px solid #1b1f27; margin-bottom: 6px; }
+  #sc-agenda .ev.now { border-color: var(--accent); } #sc-agenda .ev.past { opacity: .45; }
+  #sc-agenda .ev .tm { flex: none; width: 92px; font-variant-numeric: tabular-nums; color: #cfd5df; font-size: 14px; }
+  #sc-agenda .ev b { display: block; font-size: 15px; } #sc-agenda .ev small { color: #8f98a8; }
+  #sm-hist { display: flex; flex-direction: column-reverse; gap: 8px; }
+  #sm-hist .qa { background: #101217; border: 1px solid #1b1f27; border-radius: 12px; padding: 10px 12px; }
+  #sm-hist .q { color: #8f98a8; font: 13px ui-monospace, Menlo, monospace; }
+  #sm-hist .a { font: 600 19px ui-monospace, Menlo, monospace; white-space: pre-wrap; margin-top: 4px; overflow-wrap: anywhere; }
+  #sm-hist .a.err { color: #ff7b7b; font-size: 15px; } #sm-hist .n { color: #8f98a8; font-size: 12.5px; margin-top: 4px; }
+  #sm-q { font: 20px ui-monospace, Menlo, monospace; }
+  #sl-grid { overflow: auto; } #sl-grid table { border-collapse: collapse; width: 100%; }
+  #sl-grid th, #sl-grid td { border: 1px solid #1b1f27; padding: 0; } #sl-grid th { background: #101217; font-weight: 600; font-size: 13px; padding: 6px; }
+  #sl-grid td input { margin: 0; border: 0; border-radius: 0; background: transparent; padding: 8px; min-width: 70px; font-variant-numeric: tabular-nums; }
+  #sl-grid td.n { width: 34px; text-align: center; color: #8f98a8; font-size: 12px; }
+  #sn-list .pdf { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: #101217; border: 1px solid #1b1f27; margin-bottom: 6px; text-align: left; width: 100%; }
+  #sn-list .pdf b { display: block; font-size: 15px; } #sn-list .pdf small { color: #8f98a8; }
+  #sn-view { position: absolute; inset: 0; z-index: 2; background: #2a2d33; display: none; flex-direction: column; }
+  #sn-view.open { display: flex; }
+  #sn-pages { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 12px 0; touch-action: pan-x pan-y; }
+  #sn-pages .pg { position: relative; margin: 0 auto 12px; box-shadow: 0 2px 12px rgba(0,0,0,.4); background: #fff; }
+  #sn-pages .pg canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+  #sn-pages .pg canvas.ink { touch-action: pan-x pan-y; }
+  #sn-pages.finger .pg canvas.ink { touch-action: none; }
+  .sn-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: #101217; flex-wrap: wrap; }
+  .sn-bar button { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; }
+  .sn-bar button.on { background: var(--grad); color: #fff; border-color: transparent; }
+  .sn-bar .sw { width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid #4a5060; } .sn-bar .sw.on { border-color: #fff; background: var(--c) !important; }
+  .sn-bar span.t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
   #cl-player { position: absolute; inset: 0; display: none; flex-direction: column; background: #000; }
   #cl-player.open { display: flex; }
   #cl-player video { flex: 1; min-height: 0; width: 100%; background: #000; }
@@ -508,6 +561,7 @@
   <button class="qrow" id="m-zoom"><svg class="ic"><use href="#i-fit"/></svg>Fit whole screen</button>
   <button class="qrow" id="m-clips"><svg class="ic"><use href="#i-film"/></svg>Clips<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-dev"><svg class="ic"><use href="#i-text"/></svg>Dev: tasks, Git, logs, server<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
+  <button class="qrow" id="m-school"><svg class="ic"><use href="#i-clock"/></svg>School: focus, calendar, math, lab, notes<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-callouts"><svg class="ic"><use href="#i-target"/></svg>Callouts<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-rec"><svg class="ic"><use href="#i-record"/></svg><span id="m-rec-t">Record the iPad screen</span></button>
   <button class="qrow" id="m-tablet"><svg class="ic"><use href="#i-pen"/></svg><span id="m-tablet-t">Drawing tablet</span></button>
@@ -662,6 +716,7 @@
     <button id="d-clips"><svg class="ic"><use href="#i-film"/></svg>Clips</button>
     <button id="d-callouts"><svg class="ic"><use href="#i-target"/></svg>Callouts</button>
     <button id="d-dev"><svg class="ic"><use href="#i-text"/></svg>Dev</button>
+    <button id="d-school"><svg class="ic"><use href="#i-clock"/></svg>School</button>
     <button id="d-edit">Edit</button>
   </div>
   <div id="grid"></div>
@@ -670,6 +725,55 @@
 <button id="tab" aria-label="Buttons"><svg class="ic"><use href="#i-chev-left"/></svg></button>
 <div id="strip"></div>
 
+<div id="sch"><div class="cx">
+  <div class="chead"><h2>School</h2><div class="chips" id="sc-tabs">
+    <button class="chip on" data-p="focus">Focus</button><button class="chip" data-p="cal">Calendar</button><button class="chip" data-p="math">Math</button>
+    <button class="chip" data-p="lab">Lab</button><button class="chip" data-p="notes">PDF notes</button></div>
+    <button id="sc-close" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></div>
+  <div class="pane on" id="sp-focus">
+    <div class="ring" id="sf-ring"><svg viewBox="0 0 100 100"><defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7aa2ff"/><stop offset="1" stop-color="#a77bff"/></linearGradient></defs>
+      <circle class="bgc" cx="50" cy="50" r="44"/><circle class="fg" id="sf-arc" cx="50" cy="50" r="44" stroke-dasharray="276.46" stroke-dashoffset="0"/></svg>
+      <div class="in"><div class="t" id="sf-time">25:00</div><div class="p" id="sf-phase">Ready to focus</div></div></div>
+    <div class="bar" style="justify-content:center" id="sf-len"><span class="sub">Focus</span><button data-f="25" class="on">25 min</button><button data-f="50">50 min</button><button data-f="90">90 min</button><span class="sub" style="margin-left:10px">Break</span><button data-b="5" class="on">5</button><button data-b="10">10</button><button data-b="15">15</button></div>
+    <div class="bar" style="justify-content:center"><button id="sf-start" class="primary"><svg class="ic"><use href="#i-play"/></svg>Start focus</button><button id="sf-pause"><svg class="ic"><use href="#i-pause"/></svg>Pause</button><button id="sf-skip"><svg class="ic"><use href="#i-next"/></svg>Skip</button><button id="sf-stop"><svg class="ic"><use href="#i-close"/></svg>End</button></div>
+    <div class="sub" id="sf-blocked" style="text-align:center"></div>
+    <details class="card"><summary class="sub">What gets blocked while you focus</summary>
+      <div class="sub" style="margin:8px 0 4px">Apps (one per line, the .exe name):</div><textarea id="sf-apps" autocapitalize="off" spellcheck="false"></textarea>
+      <div class="sub" style="margin:8px 0 4px">Browser tabs whose title has any of these words:</div><textarea id="sf-words" autocapitalize="off" spellcheck="false"></textarea>
+      <div class="bar" style="margin-top:8px"><button id="sf-save">Save</button><span class="sub" id="sf-msg">A blocked app or tab is minimised as soon as it comes to the front.</span></div></details>
+  </div>
+  <div class="pane" id="sp-cal">
+    <div class="bar"><span class="sub" id="sc-msg" style="flex:1"></span><button id="sc-refresh"><svg class="ic"><use href="#i-rotate"/></svg>Refresh</button></div>
+    <div id="sc-agenda"></div>
+    <details class="card" id="sc-setup"><summary class="sub">Calendar link</summary>
+      <div class="sub" style="margin:8px 0">Google Calendar on a computer: Settings, click your calendar, then copy "Secret address in iCal format". Outlook: Settings, Calendar, Shared calendars, Publish, ICS link.</div>
+      <div class="bar"><input id="sc-url" type="password" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" autocomplete="off"><button id="sc-save">Save</button></div></details>
+  </div>
+  <div class="pane" id="sp-math">
+    <div class="bar"><input id="sm-q" placeholder="Write here (Pencil works): x^2 - 5x + 6 = 0, 300 knots to m/s" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button id="sm-go" class="primary">=</button></div>
+    <div class="sub">Solve equations, diff(…, x), integrate(…, x), simplify, factor, units (14.7 psi to kPa, 20 C to F). Tap an answer to put it on the PC's clipboard.</div>
+    <div id="sm-hist"></div>
+  </div>
+  <div class="pane" id="sp-lab">
+    <div class="bar"><input id="sl-name" placeholder="Experiment (like Lab 6 Pendulum)"><button id="sl-new">New sheet</button></div>
+    <div class="bar"><input id="sl-cols" placeholder="Columns with units, comma separated: Trial, Length (m), Time 10 swings (s)" autocapitalize="off" spellcheck="false"><button id="sl-setcols">Set columns</button></div>
+    <div id="sl-grid"></div>
+    <div class="bar"><button id="sl-addrow"><svg class="ic"><use href="#i-plus"/></svg>Row</button><label class="btnlike" for="sl-photo" style="display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:12px;border:1px solid #2f3440;cursor:pointer"><svg class="ic" style="width:16px;height:16px"><use href="#i-screenshot"/></svg>Photo</label><input id="sl-photo" type="file" accept="image/*" capture="environment" style="display:none">
+      <span style="flex:1"></span><span class="sub" id="sl-msg"></span><button id="sl-save" class="primary"><svg class="ic"><use href="#i-save"/></svg>Save to PC</button></div>
+    <textarea id="sl-notes" placeholder="Notes: setup, what went wrong, observations…"></textarea>
+    <div class="sub" id="sl-recent"></div>
+  </div>
+  <div class="pane" id="sp-notes">
+    <div class="bar"><input id="sn-q" placeholder="Search PDFs" autocomplete="off" autocapitalize="off" spellcheck="false"><span class="sub" id="sn-root"></span></div>
+    <div id="sn-list"></div>
+  </div>
+  <div id="sn-view"><div id="sn-pages"></div>
+    <div class="sn-bar"><span class="t" id="sn-title"></span>
+      <button class="sw on" data-c="#1d4ed8" style="--c:#1d4ed8;background:#1d4ed8" aria-label="Blue"></button><button class="sw" data-c="#111111" style="--c:#111111;background:#111" aria-label="Black"></button>
+      <button class="sw" data-c="#dc2626" style="--c:#dc2626;background:#dc2626" aria-label="Red"></button><button class="sw" data-c="rgba(250,204,21,.45)" style="--c:#facc15;background:#facc15" aria-label="Highlighter"></button>
+      <button id="sn-erase"><svg class="ic"><use href="#i-eraser"/></svg>Eraser</button><button id="sn-finger"><svg class="ic"><use href="#i-hand"/></svg>Finger</button>
+      <button id="sn-undo"><svg class="ic"><use href="#i-undo"/></svg></button><button id="sn-save" class="primary"><svg class="ic"><use href="#i-save"/></svg>Save</button><button id="sn-close"><svg class="ic"><use href="#i-close"/></svg></button></div></div>
+</div></div>
 <div id="dev"><div class="cx">
   <div class="chead"><h2>Dev</h2><div class="chips" id="dv-tabs">
     <button class="chip on" data-p="tasks">Tasks</button><button class="chip" data-p="git">Git</button><button class="chip" data-p="log">Logs</button>
@@ -2250,6 +2354,292 @@
   $('d-dev').addEventListener('click', openDev);
   $('dv-close').addEventListener('click', closeDev);
 
+  // ---- School: focus timer and blocker, calendar, math pad, lab capture, PDF notes
+  const sc = { tab: 'focus', timer: null, focus: 25, brk: 5, hist: [], lab: null, pdfs: [] };
+  async function openSchool(tab) {
+    closeMenu(); $('sch').classList.add('open');
+    if (!hostSet) await loadHostSettings();
+    schTab(tab || sc.tab);
+    clearInterval(sc.timer); sc.timer = setInterval(() => { if (sc.tab === 'focus' && !document.hidden) loadStudy(); }, 1000);
+  }
+  function closeSchool() { $('sch').classList.remove('open'); clearInterval(sc.timer); }
+  function schTab(tab) {
+    sc.tab = tab;
+    document.querySelectorAll('#sc-tabs .chip').forEach(c => c.classList.toggle('on', c.dataset.p === tab));
+    document.querySelectorAll('#sch .pane').forEach(p => p.classList.toggle('on', p.id === 'sp-' + tab));
+    if (tab === 'focus') { loadStudy(); fillBlock(); }
+    if (tab === 'cal') loadCal(false);
+    if (tab === 'lab') labInit();
+    if (tab === 'notes') loadPdfs();
+    if (tab === 'math') setTimeout(() => $('sm-q').focus(), 50);
+  }
+  document.querySelectorAll('#sc-tabs .chip').forEach(c => c.addEventListener('click', () => schTab(c.dataset.p)));
+  // focus
+  async function loadStudy() {
+    let st; try { st = await api('school/study'); } catch (e) { return; }
+    const on = st.phase !== 'off', left = on ? st.left : sc.focus * 60, total = on ? st.total : sc.focus * 60;
+    $('sf-time').textContent = fmtTime(left);
+    $('sf-phase').textContent = { off: st.done ? `${st.done} done today` : 'Ready to focus', focus: 'Focus', break: 'Break: stand up, drink water',
+      paused: `Paused (${st.paused_in})` }[st.phase];
+    $('sf-arc').style.strokeDashoffset = (276.46 * (1 - left / Math.max(1, total))).toFixed(1);
+    $('sf-ring').classList.toggle('brk', st.phase === 'break' || st.paused_in === 'break');
+    $('sf-start').style.display = on ? 'none' : ''; $('sf-len').style.display = on ? 'none' : '';
+    ['sf-pause', 'sf-skip', 'sf-stop'].forEach(id => { $(id).style.display = on ? '' : 'none'; });
+    $('sf-pause').lastChild.textContent = st.phase === 'paused' ? 'Resume' : 'Pause';
+    $('sf-blocked').textContent = on ? (st.blocked ? `Kept you on track ${st.blocked} time${st.blocked > 1 ? 's' : ''} (last: ${st.last})` : 'Blocking distractions on the PC while you focus') : '';
+  }
+  document.querySelectorAll('#sf-len [data-f]').forEach(b => b.addEventListener('click', () => { sc.focus = +b.dataset.f; document.querySelectorAll('#sf-len [data-f]').forEach(x => x.classList.toggle('on', x === b)); loadStudy(); }));
+  document.querySelectorAll('#sf-len [data-b]').forEach(b => b.addEventListener('click', () => { sc.brk = +b.dataset.b; document.querySelectorAll('#sf-len [data-b]').forEach(x => x.classList.toggle('on', x === b)); }));
+  const studyDo = async (d, extra) => { try { await api('school/study', 'POST', { do: d, ...extra }); } catch (e) { toast(e.message); } loadStudy(); };
+  $('sf-start').addEventListener('click', () => studyDo('start', { focus: sc.focus, break: sc.brk }));
+  $('sf-pause').addEventListener('click', () => studyDo('pause'));
+  $('sf-skip').addEventListener('click', () => studyDo('skip'));
+  $('sf-stop').addEventListener('click', () => studyDo('stop'));
+  function fillBlock() {
+    if (!hostSet) return;
+    if (document.activeElement !== $('sf-apps')) $('sf-apps').value = (hostSet.study_apps || []).join('\n');
+    if (document.activeElement !== $('sf-words')) $('sf-words').value = (hostSet.study_titles || []).join('\n');
+  }
+  $('sf-save').addEventListener('click', async () => {
+    const lines = id => $(id).value.split(/[\n,]/).map(x => x.trim()).filter(Boolean);
+    try { await putHostSettings({ study_apps: lines('sf-apps').map(a => a.toLowerCase()), study_titles: lines('sf-words') }); $('sf-msg').textContent = 'Saved.'; }
+    catch (e) { $('sf-msg').textContent = e.message; }
+  });
+  // calendar
+  async function loadCal(fresh) {
+    $('sc-msg').textContent = 'Loading…';
+    let j; try { j = await api('school/calendar' + (fresh ? '?fresh=1' : '')); } catch (e) { $('sc-msg').textContent = e.message; return; }
+    $('sc-msg').textContent = j.error || (j.updated ? `Updated ${new Date(j.updated * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '');
+    $('sc-setup').open = !hostSet || !hostSet.ical_url;
+    const box = $('sc-agenda'); box.innerHTML = '';
+    let day = '';
+    const now = Date.now() / 1000;
+    j.events.forEach(e => {
+      const d = new Date(e.ts * 1000), key = d.toDateString();
+      if (key !== day) {
+        day = key; const h = document.createElement('div'); h.className = 'day';
+        const today = new Date().toDateString(), tmr = new Date(Date.now() + 864e5).toDateString();
+        h.textContent = key === today ? 'Today' : key === tmr ? 'Tomorrow' : d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+        box.appendChild(h);
+      }
+      const r = document.createElement('div'); r.className = 'ev' + (e.ts <= now && e.te > now ? ' now' : e.te <= now ? ' past' : '');
+      const tm = document.createElement('div'); tm.className = 'tm';
+      const f = x => new Date(x * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      tm.textContent = e.allday ? 'All day' : `${f(e.ts)}–${f(e.te)}`;
+      const tx = document.createElement('div'), b = document.createElement('b'), sm = document.createElement('small');
+      b.textContent = e.title; sm.textContent = e.location; tx.append(b, sm); r.append(tm, tx); box.appendChild(r);
+    });
+    if (!j.events.length && !j.error) { const e = document.createElement('div'); e.className = 'sub'; e.textContent = 'Nothing in the next 7 days.'; box.appendChild(e); }
+  }
+  $('sc-refresh').addEventListener('click', () => loadCal(true));
+  $('sc-save').addEventListener('click', async () => {
+    const v = $('sc-url').value.trim(); if (!v) return;
+    try { await putHostSettings({ ical_url: v }); $('sc-url').value = ''; loadCal(true); } catch (e) { $('sc-msg').textContent = e.message; }
+  });
+  // math
+  function mathAdd(q, a, err, note) {
+    const box = $('sm-hist'), r = document.createElement('div'); r.className = 'qa';
+    const qq = document.createElement('div'); qq.className = 'q'; qq.textContent = q;
+    const aa = document.createElement('div'); aa.className = 'a' + (err ? ' err' : ''); aa.textContent = a;
+    r.append(qq, aa);
+    if (note) { const n = document.createElement('div'); n.className = 'n'; n.textContent = note; r.appendChild(n); }
+    if (!err) r.addEventListener('click', async () => {
+      const v = a.split('\n')[0].replace(/^.*≈\s*/, '').replace(/^\w+ = /, '');
+      try { await api('dev/snippet', 'POST', { text: v, do: 'copy' }); toast(`Copied ${v}`); } catch (e) { toast(e.message); }
+    });
+    box.appendChild(r); while (box.childElementCount > 60) box.firstElementChild.remove();
+  }
+  async function mathGo() {
+    const q = $('sm-q').value.trim(); if (!q) return;
+    $('sm-go').disabled = true;
+    try { const j = await api('school/math', 'POST', { q }); mathAdd(q, j.answer, false, j.note); $('sm-q').value = ''; }
+    catch (e) { mathAdd(q, e.message, true); }
+    finally { $('sm-go').disabled = false; }
+  }
+  $('sm-go').addEventListener('click', mathGo);
+  $('sm-q').addEventListener('keydown', e => { if (e.key === 'Enter') mathGo(); });
+  // lab
+  function labInit() {
+    if (!sc.lab) {
+      try { sc.lab = JSON.parse(store.get('lab-sheet', '')); } catch (e) { sc.lab = null; }
+      if (!sc.lab || !Array.isArray(sc.lab.columns)) sc.lab = { name: '', columns: ['Trial', 'Measurement', 'Value'], rows: [['1', '', '']], notes: '', folder: '' };
+    }
+    $('sl-name').value = sc.lab.name; $('sl-cols').value = sc.lab.columns.join(', '); $('sl-notes').value = sc.lab.notes;
+    labGrid(); labRecent();
+  }
+  const labKeep = () => store.set('lab-sheet', JSON.stringify(sc.lab));
+  function labGrid() {
+    const L = sc.lab, t = document.createElement('table'), hr = document.createElement('tr');
+    hr.appendChild(document.createElement('th'));
+    L.columns.forEach(c => { const th = document.createElement('th'); th.textContent = c; hr.appendChild(th); });
+    t.appendChild(hr);
+    L.rows.forEach((row, ri) => {
+      const tr = document.createElement('tr'), n = document.createElement('td'); n.className = 'n'; n.textContent = ri + 1; tr.appendChild(n);
+      L.columns.forEach((c, ci) => {
+        const td = document.createElement('td'), i = document.createElement('input');
+        i.value = row[ci] || ''; i.inputMode = ci === 0 && /trial|#|run/i.test(c) ? 'numeric' : 'decimal';
+        i.addEventListener('input', () => { row[ci] = i.value; labKeep(); });
+        i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (ri === L.rows.length - 1) labAddRow(); const nx = $('sl-grid').querySelectorAll('tr')[ri + 2]; if (nx) nx.querySelectorAll('input')[ci].focus(); } });
+        td.appendChild(i); tr.appendChild(td);
+      });
+      t.appendChild(tr);
+    });
+    $('sl-grid').innerHTML = ''; $('sl-grid').appendChild(t);
+  }
+  function labAddRow() {
+    const L = sc.lab, last = L.rows[L.rows.length - 1] || [];
+    L.rows.push(L.columns.map((c, i) => i === 0 && /^\d+$/.test(last[0] || '') ? String(+last[0] + 1) : ''));
+    labKeep(); labGrid();
+  }
+  $('sl-addrow').addEventListener('click', labAddRow);
+  $('sl-setcols').addEventListener('click', () => {
+    const cols = $('sl-cols').value.split(',').map(x => x.trim()).filter(Boolean).slice(0, 30);
+    if (!cols.length) return;
+    sc.lab.columns = cols; sc.lab.rows = sc.lab.rows.map(r => cols.map((c, i) => r[i] || '')); labKeep(); labGrid();
+  });
+  $('sl-name').addEventListener('input', () => { sc.lab.name = $('sl-name').value; labKeep(); });
+  $('sl-notes').addEventListener('input', () => { sc.lab.notes = $('sl-notes').value; labKeep(); });
+  $('sl-new').addEventListener('click', e => armDelete(e.currentTarget, 'Tap again: clears this sheet', () => {
+    sc.lab = { name: '', columns: sc.lab.columns, rows: [sc.lab.columns.map((c, i) => i === 0 ? '1' : '')], notes: '', folder: '' }; labKeep(); labInit();
+  }));
+  async function labSave() {
+    const j = await api('school/lab', 'POST', sc.lab);
+    sc.lab.folder = j.folder; labKeep();
+    $('sl-msg').textContent = `Saved ${j.rows} row${j.rows === 1 ? '' : 's'} to ${j.folder}`;
+    labRecent();
+  }
+  $('sl-save').addEventListener('click', async () => { try { await labSave(); } catch (e) { $('sl-msg').textContent = e.message; } });
+  $('sl-photo').addEventListener('change', async () => {
+    const f = $('sl-photo').files[0]; $('sl-photo').value = '';
+    if (!f) return;
+    try {
+      if (!sc.lab.folder) await labSave();
+      $('sl-msg').textContent = 'Sending the photo…';
+      const r = await fetch(`/api/school/photo?${pinQ()}&folder=${encodeURIComponent(sc.lab.folder)}&name=${encodeURIComponent(f.name)}`, { method: 'POST', body: f });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+      $('sl-msg').textContent = `Saved ${j.saved} in ${sc.lab.folder}`; labRecent();
+    } catch (e) { $('sl-msg').textContent = e.message; }
+  });
+  async function labRecent() {
+    try {
+      const j = await api('school/lab'), box = $('sl-recent'); box.textContent = '';
+      if (!j.sessions.length) { box.textContent = `Sheets are saved on the PC in ${j.root}`; return; }
+      box.append(`Saved on the PC in ${j.root}: `);
+      j.sessions.slice(0, 5).forEach((x, i) => {
+        const a = document.createElement('button'); a.className = 'chip'; a.style.margin = '4px 4px 0 0';
+        a.textContent = `${x.folder}${x.photos ? ` (${x.photos} photo${x.photos > 1 ? 's' : ''})` : ''}`;
+        a.addEventListener('click', () => api('school/labopen', 'POST', { folder: x.folder }).then(() => toast('Opened on the PC')).catch(e => toast(e.message)));
+        box.appendChild(a);
+      });
+    } catch (e) { /* older host */ }
+  }
+  // PDF notes: pdf.js shows the pages, the Pencil writes on a layer above, pdf-lib puts the writing into a copy
+  const sn = { doc: null, id: '', name: '', pages: [], color: '#1d4ed8', erase: false, finger: false, undo: [], libs: null };
+  function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('needs internet the first time (to load the PDF viewer)')); document.head.appendChild(s); }); }
+  async function pdfLibs() {
+    if (!sn.libs) sn.libs = (async () => {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');
+    })().catch(e => { sn.libs = null; throw e; });
+    return sn.libs;
+  }
+  async function loadPdfs() {
+    try { const j = await api('school/pdfs'); sc.pdfs = j.pdfs; $('sn-root').textContent = `From ${j.root}`; } catch (e) { sc.pdfs = []; $('sn-root').textContent = e.message; }
+    renderPdfs();
+  }
+  function renderPdfs() {
+    const q = $('sn-q').value.trim().toLowerCase(), box = $('sn-list'); box.innerHTML = '';
+    sc.pdfs.filter(p => !q || (p.name + ' ' + p.folder).toLowerCase().includes(q)).slice(0, 150).forEach(p => {
+      const b = document.createElement('button'); b.className = 'pdf'; b.appendChild(ico('text'));
+      const tx = document.createElement('div'), n = document.createElement('b'), sm = document.createElement('small');
+      n.textContent = p.name; sm.textContent = `${p.folder === '.' ? '' : p.folder + ' · '}${ago(new Date(p.mtime * 1000).toISOString())}`;
+      tx.append(n, sm); b.appendChild(tx); b.addEventListener('click', () => openPdf(p)); box.appendChild(b);
+    });
+    if (!box.childElementCount) { const e = document.createElement('div'); e.className = 'sub'; e.textContent = sc.pdfs.length ? 'No PDF matches.' : 'No PDFs found. Put your lecture slides or worksheets in that folder, or set "notes_folder" in settings.json.'; box.appendChild(e); }
+  }
+  $('sn-q').addEventListener('input', renderPdfs);
+  async function openPdf(p) {
+    $('sn-view').classList.add('open'); $('sn-title').textContent = `Loading ${p.name}…`;
+    const box = $('sn-pages'); box.innerHTML = ''; sn.pages = []; sn.undo = []; sn.id = p.id; sn.name = p.name;
+    try {
+      await pdfLibs();
+      const bytes = await (await fetch(`/api/school/pdf?${pinQ()}&id=${p.id}`)).arrayBuffer();
+      sn.bytes = bytes.slice(0);
+      sn.doc = await window.pdfjsLib.getDocument({ data: bytes }).promise;
+    } catch (e) { $('sn-title').textContent = `Can't open: ${e.message}`; return; }
+    $('sn-title').textContent = p.name;
+    const width = Math.min(box.clientWidth - 24, 1100), dpr = Math.min(2, devicePixelRatio || 1);
+    for (let i = 1; i <= sn.doc.numPages; i++) {
+      const page = await sn.doc.getPage(i), vp1 = page.getViewport({ scale: 1 }), scale = width / vp1.width, vp = page.getViewport({ scale: scale * dpr });
+      const pg = document.createElement('div'); pg.className = 'pg'; pg.style.width = width + 'px'; pg.style.height = (vp1.height * scale) + 'px';
+      const cv = document.createElement('canvas'), ink = document.createElement('canvas'); ink.className = 'ink';
+      cv.width = ink.width = Math.round(vp.width); cv.height = ink.height = Math.round(vp.height);
+      pg.append(cv, ink); box.appendChild(pg);
+      const P = { n: i, ink, strokes: [], w: vp1.width, h: vp1.height }; sn.pages.push(P); inkEvents(P);
+      if (i <= 3) await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+      else new IntersectionObserver((es, ob) => { if (es[0].isIntersecting) { ob.disconnect(); page.render({ canvasContext: cv.getContext('2d'), viewport: vp }); } }, { root: box, rootMargin: '800px' }).observe(pg);
+    }
+  }
+  function inkDraw(P) {
+    const g = P.ink.getContext('2d'), k = P.ink.width / P.w;
+    g.clearRect(0, 0, P.ink.width, P.ink.height); g.lineCap = g.lineJoin = 'round';
+    P.strokes.forEach(st => {
+      g.globalCompositeOperation = st.erase ? 'destination-out' : 'source-over';
+      g.strokeStyle = st.c; g.lineWidth = st.w * k; g.beginPath();
+      st.p.forEach(([x, y], i) => i ? g.lineTo(x * k, y * k) : g.moveTo(x * k, y * k));
+      if (st.p.length === 1) g.lineTo(st.p[0][0] * k + .1, st.p[0][1] * k);
+      g.stroke();
+    });
+    g.globalCompositeOperation = 'source-over';
+  }
+  function inkEvents(P) {
+    let st = null;
+    const pt = e => { const r = P.ink.getBoundingClientRect(); return [(e.clientX - r.left) * P.w / r.width, (e.clientY - r.top) * P.h / r.height]; };
+    P.ink.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'pen' && !sn.finger) return;          // fingers scroll the pages
+      e.preventDefault(); try { P.ink.setPointerCapture(e.pointerId); } catch (err) { /* synthetic */ }
+      const hl = sn.color.startsWith('rgba');
+      st = { id: e.pointerId, c: sn.color, w: sn.erase ? 14 : hl ? 12 : 1.6 + (e.pressure || .5) * 1.2, erase: sn.erase, p: [pt(e)] };
+      P.strokes.push(st); sn.undo.push(P); inkDraw(P);
+    });
+    P.ink.addEventListener('pointermove', e => {
+      if (!st || st.id !== e.pointerId) return;
+      const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+      (evs.length ? evs : [e]).forEach(x => st.p.push(pt(x)));
+      inkDraw(P);
+    });
+    const up = e => { if (st && st.id === e.pointerId) st = null; };
+    P.ink.addEventListener('pointerup', up); P.ink.addEventListener('pointercancel', up);
+  }
+  document.querySelectorAll('.sn-bar .sw').forEach(b => b.addEventListener('click', () => {
+    sn.color = b.dataset.c; sn.erase = false; $('sn-erase').classList.remove('on');
+    document.querySelectorAll('.sn-bar .sw').forEach(x => x.classList.toggle('on', x === b));
+  }));
+  $('sn-erase').addEventListener('click', () => { sn.erase = !sn.erase; $('sn-erase').classList.toggle('on', sn.erase); });
+  $('sn-finger').addEventListener('click', () => { sn.finger = !sn.finger; $('sn-finger').classList.toggle('on', sn.finger); $('sn-pages').classList.toggle('finger', sn.finger); });
+  $('sn-undo').addEventListener('click', () => { const P = sn.undo.pop(); if (P) { P.strokes.pop(); inkDraw(P); } });
+  $('sn-close').addEventListener('click', () => { $('sn-view').classList.remove('open'); $('sn-pages').innerHTML = ''; sn.pages = []; if (sn.doc) sn.doc.destroy(); sn.doc = null; });
+  $('sn-save').addEventListener('click', async () => {
+    const inked = sn.pages.filter(P => P.strokes.length);
+    if (!inked.length) { toast('Nothing written yet'); return; }
+    $('sn-title').textContent = 'Saving…';
+    try {
+      const doc = await window.PDFLib.PDFDocument.load(sn.bytes);
+      for (const P of inked) {
+        const png = await doc.embedPng(P.ink.toDataURL('image/png')), page = doc.getPage(P.n - 1), { width, height } = page.getSize();
+        page.drawImage(png, { x: 0, y: 0, width, height });
+      }
+      const out = await doc.save();
+      const r = await fetch(`/api/school/pdf?${pinQ()}&id=${sn.id}`, { method: 'POST', body: out });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+      $('sn-title').textContent = sn.name; toast(`Saved ${j.saved} on the PC`);
+    } catch (e) { $('sn-title').textContent = `${sn.name}: couldn't save (${e.message})`; }
+  });
+  $('m-school').addEventListener('click', () => openSchool());
+  $('d-school').addEventListener('click', () => openSchool());
+  $('sc-close').addEventListener('click', closeSchool);
+
   $('m-clips').addEventListener('click', () => openClips(false));
   $('d-clips').addEventListener('click', () => openClips(false));
   $('cl-close').addEventListener('click', () => { closePlayer(); $('clips').classList.remove('open'); });
@@ -2288,7 +2678,7 @@
   // load with a graph of the last minute, memory, what's playing, the time.
   // Smart home buttons light up while their light or switch is on. The PC is
   // only asked while tiles are on screen.
-  const TILE_KINDS = { cpu: ['CPU', 'cpu'], gpu: ['GPU', 'gpu'], fps: ['Game FPS', 'gamepad'], ram: ['Memory', 'layers'], media: ['Now playing', 'music'], clock: ['Clock', 'clock'], obs: ['OBS', 'broadcast'], chat: ['Twitch chat', 'chat'], mc: ['Minecraft server', 'grid'], git: ['Git', 'layers'] };
+  const TILE_KINDS = { cpu: ['CPU', 'cpu'], gpu: ['GPU', 'gpu'], fps: ['Game FPS', 'gamepad'], ram: ['Memory', 'layers'], media: ['Now playing', 'music'], clock: ['Clock', 'clock'], obs: ['OBS', 'broadcast'], chat: ['Twitch chat', 'chat'], mc: ['Minecraft server', 'grid'], git: ['Git', 'layers'], study: ['Focus timer', 'clock'], cal: ['Next class', 'clock'] };
   const HA_ON = ['on', 'open', 'playing', 'unlocked', 'home'];
   let tileEls = [], haEls = [], obsEls = [], tileData = null, tileN = 0, tileBusy = false;
   const span = (cls, txt) => { const e = document.createElement('span'); e.className = cls; if (txt) e.textContent = txt; return e; };
@@ -2374,6 +2764,22 @@
         t.ts.textContent = [m.tps != null && `${m.tps.toFixed(1)} TPS`, m.names.join(', ')].filter(Boolean).join(' · ') || 'Nobody online';
         t.k.classList.toggle('hot', m.tps != null && m.tps < 15);
       }
+      return;
+    }
+    if (b.tile === 'study') {
+      const st = d.study;
+      if (!st || st.phase === 'off') { val(t, 'Off'); t.ts.textContent = st && st.done ? `${st.done} focus block${st.done > 1 ? 's' : ''} today` : 'Tap to start a focus block'; }
+      else { val(t, fmtTime(st.left), st.phase === 'paused' ? 'paused' : st.phase); t.ts.textContent = st.blocked ? `Blocked ${st.blocked}× · ${st.last}` : 'Nothing blocked yet'; }
+      t.k.classList.toggle('onair', !!(st && st.phase === 'focus'));
+      return;
+    }
+    if (b.tile === 'cal') {
+      const c = d.cal, now = Date.now() / 1000;
+      const nx = c && c.events.find(e => !e.allday && e.te > now);
+      if (!nx) { val(t, '–'); t.ts.textContent = c && c.error ? c.error : 'Nothing coming up'; return; }
+      const mins = Math.round((nx.ts - now) / 60);
+      val(t, nx.ts <= now ? 'Now' : mins < 60 ? `${mins}` : new Date(nx.ts * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), nx.ts > now && mins < 60 ? 'min' : '');
+      t.ts.textContent = [nx.title, nx.location].filter(Boolean).join(' · ');
       return;
     }
     if (b.tile === 'git') {
@@ -2610,6 +3016,7 @@
     el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 150);
     const b = p.buttons[idx];
     if (b && 'profile' in b) { switchTo(b.profile); return; }      // switch here so the view follows
+    if (b && (b.tile === 'study' || b.tile === 'cal')) { openSchool(b.tile === 'study' ? 'focus' : 'cal'); return; }
     if (b && b.tile && b.tile !== 'media') return;                  // a tile that only shows numbers
     if (b && (b.ha || b.tile || b.obs)) setTimeout(() => { tileTick(true); }, b.obs ? 250 : 500);
     try { await api('action', 'POST', { profile: p.name, index: idx }); if (inDeck) deckMsg(''); }
@@ -2818,6 +3225,8 @@
     chat: 'Your Twitch chat, live. It takes four spaces. Type your channel in Settings > Buttons > Twitch chat.',
     mc: 'Players online and TPS of your Minecraft server. Set it up in Dev > Server.',
     git: 'The branch, changed files and what to push or pull for the first project in Dev.',
+    study: 'The focus timer: time left and how often a distraction was blocked. Tap it to open School.',
+    cal: 'What\'s next on your calendar and when. Add your calendar in School > Calendar.',
   };
   const PLACE = { keys: 'ctrl+shift+m', text: 'gg wp', open: 'obs64.exe', profile: '', mc: 'say Server restarting in 5 minutes' };
   const TYPES = ['tile', 'steps', 'ha', 'obs', 'dev', 'mc', 'keys', 'text', 'open', 'profile'];
