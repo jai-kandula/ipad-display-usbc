@@ -615,7 +615,7 @@ async def stress(base, proc):
 # ---------------------------------------------------------------- 6. tiles
 def section_tiles(base):
     say("\n6. Live tiles")
-    url = base + "/api/tiles?want=cpu,gpu,ram,media"
+    url = base + "/api/tiles?want=cpu,gpu,ram,media,obs"
     try:
         for _ in range(4):
             with urllib.request.urlopen(url, timeout=5) as r:
@@ -634,6 +634,10 @@ def section_tiles(base):
     m = d.get("media")
     result("now playing", True if m else None,
            f"{m['title']} - {m['artist']}" if m else "nothing playing (play a song in Spotify to test)")
+    o = d.get("obs") or {}
+    result("OBS", True if o.get("connected") else None,
+           f"connected, scene '{o.get('scene')}', {len(o.get('scenes', []))} scenes" if o.get("connected") else
+           (o.get("error") or "not open (open OBS and turn on Tools > WebSocket Server Settings to test)"))
 
 
 # ---------------------------------------------------------------- main

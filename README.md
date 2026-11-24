@@ -139,6 +139,16 @@ To change things, tap **Edit** on the deck (or **☰ > Edit buttons and profiles
 
 Your profiles are saved on the laptop in `profiles.json` in this folder, so they're kept when you update the app.
 
+### OBS and Twitch chat
+
+Buttons can drive OBS Studio directly (no hotkeys needed): go live or end the stream, record, pause the recording, save a replay, turn the replay buffer or virtual camera on and off, switch scene, and mute or unmute a source like your mic. Each button lights up while it's on (live, recording, on that scene, muted). The **OBS** live tile shows LIVE or REC with the time, the scene, and while live the dropped frames and bitrate.
+
+1. In OBS: **Tools > WebSocket Server Settings**, tick **Enable WebSocket server**, then **Show Connect Info** and copy the password.
+2. On the iPad: **Settings > Buttons > OBS Studio**, paste the password, tap **Save and test**.
+3. **Edit** the deck, add a button, pick **OBS**, and choose what it does. Macros can have OBS steps too, like `scene:BRB` then `mute:Mic/Aux`.
+
+The **Twitch chat** tile shows your chat live. Type your channel name in **Settings > Buttons > Twitch chat**. It reads chat straight from Twitch on the iPad (read-only, no login), so the laptop does nothing for it.
+
 ## Video mode (smoother scrolling and dragging)
 
 While things move, the picture is sent as **H.264 video**, encoded by the laptop's graphics card (NVIDIA, AMD or Intel) and decoded by the iPad's video chip. That needs far less data than pictures, so scrolling, dragging windows and videos stay smooth. Typing and small changes are still sent as sharp pictures straight away, and once things stop moving, the moved areas are re-sent at full sharpness, exactly as before.

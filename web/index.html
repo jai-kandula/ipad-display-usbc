@@ -294,6 +294,15 @@
   #strip .key.live .ts, #strip .key.live .th span, #strip .key.live .bar, #strip .key.live.media .mt, #strip .key.live.media .pp { display: none; }
   #strip .key.live .tv { font-size: 19px; text-align: center; } #strip .key.live .tv small { display: none; }
   #strip .key.live.media .art { height: 54px; border-radius: 10px; }
+  .key.live.t-obs.onair { box-shadow: inset 0 0 0 2px #ff5a5a; }
+  .key.live.t-obs.onair .tv { color: #ff6b6b; }
+  .key.live.chat { grid-column: span 2; grid-row: span 2; justify-content: flex-start; }
+  .key.live.chat .cl { position: relative; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
+    gap: 4px; font-size: 14px; line-height: 1.3; color: #dfe3ea; }
+  .key.live.chat .cl div { overflow-wrap: anywhere; }
+  .key.live.chat .cl b { font-weight: 650; margin-right: 6px; }
+  .key.live.chat .cl .q { color: #8f98a8; }
+  #strip .key.live.chat { grid-column: auto; grid-row: auto; } #strip .key.live.chat .cl { display: none; }
   /* drawing tablet: the pad stands for a PC screen */
   #pad { position: absolute; display: none; pointer-events: none; border-radius: 6px; box-sizing: border-box;
     border: 1.5px solid rgba(91,140,255,.55); background-color: #0f1117;
@@ -540,6 +549,22 @@
             <div class="note" id="ha-msg"></div>
           </div>
         </div>
+        <div class="gtitle">OBS and Twitch</div>
+        <div class="group" id="g-obs">
+          <div class="sblock">
+            <div class="srow" style="padding:0;min-height:0"><span class="tile t-red"><svg class="ic"><use href="#i-broadcast"/></svg></span><span class="stx">OBS Studio<small>Go live, record, save replays, switch scenes and mute from buttons. In OBS: Tools &gt; WebSocket Server Settings, tick Enable, then Show Connect Info for the password</small></span></div>
+            <input id="obs-url" placeholder="ws://127.0.0.1:4455" style="margin-top:10px" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <input id="obs-pw" type="password" placeholder="Server password" style="margin-top:6px" autocomplete="off">
+            <div class="seg" style="margin-top:8px"><button id="obs-save">Save and test</button></div>
+            <div class="note" id="obs-msg"></div>
+          </div>
+          <div class="sblock">
+            <div class="srow" style="padding:0;min-height:0"><span class="tile t-violet"><svg class="ic"><use href="#i-chat"/></svg></span><span class="stx">Twitch chat<small>The Twitch chat tile shows this channel's chat. Read-only, so no login; the iPad reads it straight from Twitch and the PC does nothing</small></span></div>
+            <input id="tw-ch" placeholder="Your channel name" style="margin-top:10px" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <div class="seg" style="margin-top:8px"><button id="tw-save">Save</button></div>
+            <div class="note" id="tw-msg"></div>
+          </div>
+        </div>
       </section>
       <section data-sec="sound">
         <div class="gtitle">PC sound</div>
@@ -606,7 +631,7 @@
     <label>When tapped</label>
     <div class="seg" id="eb-type">
       <button data-t="keys"><svg class="ic"><use href="#i-keyboard"/></svg>Keys</button><button data-t="text"><svg class="ic"><use href="#i-text"/></svg>Text</button><button data-t="open"><svg class="ic"><use href="#i-launch"/></svg>Open</button>
-      <button data-t="profile"><svg class="ic"><use href="#i-swap"/></svg>Profile</button><button data-t="ha"><svg class="ic"><use href="#i-home"/></svg>Smart home</button><button data-t="steps"><svg class="ic"><use href="#i-bolt"/></svg>Macro</button><button data-t="tile"><svg class="ic"><use href="#i-gauge"/></svg>Live tile</button>
+      <button data-t="profile"><svg class="ic"><use href="#i-swap"/></svg>Profile</button><button data-t="ha"><svg class="ic"><use href="#i-home"/></svg>Smart home</button><button data-t="obs"><svg class="ic"><use href="#i-broadcast"/></svg>OBS</button><button data-t="steps"><svg class="ic"><use href="#i-bolt"/></svg>Macro</button><button data-t="tile"><svg class="ic"><use href="#i-gauge"/></svg>Live tile</button>
     </div>
     <div class="chips" id="eb-tile"></div>
     <input id="eb-value" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
@@ -616,6 +641,9 @@
       <datalist id="ha-ents"></datalist>
       <input id="eb-ha-svc" placeholder="Service (optional): light.turn_on, script.turn_on…" style="margin-top:6px" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
     </div>
+    <div id="eb-obs"><div class="chips" id="eb-obs-do"></div>
+      <input id="eb-obs-name" list="obs-names" style="margin-top:6px" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <datalist id="obs-names"></datalist></div>
     <div id="eb-steps"><div class="steps" id="eb-steplist"></div>
       <button class="addstep" id="eb-addstep" type="button"><svg class="ic"><use href="#i-plus"/></svg>Add step</button></div>
     <div class="hint" id="eb-hint"></div>
@@ -1736,9 +1764,9 @@
   // load with a graph of the last minute, memory, what's playing, the time.
   // Smart home buttons light up while their light or switch is on. The PC is
   // only asked while tiles are on screen.
-  const TILE_KINDS = { cpu: ['CPU', 'cpu'], gpu: ['GPU', 'gpu'], fps: ['Game FPS', 'gamepad'], ram: ['Memory', 'layers'], media: ['Now playing', 'music'], clock: ['Clock', 'clock'] };
+  const TILE_KINDS = { cpu: ['CPU', 'cpu'], gpu: ['GPU', 'gpu'], fps: ['Game FPS', 'gamepad'], ram: ['Memory', 'layers'], media: ['Now playing', 'music'], clock: ['Clock', 'clock'], obs: ['OBS', 'broadcast'], chat: ['Twitch chat', 'chat'] };
   const HA_ON = ['on', 'open', 'playing', 'unlocked', 'home'];
-  let tileEls = [], haEls = [], tileData = null, tileN = 0, tileBusy = false;
+  let tileEls = [], haEls = [], obsEls = [], tileData = null, tileN = 0, tileBusy = false;
   const span = (cls, txt) => { const e = document.createElement('span'); e.className = cls; if (txt) e.textContent = txt; return e; };
   function tileInto(k, b) {
     k.classList.add('live', 't-' + b.tile);
@@ -1752,6 +1780,14 @@
       mt.append(t.tt, t.ta, t.bar);
       t.pp = span('pp'); t.pp.appendChild(ico('play'));
       k.append(t.bg, t.art, mt, t.pp, em);
+    } else if (b.tile === 'chat') {
+      k.classList.add('chat');
+      const th = span('th'); iconInto(th, b.icon && b.icon !== 'i:star' ? b.icon : 'i:chat');
+      t.thl = span('', b.label || 'Twitch chat'); th.appendChild(t.thl);
+      t.cl = span('cl'); t.tv = span('tv', ''); t.tv.style.display = 'none';
+      k.append(th, t.cl, t.tv, em);
+      tileEls.push(t); paintChat(t);
+      return;
     } else {
       const th = span('th'); iconInto(th, b.icon && b.icon !== 'i:star' ? b.icon : 'i:' + TILE_KINDS[b.tile][1]);
       th.appendChild(span('', b.label || TILE_KINDS[b.tile][0]));
@@ -1779,6 +1815,7 @@
     if (small) { const s = document.createElement('small'); s.textContent = small; t.tv.appendChild(s); }
   }
   const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const hms = s => s == null ? '' : s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` : fmtTime(s);
   function paintTile(t) {
     const d = tileData || {}, b = t.b;
     if (b.tile === 'clock') {
@@ -1787,7 +1824,24 @@
       t.ts.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
       return;
     }
+    if (b.tile === 'chat') { paintChat(t); return; }
     if (!tileData) return;
+    if (b.tile === 'obs') {
+      const o = d.obs;
+      t.k.classList.toggle('onair', !!(o && o.connected && (o.streaming || o.recording)));
+      if (!o || !o.connected) {
+        val(t, 'Off');
+        t.ts.textContent = o && /password/.test(o.error || '') ? 'Needs the password (Settings > Buttons)' : "OBS isn't open";
+      } else {
+        if (o.streaming) val(t, 'LIVE', hms(o.stream_time) + (o.recording ? ' · REC' : ''));
+        else if (o.recording) val(t, o.paused ? 'Paused' : 'REC', hms(o.rec_time));
+        else val(t, 'Ready');
+        t.ts.textContent = [o.scene, o.streaming && o.dropped != null && `${o.dropped}% dropped`,
+          o.streaming && o.kbps != null && `${(o.kbps / 1000).toFixed(1)} Mb/s`,
+          o.replay_saved != null && o.replay_saved < 5 && 'Replay saved'].filter(Boolean).join(' · ');
+      }
+      return;
+    }
     if (b.tile === 'cpu') {
       const c = d.cpu || {};
       val(t, c.load == null ? '–' : Math.round(c.load), c.load == null ? '' : '%');
@@ -1841,18 +1895,111 @@
       t.spark.innerHTML = p ? `<path class="a" d="${p.a}"/><path class="l" d="${p.l}"/>` : '';
     }
   }
+  // OBS buttons light up while OBS is live, recording, on their scene, or their source is muted.
+  function obsLit(a, o) {
+    switch (a.do) {
+      case 'stream': case 'stream_start': case 'stream_stop': return o.streaming;
+      case 'record': case 'record_start': case 'record_stop': return o.recording;
+      case 'pause': return o.paused;
+      case 'replay': case 'replay_buffer': return o.replay;
+      case 'virtualcam': return o.virtualcam;
+      case 'scene': return o.scene === a.scene;
+      case 'mute': return !!o.inputs[a.input];
+    }
+    return false;
+  }
+  function paintObs() {
+    const o = tileData && tileData.obs;
+    obsEls.forEach(x => x.k.classList.toggle('lit', !!(o && o.connected && obsLit(x.a, o))));
+  }
+
+  // Twitch chat: the iPad reads it straight from Twitch (anonymous, read-only),
+  // so the PC does nothing. Connected only while a chat tile is on screen.
+  const chat = { ws: null, ch: '', lines: [], note: '', wait: 2000, next: 0, last: 0, asked: false };
+  const chatChannel = () => ((hostSet && hostSet.twitch_channel) || '').trim().toLowerCase()
+    .replace(/^.*twitch\.tv\//, '').replace(/^#/, '').replace(/[^a-z0-9_].*$/, '');
+  function chatTick(onScreen) {
+    const shown = onScreen && tileEls.some(t => t.b.tile === 'chat');
+    if (!shown) { if (chat.ws && Date.now() - chat.last > 60000) chatClose(); return; }
+    chat.last = Date.now();
+    if (!hostSet) { if (!chat.asked) { chat.asked = true; loadHostSettings(); } return; }
+    const ch = chatChannel();
+    if (ch !== chat.ch) {
+      chatClose(); chat.ch = ch; chat.lines = []; chat.wait = 2000; chat.next = 0;
+      chat.note = ch ? '' : 'Type your channel in Settings > Buttons > Twitch chat';
+      paintChats();
+    }
+    if (ch && !chat.ws && Date.now() >= chat.next) chatOpen();
+  }
+  function chatOpen() {
+    let ws;
+    try { ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); } catch (e) { return; }
+    chat.ws = ws; chat.note = 'Connecting to Twitch…'; paintChats();
+    ws.onopen = () => {
+      ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands'); ws.send('PASS SCHMOOPIIE');
+      ws.send(`NICK justinfan${10000 + Math.floor(Math.random() * 80000)}`); ws.send(`JOIN #${chat.ch}`);
+    };
+    ws.onmessage = e => { String(e.data).split('\r\n').forEach(l => chatLine(ws, l)); };
+    ws.onclose = () => {
+      if (chat.ws !== ws) return;
+      chat.ws = null; chat.note = "Can't reach Twitch. Trying again…";
+      chat.next = Date.now() + chat.wait; chat.wait = Math.min(60000, chat.wait * 2);
+      paintChats();
+    };
+  }
+  function chatClose() { const w = chat.ws; chat.ws = null; if (w) try { w.close(); } catch (e) { /* already closed */ } }
+  function chatLine(ws, l) {
+    if (!l) return;
+    if (l.startsWith('PING')) { ws.send('PONG' + l.slice(4)); return; }
+    const tags = {};
+    let rest = l;
+    if (l[0] === '@') {
+      const sp = l.indexOf(' ');
+      l.slice(1, sp).split(';').forEach(kv => { const i = kv.indexOf('='); tags[kv.slice(0, i)] = kv.slice(i + 1).replace(/\\s/g, ' '); });
+      rest = l.slice(sp + 1);
+    }
+    const parts = rest.split(' '), cmd = parts[1], ci = rest.indexOf(' :', 1), text = ci > 0 ? rest.slice(ci + 2) : '';
+    if (cmd === 'PRIVMSG') {
+      const me = text.startsWith('\x01ACTION ');
+      chat.lines.push({ id: tags.id, user: tags['user-id'], nick: tags['display-name'] || parts[0].slice(1).split('!')[0],
+        color: /^#[0-9a-f]{6}$/i.test(tags.color || '') ? tags.color : '', text: me ? text.slice(8).replace(/\x01$/, '') : text, me });
+      if (chat.lines.length > 40) chat.lines.splice(0, chat.lines.length - 40);
+    } else if (cmd === 'ROOMSTATE') { chat.note = ''; chat.wait = 2000; }
+    else if (cmd === 'CLEARCHAT') chat.lines = tags['target-user-id'] ? chat.lines.filter(x => x.user !== tags['target-user-id']) : [];
+    else if (cmd === 'CLEARMSG') chat.lines = chat.lines.filter(x => x.id !== tags['target-msg-id']);
+    else if (cmd === 'NOTICE' && text) chat.note = text;
+    else return;
+    paintChats();
+  }
+  function paintChats() { tileEls.filter(t => t.b.tile === 'chat').forEach(paintChat); }
+  function paintChat(t) {
+    if (t.thl) t.thl.textContent = (t.b.label && t.b.label !== 'Twitch chat' ? t.b.label : 'Twitch chat') + (chat.ch ? ` · ${chat.ch}` : '');
+    const box = t.cl; box.textContent = '';
+    if (!chat.lines.length) { const q = document.createElement('div'); q.className = 'q'; q.textContent = chat.note || 'Chat is quiet'; box.appendChild(q); return; }
+    chat.lines.forEach(m => {
+      const row = document.createElement('div'), n = document.createElement('b');
+      n.textContent = m.nick; n.style.color = m.color || 'var(--accent)';
+      row.appendChild(n); row.appendChild(document.createTextNode(m.text));
+      if (m.me) row.style.fontStyle = 'italic';
+      box.appendChild(row);
+    });
+    if (chat.note) { const q = document.createElement('div'); q.className = 'q'; q.textContent = chat.note; box.appendChild(q); }
+  }
+
   function paintHa() {
     const st = tileData && tileData.ha;
     if (!st) return;
     haEls.forEach(h => { if (h.entity in st) h.k.classList.toggle('lit', HA_ON.includes(st[h.entity])); });
   }
   async function tileTick(haNow) {
-    tileEls = tileEls.filter(t => t.k.isConnected); haEls = haEls.filter(h => h.k.isConnected);
+    tileEls = tileEls.filter(t => t.k.isConnected); haEls = haEls.filter(h => h.k.isConnected); obsEls = obsEls.filter(h => h.k.isConnected);
     const onScreen = inDeck || editing || $('strip').classList.contains('open');
+    chatTick(onScreen && !document.hidden);
     if (!onScreen || document.hidden) return;
     tileEls.filter(t => t.b.tile === 'clock').forEach(paintTile);
     if (tileBusy) return;
-    const want = [...new Set(tileEls.map(t => t.b.tile).filter(k => k !== 'clock'))];
+    const want = [...new Set(tileEls.map(t => t.b.tile).filter(k => k !== 'clock' && k !== 'chat'))];
+    if (obsEls.length && !want.includes('obs')) want.push('obs');
     const ents = (haNow || tileN % 3 === 0) ? [...new Set(haEls.map(h => h.entity))] : [];
     tileN++;
     if (!want.length && !ents.length) return;
@@ -1864,7 +2011,7 @@
         const j = await r.json();
         if (!ents.length && tileData && tileData.ha) j.ha = tileData.ha;      // keep the last smart home states
         tileData = j;
-        tileEls.forEach(paintTile); paintHa();
+        tileEls.forEach(paintTile); paintHa(); paintObs();
       }
     } catch (e) { /* the PC went away: the deck says so */ }
     finally { tileBusy = false; }
@@ -1908,6 +2055,7 @@
       return k;
     }
     if (b.ha && b.ha.entity) haEls.push({ k, entity: b.ha.entity });
+    if (b.obs && b.obs.do) obsEls.push({ k, a: b.obs });
     const i = document.createElement('span'); i.className = 'i'; iconInto(i, b.icon);
     const l = document.createElement('span'); l.className = 'l'; l.textContent = b.label || '';
     const em = document.createElement('span'); em.className = 'em'; em.appendChild(ico('pen'));
@@ -1921,7 +2069,7 @@
     const b = p.buttons[idx];
     if (b && 'profile' in b) { switchTo(b.profile); return; }      // switch here so the view follows
     if (b && b.tile && b.tile !== 'media') return;                  // a tile that only shows numbers
-    if (b && (b.ha || b.tile)) setTimeout(() => { tileTick(true); }, 500);
+    if (b && (b.ha || b.tile || b.obs)) setTimeout(() => { tileTick(true); }, b.obs ? 250 : 500);
     try { await api('action', 'POST', { profile: p.name, index: idx }); if (inDeck) deckMsg(''); }
     catch (e) {
       el.classList.add('err'); setTimeout(() => el.classList.remove('err'), 900);
@@ -2114,6 +2262,7 @@
   };
   HINTS.ha = 'Pick a light, scene, script or switch. Tapping toggles it (scenes and scripts run). Set up Home Assistant in Settings > Buttons first.';
   HINTS.steps = 'Runs each step in order. Use Wait between steps that need a moment, like an app opening.';
+  HINTS.obs = 'Set up OBS in Settings > Buttons first. The button lights up while OBS is live or recording, on that scene, or while that source is muted.';
   const TILE_HINTS = {
     cpu: 'CPU use with a graph of the last minute. For the temperature, run LibreHardwareMonitor on the PC with Options > Remote Web Server turned on.',
     gpu: 'NVIDIA GPU use, temperature, power and memory, with a graph of the last minute.',
@@ -2121,10 +2270,19 @@
     ram: 'How much of the PC\'s memory is in use.',
     media: 'What\'s playing on the PC (Spotify, YouTube, any player), with the album art. Tap it to play or pause. It takes two spaces.',
     clock: 'The time and date.',
+    obs: 'Whether OBS is live or recording and for how long, the scene, and while live the dropped frames and bitrate. Set up OBS in Settings > Buttons.',
+    chat: 'Your Twitch chat, live. It takes four spaces. Type your channel in Settings > Buttons > Twitch chat.',
   };
   const PLACE = { keys: 'ctrl+shift+m', text: 'gg wp', open: 'obs64.exe', profile: '' };
-  const TYPES = ['tile', 'steps', 'ha', 'keys', 'text', 'open', 'profile'];
-  const STEP_TYPES = { keys: 'Press keys', text: 'Type text', open: 'Open', wait: 'Wait (ms)', ha: 'Smart home', profile: 'Profile' };
+  const TYPES = ['tile', 'steps', 'ha', 'obs', 'keys', 'text', 'open', 'profile'];
+  const STEP_TYPES = { keys: 'Press keys', text: 'Type text', open: 'Open', wait: 'Wait (ms)', ha: 'Smart home', obs: 'OBS', profile: 'Profile' };
+  const OBS_DO = { stream: ['Go live / end', 'broadcast', 'Go live'], record: ['Record', 'record', 'Record'],
+    pause: ['Pause recording', 'pause', 'Pause rec'], replay: ['Save replay', 'clip', 'Save replay'],
+    replay_buffer: ['Replay buffer on / off', 'save', 'Replay buffer'], scene: ['Switch scene', 'film', ''],
+    mute: ['Mute / unmute', 'mic-off', ''], virtualcam: ['Virtual camera', 'eye', 'Virtual cam'] };
+  const OBS_NEED = { scene: 'scene', mute: 'input' };
+  const obsStep = v => { const i = v.indexOf(':'), d = (i < 0 ? v : v.slice(0, i)).trim().toLowerCase(), n = i < 0 ? '' : v.slice(i + 1).trim();
+    return OBS_NEED[d] ? { do: d, [OBS_NEED[d]]: n } : { do: d }; };
   let ebSteps = [];
   function renderSteps() {
     const box = $('eb-steplist'); box.innerHTML = '';
@@ -2136,7 +2294,7 @@
       sel.value = st.kind;
       const inp = document.createElement('input');
       inp.value = st.value; inp.autocapitalize = 'off'; inp.spellcheck = false;
-      inp.placeholder = { keys: 'ctrl+shift+m', text: 'brb', open: 'obs64.exe', wait: '500', ha: 'light.desk', profile: 'Gaming' }[st.kind];
+      inp.placeholder = { keys: 'ctrl+shift+m', text: 'brb', open: 'obs64.exe', wait: '500', ha: 'light.desk', obs: 'stream, record, replay, scene:Game, mute:Mic/Aux', profile: 'Gaming' }[st.kind];
       if (st.kind === 'ha') inp.setAttribute('list', 'ha-ents');
       inp.addEventListener('input', () => { st.value = inp.value; });
       sel.addEventListener('change', () => { st.kind = sel.value; renderSteps(); });
@@ -2149,6 +2307,7 @@
     return (b.steps || []).map(st => {
       if ('wait' in st) return { kind: 'wait', value: String(st.wait) };
       if ('ha' in st) return { kind: 'ha', value: st.ha.entity || st.ha.service || '' };
+      if ('obs' in st) return { kind: 'obs', value: st.obs.do + (st.obs.scene || st.obs.input ? ':' + (st.obs.scene || st.obs.input) : '') };
       const k = ['keys', 'text', 'open', 'profile'].find(t => t in st) || 'keys';
       return { kind: k, value: String(st[k] || '') };
     });
@@ -2156,7 +2315,7 @@
   function stepsOut() {
     return ebSteps.filter(st => st.value.trim()).map(st =>
       st.kind === 'wait' ? { wait: Math.max(0, Math.min(10000, parseInt(st.value, 10) || 0)) }
-      : st.kind === 'ha' ? { ha: { entity: st.value.trim() } } : { [st.kind]: st.value.trim() });
+      : st.kind === 'ha' ? { ha: { entity: st.value.trim() } } : st.kind === 'obs' ? { obs: obsStep(st.value) } : { [st.kind]: st.value.trim() });
   }
   $('eb-addstep').addEventListener('click', () => { ebSteps.push({ kind: ebSteps.length % 2 ? 'wait' : 'keys', value: '' }); renderSteps(); });
   let haLoaded = false;
@@ -2168,10 +2327,44 @@
       j.entities.forEach(e => { const o = document.createElement('option'); o.value = e.id; o.label = `${e.name} (${e.state})`; dl.appendChild(o); });
     } catch (e) { haLoaded = false; }
   }
+  async function loadObsNames() {
+    const dl = $('obs-names'); dl.innerHTML = '';
+    const need = OBS_NEED[eb.obs.do];
+    if (!need) return;
+    try {
+      const o = await api('obs');
+      if (!o.connected) throw new Error(o.error || "OBS isn't open");
+      (need === 'scene' ? o.scenes : Object.keys(o.inputs)).forEach(n => { const x = document.createElement('option'); x.value = n; dl.appendChild(x); });
+      $('eb-hint').textContent = HINTS.obs;
+    } catch (e) { $('eb-hint').textContent = `Can't list OBS's ${need === 'scene' ? 'scenes' : 'sources'} (${e.message}). You can still type the name.`; }
+  }
+  function renderObs() {
+    const box = $('eb-obs-do'); box.innerHTML = '';
+    Object.entries(OBS_DO).forEach(([k, [name, icon, label]]) => {
+      const c = document.createElement('button'); c.type = 'button'; c.className = 'chip' + (eb.obs.do === k ? ' on' : '');
+      c.append(ico(icon), name);
+      c.addEventListener('click', () => {
+        const before = OBS_DO[eb.obs.do], lab = $('eb-label').value.trim();
+        if (!lab || lab === before[2]) $('eb-label').value = label;
+        if (eb.icon === 'i:star' || eb.icon === 'i:' + before[1]) {
+          eb.icon = 'i:' + icon; iconInto($('eb-prev'), eb.icon);
+          iconPicker($('eb-pick'), eb.icon, v => { eb.icon = v; $('eb-icon').value = ''; iconInto($('eb-prev'), v); });
+        }
+        eb.obs = { do: k }; $('eb-obs-name').value = ''; renderObs();
+      });
+      box.appendChild(c);
+    });
+    const need = OBS_NEED[eb.obs.do];
+    $('eb-obs-name').style.display = need ? '' : 'none';
+    $('eb-obs-name').placeholder = need === 'scene' ? 'Scene name, as in OBS' : 'Mic/Aux, Desktop Audio…';
+    loadObsNames();
+  }
   let eb = null;                                  // { name, i, type }
   function editButton(name, i) {
     const p = prof(name), b = i >= 0 ? p.buttons[i] : { icon: 'i:star', label: '' };
-    eb = { name, i, type: TYPES.find(t => t in b) || 'keys', icon: b.icon || 'i:star', tile: b.tile || 'cpu' };
+    eb = { name, i, type: TYPES.find(t => t in b) || 'keys', icon: b.icon || 'i:star', tile: b.tile || 'cpu',
+      obs: b.obs ? clone(b.obs) : { do: 'stream' } };
+    $('eb-obs-name').value = b.obs ? (b.obs.scene || b.obs.input || '') : '';
     ebSteps = stepsFrom(b); if (!ebSteps.length) ebSteps = [{ kind: 'keys', value: '' }];
     $('eb-ha-ent').value = b.ha ? (b.ha.entity || '') : ''; $('eb-ha-svc').value = b.ha ? (b.ha.service || '') : '';
     $('eb-icon').value = eb.icon.startsWith('i:') ? '' : eb.icon; $('eb-label').value = b.label || '';
@@ -2192,11 +2385,13 @@
     $('eb-ha').style.display = eb.type === 'ha' ? '' : 'none';
     $('eb-steps').style.display = eb.type === 'steps' ? '' : 'none';
     $('eb-tile').style.display = eb.type === 'tile' ? '' : 'none';
+    $('eb-obs').style.display = eb.type === 'obs' ? '' : 'none';
     if (eb.type === 'tile') renderTileKinds();
+    if (eb.type === 'obs') renderObs();
     if (eb.type === 'steps') renderSteps();
     if (eb.type === 'ha' || eb.type === 'steps') loadEntities();
     $('eb-value').placeholder = PLACE[eb.type] || '';
-    $('eb-hint').textContent = eb.type === 'tile' ? TILE_HINTS[eb.tile] : HINTS[eb.type];
+    if (eb.type !== 'obs' || !OBS_NEED[eb.obs.do]) $('eb-hint').textContent = eb.type === 'tile' ? TILE_HINTS[eb.tile] : HINTS[eb.type];
   }
   function renderTileKinds() {
     const box = $('eb-tile'); box.innerHTML = '';
@@ -2229,9 +2424,14 @@
     else if (eb.type === 'ha') {
       const ent = $('eb-ha-ent').value.trim(), svc = $('eb-ha-svc').value.trim();
       v = (ent || svc) ? { entity: ent, ...(svc ? { service: svc } : {}) } : '';
+    } else if (eb.type === 'obs') {
+      const need = OBS_NEED[eb.obs.do], n = $('eb-obs-name').value.trim();
+      if (need && !n) { $('eb-err').textContent = need === 'scene' ? 'Type the scene to switch to.' : 'Type the sound source to mute.'; return; }
+      v = need ? { do: eb.obs.do, [need]: n } : { do: eb.obs.do };
     } else v = $('eb-value').value.trim();
     if (!v || (Array.isArray(v) && !v.length)) { $('eb-err').textContent = 'Fill in what the button does.'; return; }
-    const fallback = eb.type === 'steps' ? 'Macro' : eb.type === 'ha' ? (v.entity || v.service) : eb.type === 'tile' ? TILE_KINDS[v][0] : v;
+    const fallback = eb.type === 'steps' ? 'Macro' : eb.type === 'ha' ? (v.entity || v.service) : eb.type === 'tile' ? TILE_KINDS[v][0]
+      : eb.type === 'obs' ? (v.scene || (v.input ? `Mute ${v.input}` : OBS_DO[v.do][2])) : v;
     const b = { label: $('eb-label').value.trim() || fallback, icon: eb.icon || 'i:star', [eb.type]: v };
     const data = clone(profiles), q = data.profiles.find(x => x.name === eb.name);
     if (eb.i >= 0) q.buttons[eb.i] = b; else q.buttons.push(b);
@@ -2404,6 +2604,26 @@
       : "A profile's buttons appear while one of its apps is in front (set the apps in each profile)";
     if (hostSet && document.activeElement !== $('ha-url')) $('ha-url').value = hostSet.ha_url || '';
     if (hostSet) $('ha-token').placeholder = hostSet.ha_token ? 'Token saved (type a new one to change it)' : 'Long-lived access token';
+    if (hostSet && document.activeElement !== $('obs-url')) $('obs-url').value = hostSet.obs_url || '';
+    if (hostSet) $('obs-pw').placeholder = hostSet.obs_password ? 'Password saved (type a new one to change it)' : 'Server password';
+    if (hostSet && document.activeElement !== $('tw-ch')) $('tw-ch').value = hostSet.twitch_channel || '';
+  });
+  $('obs-save').addEventListener('click', async () => {
+    $('obs-msg').textContent = 'Testing…';
+    try {
+      const ch = { obs_url: $('obs-url').value.trim() || 'ws://127.0.0.1:4455' };
+      if ($('obs-pw').value) ch.obs_password = $('obs-pw').value;
+      await putHostSettings(ch);
+      $('obs-pw').value = '';
+      await api('obs', 'POST');
+      $('obs-msg').textContent = 'Connected to OBS. Add OBS buttons, or the OBS tile, in the button editor.';
+    } catch (e) { $('obs-msg').textContent = e.message; }
+  });
+  $('tw-save').addEventListener('click', async () => {
+    try {
+      await putHostSettings({ twitch_channel: $('tw-ch').value.trim().replace(/^.*twitch\.tv\//, '').replace(/^#/, '') });
+      $('tw-msg').textContent = hostSet.twitch_channel ? `Saved. Add the Twitch chat tile in the button editor.` : 'Cleared.';
+    } catch (e) { $('tw-msg').textContent = e.message; }
   });
   $('s-auto').addEventListener('click', async () => {
     if (!hostSet) return;
