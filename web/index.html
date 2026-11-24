@@ -1136,8 +1136,10 @@
       if (j.wired && store.get('mode-auto', '1') === '1') modeEl.value = 'wired';
       linkSecurity(j);
       await loadProfiles();
+      return true;
     } catch (e) {
-      errEl.textContent = 'Can\'t reach the PC. Is the host window still open?';
+      errEl.textContent = 'Can\'t reach the PC. Is the host running? Trying again…';
+      return false;
     }
   }
   pinEl.addEventListener('input', () => { pinEl.value = pinEl.value.replace(/\D/g, ''); loadMonitors(); });
@@ -3898,9 +3900,17 @@
   $('sleep').addEventListener('click', () => { setAsleep(false); lostSince = performance.now(); });
 
   if (IN_APP) noPin = true;              // try without a PIN; the server says if one is needed
-  if (noPin || pinEl.value.length === 6) loadMonitors().then(() => {
-    if (!goEl.disabled && store.get('auto', '1') === '1' && (store.get('screen', '') || store.get('monitor', ''))) start();
-  });
+  // If the host isn't up yet (just started, or restarted after Quit), keep
+  // trying every 2 s instead of leaving "Can't reach the PC" until a reload.
+  async function boot() {
+    if (!(noPin || pinEl.value.length === 6)) return;
+    if (!(await loadMonitors())) {
+      if (!live) setTimeout(boot, 2000);
+      return;
+    }
+    if (!live && !goEl.disabled && store.get('auto', '1') === '1' && (store.get('screen', '') || store.get('monitor', ''))) start();
+  }
+  boot();
 })();
 </script>
 </body>
