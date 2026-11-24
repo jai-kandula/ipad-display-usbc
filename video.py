@@ -19,7 +19,11 @@ _NVENC = {"preset": "p1", "tune": "ull", "zerolatency": "1", "delay": "0",
           "rc": "vbr", "cq": "21", "bf": "0", "forced-idr": "1"}
 CANDIDATES = [
     # NVENC takes the captured BGRA pixels as they are, so the frame is handed
-    # over without any copy or colour conversion on the CPU.
+    # over without any copy or colour conversion on the CPU. Two frame buffers
+    # are enough with no delay and no B-frames (the default keeps four or more,
+    # ~15 MB of video memory each at 2360x1640); if a driver refuses, the next
+    # line opens it with its defaults.
+    ("h264_nvenc", "bgra", dict(_NVENC, surfaces="2")),
     ("h264_nvenc", "bgra", _NVENC),
     ("h264_nvenc", "bgr0", _NVENC),
     ("h264_amf", "bgr0", {"usage": "ultralowlatency", "quality": "speed", "rc": "cqp",
@@ -73,6 +77,13 @@ def _nals(annexb):
     return out
 
 
+_OPEN = [0]          # encoders open in this process (each holds its own GPU memory)
+
+
+def open_count():
+    return _OPEN[0]
+
+
 class Encoder:
     def __init__(self, width, height, fps=60, verbose=True):
         if not AVAILABLE:
@@ -103,6 +114,8 @@ class Encoder:
                 self.ctx = None
         if self.ctx is None:
             raise RuntimeError("no H.264 encoder works: " + "; ".join(errors))
+        _OPEN[0] += 1
+        self._counted = True
         if verbose:
             gpu = {"h264_nvenc": "NVIDIA GPU", "h264_amf": "AMD GPU",
                    "h264_qsv": "Intel GPU", "libx264": "CPU"}[self.name]
@@ -140,6 +153,9 @@ class Encoder:
         return body, is_key
 
     def close(self):
+        if getattr(self, "_counted", False):
+            self._counted = False
+            _OPEN[0] -= 1
         try:
             self.ctx.close()
         except Exception:
