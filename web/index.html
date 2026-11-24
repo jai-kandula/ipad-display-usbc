@@ -289,6 +289,29 @@
   #strip .key.live .ts, #strip .key.live .th span, #strip .key.live .bar, #strip .key.live.media .mt, #strip .key.live.media .pp { display: none; }
   #strip .key.live .tv { font-size: 19px; text-align: center; } #strip .key.live .tv small { display: none; }
   #strip .key.live.media .art { height: 54px; border-radius: 10px; }
+  /* drawing tablet: the pad stands for a PC screen */
+  #pad { position: absolute; display: none; pointer-events: none; border-radius: 6px; box-sizing: border-box;
+    border: 1.5px solid rgba(91,140,255,.55); background-color: #0f1117;
+    background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 40px 40px; }
+  #pad span { position: absolute; left: 12px; top: 10px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #6f7889; }
+  body.tablet #pad { display: block; } body.tablet #screen { visibility: hidden; }
+  /* Pencil tool buttons at the left edge */
+  #pentools { position: fixed; z-index: 16; left: calc(8px + env(safe-area-inset-left)); top: 50%; transform: translateY(-50%);
+    display: none; flex-direction: column; gap: 8px; padding: 8px; border-radius: 16px; background: rgba(18,20,26,.88);
+    box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  body.live.pentools #pentools { display: flex; }
+  #pentools button { width: 46px; height: 46px; margin: 0; padding: 0; border: 0; border-radius: 12px; display: grid; place-items: center;
+    background: rgba(255,255,255,.06); color: #dfe4ec; }
+  #pentools button.on { background: var(--grad); color: #fff; }
+  #pentools svg.ic { width: 21px; height: 21px; }
+  .curve { width: 100%; height: 90px; display: block; margin-top: 8px; border-radius: 10px; background: #0d0f13; }
+  .curve path { fill: none; stroke: url(#curve-grad); stroke-width: 3; }
+  #settings input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--accent); }
+  .gest { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .gest .stx { flex: 1; min-width: 140px; }
+  .gest select { flex: 0 0 52%; margin: 0; padding: 9px 8px; }
+  .gest input { flex: 1 0 100%; min-width: 0; margin: 0; }
   #toast { position: fixed; z-index: 25; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     padding: 9px 16px; border-radius: 18px; background: rgba(20,22,28,.85); font-size: 15px; pointer-events: none;
     opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
@@ -309,10 +332,19 @@
 </head>
 <body>
 <!--ICONS-->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="curve-grad" x1="0" y1="1" x2="1" y2="0">
+  <stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#8f6bff"/></linearGradient></defs></svg>
+<div id="pentools">
+  <button id="pt-right" aria-label="Next stroke is a right-click"><svg class="ic"><use href="#i-mouse"/></svg></button>
+  <button id="pt-erase" aria-label="Eraser"><svg class="ic"><use href="#i-eraser"/></svg></button>
+  <button id="pt-undo" aria-label="Undo"><svg class="ic"><use href="#i-undo"/></svg></button>
+  <button id="pt-redo" aria-label="Redo"><svg class="ic"><use href="#i-redo"/></svg></button>
+</div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
   <stop offset="0" stop-color="#5b8cff" stop-opacity=".32"/><stop offset="1" stop-color="#8f6bff" stop-opacity="0"/></linearGradient></defs></svg>
 <div id="stage">
   <canvas id="screen"></canvas>
+  <div id="pad"><span id="pad-name">Drawing tablet</span></div>
   <svg id="cursor" viewBox="0 0 14 22"><path d="M1 1v17l4.2-4 2.9 6.6 2.7-1.2-2.8-6.4H14z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
 </div>
 <div id="status">Connecting…</div>
@@ -364,6 +396,7 @@
   </div>
   <div class="qlabel">View</div>
   <button class="qrow" id="m-zoom"><svg class="ic"><use href="#i-fit"/></svg>Fit whole screen</button>
+  <button class="qrow" id="m-tablet"><svg class="ic"><use href="#i-pen"/></svg><span id="m-tablet-t">Drawing tablet</span></button>
   <button class="qrow" id="m-apps"><svg class="ic"><use href="#i-window"/></svg>Apps on the iPad<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-edit"><svg class="ic"><use href="#i-grid"/></svg>Edit buttons and profiles<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <div class="qfoot">
@@ -421,11 +454,24 @@
         <div class="gtitle">Apple Pencil</div>
         <div class="group" id="g-pen">
           <button class="tog srow" id="m-pen"><span class="tile t-orange"><svg class="ic"><use href="#i-pen"/></svg></span><span class="stx">Pencil as a Windows pen<small>Pressure and tilt in drawing apps. Off: the Pencil works like a mouse</small></span></button>
+          <div class="sblock"><div class="srow" style="padding:0;min-height:0"><span class="tile t-violet"><svg class="ic"><use href="#i-curve"/></svg></span><span class="stx">Pressure<small id="pen-psub">How hard you press, as the PC sees it</small></span></div>
+            <div class="seg" id="pen-pmode"><button data-v="pencil">From the Pencil</button><button data-v="fixed">Always the same</button></div>
+            <svg class="curve" id="pen-curve" viewBox="0 0 100 100" preserveAspectRatio="none"><path/></svg>
+            <input type="range" id="pen-gamma" min="-100" max="100" step="5" aria-label="Pressure curve">
+            <div class="note" style="display:flex;justify-content:space-between;padding:0"><span>Softer</span><span>Firmer</span></div></div>
+          <button class="tog srow" id="pen-palm"><span class="tile t-teal"><svg class="ic"><use href="#i-hand"/></svg></span><span class="stx">Ignore your hand while drawing<small>Fingers don't click while the Pencil is on or near the screen</small></span></button>
+          <button class="tog srow" id="pen-tools"><span class="tile t-blue"><svg class="ic"><use href="#i-mouse"/></svg></span><span class="stx">Pencil buttons<small>Right-click, eraser, undo and redo at the left edge</small></span></button>
+          <div class="sblock"><div class="srow" style="padding:0;min-height:0"><span class="tile t-pink"><svg class="ic"><use href="#i-monitor"/></svg></span><span class="stx">Drawing tablet area<small>In drawing-tablet mode the whole iPad stands for this screen and nothing is streamed</small></span></div>
+            <select id="tab-screen" style="margin-top:10px"></select></div>
         </div>
         <div class="gtitle">Touch</div>
         <div class="group" id="g-touch">
-          <div class="srow"><span class="tile t-gray"><svg class="ic"><use href="#i-hand"/></svg></span><span class="stx">Gestures<small>Tap to click, hold or two-finger tap to right-click, two fingers to scroll, pinch to zoom, three-finger swipes for windows</small></span></div>
+          <div class="sblock"><div class="srow" style="padding:0;min-height:0"><span class="tile t-gray"><svg class="ic"><use href="#i-hand"/></svg></span><span class="stx">One finger<small>Tap to click, hold or two-finger tap to right-click, two fingers to scroll, pinch to zoom</small></span></div>
+            <div class="seg" id="touch-mode"><button data-v="click">Clicks and drags</button><button data-v="scroll">Only scrolls</button></div></div>
         </div>
+        <div class="gtitle">Three- and four-finger gestures</div>
+        <div class="group" id="g-gest"></div>
+        <div class="note">If four-finger swipes switch iPad apps instead, turn off "Swipe Finger Gestures" on the iPad in Settings > Multitasking &amp; Gestures.</div>
       </section>
       <section data-sec="deck">
         <div class="gtitle">Profiles and buttons</div>
@@ -632,6 +678,27 @@
     const v = monEl.value || store.get('screen', 'auto');
     return monitors.find(m => monKey(m) === v) || monitors.find(m => m.kind === 'ipad') || null;
   }
+  const tabletOn = () => store.get('tablet', '0') === '1';
+  const screenName = m => ({ ipad: 'iPad screen', laptop: 'Laptop screen' }[m.kind] || (m.name || 'Monitor')) + ` ${m.width}×${m.height}`;
+  function tabletParam() {                     // the screen the pad stands for: picked, else the main one
+    const v = store.get('tablet-screen', '');
+    const m = monitors.find(x => monKey(x) === v) || monitors.find(x => x.primary && x.kind !== 'ipad') ||
+      monitors.find(x => x.kind !== 'ipad') || monitors[0];
+    return m ? m.index : 'auto';
+  }
+  function fillTabletScreens() {
+    const sel = $('tab-screen'); sel.innerHTML = '';
+    monitors.forEach(m => { const o = document.createElement('option'); o.value = monKey(m); o.textContent = screenName(m) + (m.primary ? ' (main)' : ''); sel.appendChild(o); });
+    const cur = monitors.find(x => x.index === tabletParam());
+    if (cur) sel.value = monKey(cur);
+  }
+  function setTablet(on) {
+    store.set('tablet', on ? '1' : '0');
+    $('m-tablet-t').textContent = on ? 'Back to the PC screen' : 'Drawing tablet';
+    if (!on) document.body.classList.remove('tablet');
+    setZoom(1);
+    if (live && ws) ws.close();                 // reconnects in the other mode
+  }
   function monParam() {
     const v = store.get('screen', 'auto');
     const m = v !== 'auto' && monitors.find(x => monKey(x) === v);
@@ -807,6 +874,7 @@
     view.x = w <= vw ? 0 : Math.max(cx, Math.min(-cx, view.x));
     view.y = h <= vh ? 0 : Math.max(cy, Math.min(-cy, view.y));
     fit = { w, h, x: cx + view.x, y: cy + view.y };
+    Object.assign($('pad').style, { left: fit.x + 'px', top: fit.y + 'px', width: fit.w + 'px', height: fit.h + 'px' });
     Object.assign(canvas.style, { left: fit.x + 'px', top: fit.y + 'px', width: fit.w + 'px', height: fit.h + 'px' });
     const cs = Math.max(0.8, Math.min(1.6, s * dpr));     // cursor about real-PC size
     cursorEl.style.width = 14 * cs + 'px'; cursorEl.style.height = 22 * cs + 'px';
@@ -846,8 +914,9 @@
       catch (e) { /* use the last list */ }
     }
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const tab = tabletOn();
     const url = `${proto}://${location.host}/ws?pin=${encodeURIComponent(store.get('pin', ''))}` +
-      `&monitor=${monParam()}&mode=${store.get('mode', 'balanced')}&fps=60` +
+      (tab ? `&tablet=1&monitor=${tabletParam()}` : `&monitor=${monParam()}`) + `&mode=${store.get('mode', 'balanced')}&fps=60` +
       `&video=${videoOK && store.get('video', '1') === '1' ? 1 : 0}`;
     $('status').textContent = retry ? 'Reconnecting…' : 'Connecting…';
     document.body.classList.add('waiting');
@@ -860,6 +929,12 @@
       if (typeof ev.data === 'string') {
         const m = JSON.parse(ev.data);
         if (m.type === 'info') {
+          document.body.classList.toggle('tablet', !!m.tablet);
+          if (m.tablet) {
+            document.body.classList.remove('waiting');
+            const sc = monitors.find(x => x.left === m.monitor.left && x.top === m.monitor.top);
+            $('pad-name').textContent = `Drawing tablet · ${sc ? screenName(sc) : 'PC screen'}`;
+          }
           if (m.width !== img.w || m.height !== img.h) {
             img = { w: m.width, h: m.height };
             if (worker) worker.postMessage({ size: [m.width, m.height] });
@@ -1095,10 +1170,21 @@
   // Apple Pencil as a Windows pen (pressure and tilt), when the host supports it.
   let penOK = false;
   const usePen = e => e.pointerType === 'pen' && penOK && store.get('pen', '1') === '1';
-  function penMsg(s, e) {
-    return { t: 'pen', s, ...norm(e.clientX, e.clientY), p: e.pressure || 0.5,
-             tx: e.tiltX || 0, ty: e.tiltY || 0 };
+  // Pressure curve: k from -100 (softer: light touches count more) to 100 (firmer).
+  const penGamma = () => Math.pow(2.5, (parseInt(store.get('pen-gamma', '0'), 10) || 0) / 100);
+  function penPressure(p) {
+    if (store.get('pen-pmode', 'pencil') === 'fixed' || !p) return 0.5;
+    return Math.max(0.01, Math.min(1, Math.pow(p, penGamma())));
   }
+  let penBarrel = false, penEraser = false, penDownNow = false, lastPen = 0;
+  function penMsg(s, e) {
+    lastPen = performance.now();
+    return { t: 'pen', s, ...norm(e.clientX, e.clientY), p: penPressure(e.pressure),
+             tx: e.tiltX || 0, ty: e.tiltY || 0, ...(penBarrel ? { b: 1 } : {}), ...(penEraser ? { e: 1 } : {}) };
+  }
+  // A hand resting on the glass while drawing shouldn't click.
+  const palmBlocked = e => e.pointerType === 'touch' && store.get('pen-palm', '1') === '1' &&
+    (penDownNow || performance.now() - lastPen < 700);
   function markPen() { $('m-pen').classList.toggle('on', penOK && store.get('pen', '1') === '1'); $('m-pen').classList.toggle('na', !penOK); }
   $('m-pen').addEventListener('click', () => { if (penOK) { store.set('pen', store.get('pen', '1') === '1' ? '0' : '1'); markPen(); } });
   stage.addEventListener('pointerleave', e => { if (usePen(e)) send(penMsg('leave', e)); });
@@ -1120,33 +1206,116 @@
 
   // Three-finger swipes: left/right throw the active window to the next screen,
   // up shows all windows, down shows the desktop.
-  let three = null;
+  let three = null, oneScroll = false;
   let toastTimer = null;
   function toast(t) { $('toast').textContent = t; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 1200); }
-  function threeDone() {
-    const dx = three.last.x - three.start.x, dy = three.last.y - three.start.y;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 90) return;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      send({ t: 'key', k: dx > 0 ? 'ArrowRight' : 'ArrowLeft', mods: ['Win', 'Shift'] });
-      toast(dx > 0 ? 'Window → next screen' : '← Window to next screen');
-    } else if (dy < 0) { send({ t: 'key', k: 'Tab', mods: ['Win'] }); toast('All windows'); }
-    else { send({ t: 'key', k: 'd', mods: ['Win'] }); toast('Desktop'); }
+  // Three- and four-finger gestures, each set in Settings > Pencil and touch.
+  const GESTURES = [['3-left', 'Three fingers left'], ['3-right', 'Three fingers right'], ['3-up', 'Three fingers up'],
+    ['3-down', 'Three fingers down'], ['3-tap', 'Three-finger tap'], ['4-left', 'Four fingers left'],
+    ['4-right', 'Four fingers right'], ['4-up', 'Four fingers up'], ['4-down', 'Four fingers down'], ['4-tap', 'Four-finger tap']];
+  const GESTURE_DEFAULT = { '3-left': 'win+shift+left', '3-right': 'win+shift+right', '3-up': 'win+tab', '3-down': 'win+d',
+    '4-left': 'ctrl+win+left', '4-right': 'ctrl+win+right' };
+  const GESTURE_ACTIONS = [['', 'Nothing'], ['win+shift+left', 'Window to the screen on the left'],
+    ['win+shift+right', 'Window to the screen on the right'], ['win+tab', 'All windows'], ['win+d', 'Show desktop'],
+    ['alt+tab', 'Switch app'], ['ctrl+win+left', 'Previous desktop'], ['ctrl+win+right', 'Next desktop'],
+    ['win+left', 'Snap window left'], ['win+right', 'Snap window right'], ['win+up', 'Maximise window'],
+    ['ctrl+z', 'Undo'], ['ctrl+y', 'Redo'], ['ctrl+c', 'Copy'], ['ctrl+v', 'Paste'], ['win+shift+s', 'Screenshot'],
+    ['playpause', 'Play / pause'], ['ctrl+shift+m', 'Mute mic (Discord)'], ['alt+f10', 'Save clip (NVIDIA)'],
+    ['custom', 'Other keys…']];
+  function gestureMap() {
+    let m = {}; try { m = JSON.parse(store.get('gestures', '{}')) || {}; } catch (e) { /* default */ }
+    return { ...GESTURE_DEFAULT, ...m };
   }
+  function multiDone(n) {
+    const dx = three.last.x - three.start.x, dy = three.last.y - three.start.y, dist = Math.hypot(dx, dy);
+    let g;
+    if (dist < 30 && performance.now() - three.t < 450) g = `${n}-tap`;
+    else if (Math.max(Math.abs(dx), Math.abs(dy)) >= 90) g = `${n}-` + (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy < 0 ? 'up' : 'down'));
+    if (!g) return;
+    const combo = gestureMap()[g];
+    if (!combo) return;
+    send({ t: 'combo', k: combo });
+    const named = GESTURE_ACTIONS.find(a => a[0] === combo);
+    toast(named ? named[1] : combo);
+  }
+  function renderGestures() {
+    const box = $('g-gest'); box.innerHTML = '';
+    const map = gestureMap();
+    GESTURES.forEach(([id, name]) => {
+      const row = document.createElement('div'); row.className = 'sblock';
+      const lab = document.createElement('span'); lab.className = 'stx'; lab.textContent = name;
+      const g = document.createElement('div'); g.className = 'gest';
+      const sel = document.createElement('select'), inp = document.createElement('input');
+      GESTURE_ACTIONS.forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); });
+      const cur = map[id] || '';
+      const known = GESTURE_ACTIONS.some(a => a[0] === cur && a[0] !== 'custom');
+      sel.value = known ? cur : 'custom';
+      inp.value = known ? '' : cur; inp.placeholder = 'ctrl+alt+f13'; inp.autocapitalize = 'off'; inp.spellcheck = false;
+      inp.style.display = sel.value === 'custom' ? '' : 'none';
+      const save = () => {
+        const all = gestureMap();
+        all[id] = sel.value === 'custom' ? inp.value.trim().toLowerCase() : sel.value;
+        store.set('gestures', JSON.stringify(all));
+      };
+      sel.addEventListener('change', () => { inp.style.display = sel.value === 'custom' ? '' : 'none'; if (sel.value !== 'custom') save(); else inp.focus(); });
+      inp.addEventListener('change', save);
+      g.append(lab, sel, inp); row.append(g); box.appendChild(row);
+    });
+  }
+
+  // Pencil settings and buttons
+  function drawCurve() {
+    const k = penGamma(), pts = [];
+    for (let i = 0; i <= 20; i++) { const x = i / 20; pts.push(`${(x * 100).toFixed(1)},${(100 - Math.pow(x, k) * 100).toFixed(1)}`); }
+    $('pen-curve').firstElementChild.setAttribute('d', 'M' + pts.join('L'));
+    const fixed = store.get('pen-pmode', 'pencil') === 'fixed';
+    $('pen-curve').style.opacity = $('pen-gamma').style.opacity = fixed ? .35 : 1;
+    $('pen-gamma').disabled = fixed;
+  }
+  function markPenSettings() {
+    document.querySelectorAll('#pen-pmode [data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === store.get('pen-pmode', 'pencil')));
+    document.querySelectorAll('#touch-mode [data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === store.get('touch-mode', 'click')));
+    $('pen-palm').classList.toggle('on', store.get('pen-palm', '1') === '1');
+    $('pen-tools').classList.toggle('on', store.get('pen-tools', '0') === '1');
+    document.body.classList.toggle('pentools', store.get('pen-tools', '0') === '1');
+    $('pen-gamma').value = store.get('pen-gamma', '0');
+    drawCurve();
+  }
+  function markPenTools() { $('pt-right').classList.toggle('on', penBarrel); $('pt-erase').classList.toggle('on', penEraser); }
+  document.querySelectorAll('#pen-pmode [data-v]').forEach(b => b.addEventListener('click', () => { store.set('pen-pmode', b.dataset.v); markPenSettings(); }));
+  document.querySelectorAll('#touch-mode [data-v]').forEach(b => b.addEventListener('click', () => { store.set('touch-mode', b.dataset.v); markPenSettings(); }));
+  $('pen-gamma').addEventListener('input', () => { store.set('pen-gamma', $('pen-gamma').value); drawCurve(); });
+  $('pen-palm').addEventListener('click', () => { store.set('pen-palm', store.get('pen-palm', '1') === '1' ? '0' : '1'); markPenSettings(); });
+  $('pen-tools').addEventListener('click', () => { store.set('pen-tools', store.get('pen-tools', '0') === '1' ? '0' : '1'); markPenSettings(); });
+  $('pt-right').addEventListener('click', () => { penBarrel = !penBarrel; markPenTools(); if (penBarrel) toast('Next stroke right-clicks'); });
+  $('pt-erase').addEventListener('click', () => { penEraser = !penEraser; markPenTools(); toast(penEraser ? 'Eraser' : 'Pen'); });
+  $('pt-undo').addEventListener('click', () => send({ t: 'combo', k: 'ctrl+z' }));
+  $('pt-redo').addEventListener('click', () => send({ t: 'combo', k: 'ctrl+y' }));
+  ['pointerdown', 'pointerup'].forEach(n => $('pentools').addEventListener(n, e => e.stopPropagation()));
+  markPenSettings(); renderGestures();
 
   stage.addEventListener('pointerdown', e => {
     e.preventDefault();
     if (soundOn && (!actx || actx.state !== 'running' || !aws)) soundUnlock();
     $('menu').classList.remove('open'); $('fab').classList.remove('open');
-    stage.setPointerCapture(e.pointerId);
+    try { stage.setPointerCapture(e.pointerId); } catch (err) { /* already gone */ }
     touchActive = true;
     localCursor(e.clientX, e.clientY);
+    if (e.pointerType === 'pen') { penDownNow = true; lastPen = performance.now(); }
+    if (palmBlocked(e)) return;
     if (usePen(e)) { send(penMsg('down', e)); return; }
     if (e.pointerType !== 'touch') {            // Apple Pencil or trackpad: direct and precise
       send({ t: 'down', b: e.button === 2 ? 2 : 0, ...norm(e.clientX, e.clientY) });
       return;
     }
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
-    if (touches.size === 1) {
+    if (touches.size === 1 && store.get('touch-mode', 'click') === 'scroll') {
+      gesture = 'two'; oneScroll = true; gStart = performance.now(); moved = 0;    // one finger only scrolls
+      startPt = { x: e.clientX, y: e.clientY };
+      scrollRef = centroid(); scrollOrigin = scrollRef; scrollAcc = { x: 0, y: 0 };
+      pinch0 = { d: spread(), z: view.z, c: scrollRef, vx: view.x, vy: view.y };
+    } else if (touches.size === 1) {
+      oneScroll = false;
       gesture = 'tap'; gStart = performance.now(); moved = 0;
       startPt = { x: e.clientX, y: e.clientY };
       clearTimeout(longTimer);
@@ -1157,14 +1326,15 @@
         }
       }, LONG_MS);
     } else if (touches.size === 2) {
+      oneScroll = false;
       clearTimeout(longTimer);
       if (gesture === 'drag') send({ t: 'up', b: 0 });
       gesture = 'two';                         // becomes 'scroll' or 'zoom' once it moves
       scrollRef = centroid(); scrollOrigin = scrollRef; moved = 0; scrollAcc = { x: 0, y: 0 };
       pinch0 = { d: spread(), z: view.z, c: scrollRef, vx: view.x, vy: view.y };
-    } else if (touches.size === 3) {
-      gesture = 'three';
-      three = { start: centroid(), last: centroid() };
+    } else if (touches.size === 3 || touches.size === 4) {
+      gesture = touches.size === 3 ? 'three' : 'four';
+      three = { start: centroid(), last: centroid(), t: performance.now() };
     }
   }, { passive: false });
 
@@ -1192,8 +1362,8 @@
         send({ t: 'down', b: 0, ...norm(startPt.x, startPt.y) });
       }
       if (gesture === 'drag') { localCursor(t.x, t.y); queueMove(norm(t.x, t.y)); }
-    } else if (gesture === 'three') {
-      if (touches.size === 3) three.last = centroid();
+    } else if (gesture === 'three' || gesture === 'four') {
+      if (touches.size >= 3) three.last = centroid();
     } else if (gesture === 'two') {
       const c = centroid();
       const dSpread = Math.abs(spread() - pinch0.d), dMove = Math.hypot(c.x - scrollOrigin.x, c.y - scrollOrigin.y);
@@ -1226,6 +1396,10 @@
 
   function endPointer(e) {
     e.preventDefault();
+    if (e.pointerType === 'pen') {
+      penDownNow = false; lastPen = performance.now();
+      if (penBarrel && usePen(e)) { send(penMsg('up', e)); penBarrel = false; markPenTools(); touchActive = false; return; }
+    }
     if (usePen(e)) { send(penMsg('up', e)); touchActive = false; return; }
     if (e.pointerType !== 'touch') {
       flushMove();
@@ -1248,11 +1422,11 @@
       if (now - lastTap.t < 400 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 30) p = { x: lastTap.x, y: lastTap.y };
       send({ t: 'click', b: 0, ...norm(p.x, p.y) });
       lastTap = { t: now, x: p.x, y: p.y };
-    } else if (gesture === 'three') {
-      threeDone();
+    } else if (gesture === 'three' || gesture === 'four') {
+      multiDone(gesture === 'three' ? 3 : 4);
     } else if (gesture === 'zoom') {
       if (view.z < 1.08) setZoom(1);          // snap back to the whole screen
-    } else if ((gesture === 'scroll' || gesture === 'two') && moved < TAP_SLOP && dur < 350) {
+    } else if ((gesture === 'scroll' || gesture === 'two') && moved < TAP_SLOP && dur < 350 && !oneScroll) {
       send({ t: 'click', b: 2, ...norm(startPt.x, startPt.y) });   // two-finger tap = right click
     }
     gesture = null;
@@ -1318,6 +1492,10 @@
     soundOn = !soundOn; store.set('sound', soundOn ? '1' : '0'); markSound();
     if (soundOn) soundUnlock(); else soundStop();
   });
+  $('m-tablet').addEventListener('click', () => { closeMenu(); setTablet(!tabletOn()); toast(tabletOn() ? 'Drawing tablet: nothing is streamed' : 'PC screen'); });
+  $('m-tablet-t').textContent = tabletOn() ? 'Back to the PC screen' : 'Drawing tablet';
+  $('tab-screen').addEventListener('change', () => { store.set('tablet-screen', $('tab-screen').value); if (tabletOn() && live && ws) ws.close(); });
+  addEventListener('settingsopen', fillTabletScreens);
   $('m-zoom').addEventListener('click', () => { setZoom(1); $('menu').classList.remove('open'); $('fab').classList.remove('open'); });
   document.querySelectorAll('#dispmode [data-display]').forEach(b => b.addEventListener('click', () => {
     send({ t: 'display', mode: b.dataset.display });

@@ -13,6 +13,7 @@ F_NEW, F_INRANGE, F_INCONTACT, F_FIRSTBUTTON = 0x1, 0x2, 0x4, 0x10
 F_PRIMARY, F_CONFIDENCE = 0x2000, 0x4000
 F_DOWN, F_UPDATE, F_UP = 0x10000, 0x20000, 0x40000
 PEN_MASK_PRESSURE, PEN_MASK_TILT_X, PEN_MASK_TILT_Y = 0x1, 0x4, 0x8
+PEN_FLAG_BARREL, PEN_FLAG_INVERTED, PEN_FLAG_ERASER = 0x1, 0x2, 0x4
 
 
 class POINT(ctypes.Structure):
@@ -66,9 +67,11 @@ class Pen:
         except (AttributeError, OSError):
             self.ok = False
 
-    def send(self, state, x, y, pressure=0.5, tilt_x=0, tilt_y=0):
+    def send(self, state, x, y, pressure=0.5, tilt_x=0, tilt_y=0, barrel=False, eraser=False):
         """state: hover, down, move, up or leave. x, y: screen pixels.
-        pressure 0..1; tilt in degrees (-90..90). Returns False if Windows refused."""
+        pressure 0..1; tilt in degrees (-90..90). barrel: the side button is
+        held (a right-click in most apps); eraser: the pen is flipped to erase.
+        Returns False if Windows refused."""
         if not self.ok:
             return False
         if state == "down":
@@ -94,6 +97,7 @@ class Pen:
         pi.pointerInfo.pointerFlags = flags | F_PRIMARY | F_CONFIDENCE
         pi.pointerInfo.ptPixelLocation = POINT(int(round(x)), int(round(y)))
         pi.penMask = PEN_MASK_PRESSURE | PEN_MASK_TILT_X | PEN_MASK_TILT_Y
+        pi.penFlags = (PEN_FLAG_BARREL if barrel else 0) | (PEN_FLAG_INVERTED | PEN_FLAG_ERASER if eraser else 0)
         pi.pressure = int(max(0.0, min(1.0, pressure)) * 1024) if flags & F_INCONTACT else 0
         pi.tiltX = int(max(-90, min(90, tilt_x)))
         pi.tiltY = int(max(-90, min(90, tilt_y)))

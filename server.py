@@ -1100,6 +1100,7 @@ def make_app(cfg):
         sess = Session(mon_idx, q.get("mode", "balanced"))
         fps = max(10, min(60, int(q.get("fps", "60"))))
         sess.video_wanted = q.get("video") == "1" and video.AVAILABLE
+        tablet = q.get("tablet") == "1"     # drawing tablet: input only, nothing captured
         loop = asyncio.get_running_loop()
         cap_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="capture")  # mss is per-thread
         mon = await loop.run_in_executor(cap_pool, sess.monitor)
@@ -1162,7 +1163,8 @@ def make_app(cfg):
                         x, y = to_screen(m)
                         st = m.get("s")
                         if not PEN.send(st, x, y, float(m.get("p", 0.5)),
-                                        float(m.get("tx", 0)), float(m.get("ty", 0))):
+                                        float(m.get("tx", 0)), float(m.get("ty", 0)),
+                                        barrel=bool(m.get("b")), eraser=bool(m.get("e"))):
                             if st in ("down", "move", "hover", "up"):
                                 INPUT.move(x, y)
                             if st in ("down", "up"):
@@ -1181,6 +1183,9 @@ def make_app(cfg):
                         INPUT.text(str(m.get("s", ""))[:2000])
                     elif t == "key":
                         INPUT.key(str(m.get("k", "")), m.get("mods", []))
+                    elif t == "combo":          # "ctrl+shift+m", as on deck buttons (gestures, pen tools)
+                        mods, vk = deck.parse_keys(str(m.get("k", ""))[:60])
+                        INPUT.combo(vk, mods)
                     elif t == "mode":
                         sess.set_profile(str(m.get("mode", "balanced")))
                         state["force"] = True
@@ -1230,7 +1235,19 @@ def make_app(cfg):
                 except Exception as e:  # never let a bad event kill the session
                     print("input error:", e)
 
+        async def tablet_writer():
+            """Drawing-tablet mode: the iPad is a pad for one screen. Nothing is
+            captured or encoded; the link is just kept alive."""
+            await ws.send_str(json.dumps({"type": "info", "width": sess.mon["width"], "height": sess.mon["height"],
+                                          "monitor": sess.mon, "tablet": True}))
+            while not ws.closed:
+                await asyncio.sleep(1.5)
+                if not ws.closed:
+                    await ws.send_str('{"type":"ping"}')
+
         async def writer():
+            if tablet:
+                return await tablet_writer()
             interval = 1.0 / fps
             sess.wait = interval
             last_cursor = None
