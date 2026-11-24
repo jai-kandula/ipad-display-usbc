@@ -945,6 +945,26 @@
 
 <script>
 (() => {
+  // The laptop was updated while this page stayed open (the app keeps it for
+  // days): load the new page, once nothing is being typed or edited.
+  const PAGE_BUILD = (document.querySelector('meta[name="page-build"]') || {}).content || '';
+  let reloading = false;
+  function checkBuild(b) {
+    if (!b || !PAGE_BUILD || b === PAGE_BUILD || reloading) return;
+    reloading = true;
+    const tryReload = () => {
+      const a = document.activeElement, typing = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+      if (typing || document.getElementById('sheetbg').classList.contains('open')) return setTimeout(tryReload, 2000);
+      location.reload();
+    };
+    tryReload();
+  }
+  const plainFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {          // every answer from the laptop says its build
+    const r = await plainFetch(...args);
+    try { checkBuild(r.headers.get('X-Page-Build')); } catch (e) { /* never break a fetch */ }
+    return r;
+  };
   const $ = id => document.getElementById(id);
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
@@ -1291,6 +1311,7 @@
       if (typeof ev.data === 'string') {
         const m = JSON.parse(ev.data);
         if (m.type === 'info') {
+          checkBuild(m.build);
           document.body.classList.toggle('tablet', !!m.tablet);
           if (m.tablet) {
             document.body.classList.remove('waiting');
