@@ -378,6 +378,43 @@
   .co-tools .sw.on { border-color: #fff; background: var(--c); }
   .co-tools .sp { flex: 1; }
   .co-tools svg.ic { width: 17px; height: 17px; }
+  #dev { position: fixed; inset: 0; z-index: 30; display: none; background: #08090c; }
+  #dev.open { display: block; }
+  #dev .cx { position: absolute; inset: 0; padding: calc(12px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; }
+  #dev .chead { display: flex; align-items: center; gap: 10px; }
+  #dev .chead h2 { margin: 0; font-size: 22px; flex: none; }
+  #dev .chead > button { margin: 0 0 0 auto; width: 40px; height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center; flex: none; }
+  #dev .chips { margin: 0; }
+  #dev .pane { flex: 1; min-height: 0; display: none; flex-direction: column; gap: 8px; }
+  #dev .pane.on { display: flex; }
+  #dev .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #dev .bar button { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; }
+  #dev .bar button svg.ic { width: 16px; height: 16px; }
+  #dev .bar button.on { background: var(--grad); color: #fff; border-color: transparent; }
+  #dev .bar input { flex: 1; min-width: 160px; margin: 0; }
+  #dev .task .dot { width: 9px; height: 9px; border-radius: 50%; background: #4a5060; }
+  #dev .task.run .dot { background: #ffcf4f; animation: devpulse 1s infinite; } #dev .task.ok .dot { background: #3ddc84; } #dev .task.bad .dot { background: #ff5a5a; }
+  @keyframes devpulse { 50% { opacity: .3; } }
+  .con { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 10px 12px; border-radius: 12px; background: #05070a; border: 1px solid #1b1f27;
+    font: 12.5px/1.45 ui-monospace, Menlo, Consolas, monospace; color: #d6dbe4; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+  .con .e { color: #ff7b7b; } .con .w { color: #ffcf4f; } .con .k { color: #3ddc84; } .con .m { color: #8f98a8; }
+  #dev .card { background: #101217; border: 1px solid #1b1f27; border-radius: 14px; padding: 12px 14px; max-width: none; width: auto; margin: 0; }
+  #dev button.danger { color: #ff7b7b; }
+  #dev .big { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+  #dev .sub { color: #aeb6c3; font-size: 13.5px; margin-top: 3px; }
+  #dev .list { overflow: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+  #dev .li { display: flex; gap: 10px; align-items: baseline; font-size: 14px; }
+  #dev .li code { font: 12.5px ui-monospace, Menlo, monospace; color: #8f98a8; flex: none; }
+  #dev .snip { display: flex; gap: 10px; align-items: center; background: #101217; border: 1px solid #1b1f27; border-radius: 12px; padding: 10px 12px; }
+  #dev .snip .tx { flex: 1; min-width: 0; } #dev .snip b { display: block; font-size: 14px; }
+  #dev .snip pre { margin: 3px 0 0; font: 12px ui-monospace, Menlo, monospace; color: #8f98a8; white-space: pre-wrap; max-height: 3.9em; overflow: hidden; }
+  #dev .snip button { width: auto; margin: 0; padding: 7px 11px; }
+  #dev .form { display: flex; flex-direction: column; gap: 6px; overflow: auto; }
+  #dev .form input, #dev .form textarea { margin: 0; }
+  #dev .form textarea { min-height: 120px; font: 13px ui-monospace, Menlo, monospace; }
+  #dev .trow { display: flex; gap: 6px; } #dev .trow input:first-child { flex: 0 0 30%; } #dev .trow button { width: auto; margin: 0; }
+  .key.live.t-mc .tv small, .key.live.t-git .tv small { font-size: .42em; }
+  .key.live.t-git .tv { font-size: clamp(20px, 3vw, 28px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #cl-player { position: absolute; inset: 0; display: none; flex-direction: column; background: #000; }
   #cl-player.open { display: flex; }
   #cl-player video { flex: 1; min-height: 0; width: 100%; background: #000; }
@@ -470,6 +507,7 @@
   <div class="qlabel">View</div>
   <button class="qrow" id="m-zoom"><svg class="ic"><use href="#i-fit"/></svg>Fit whole screen</button>
   <button class="qrow" id="m-clips"><svg class="ic"><use href="#i-film"/></svg>Clips<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
+  <button class="qrow" id="m-dev"><svg class="ic"><use href="#i-text"/></svg>Dev: tasks, Git, logs, server<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-callouts"><svg class="ic"><use href="#i-target"/></svg>Callouts<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-rec"><svg class="ic"><use href="#i-record"/></svg><span id="m-rec-t">Record the iPad screen</span></button>
   <button class="qrow" id="m-tablet"><svg class="ic"><use href="#i-pen"/></svg><span id="m-tablet-t">Drawing tablet</span></button>
@@ -623,6 +661,7 @@
     <button id="d-add" style="display:none"><svg class="ic"><use href="#i-plus"/></svg>Profile</button>
     <button id="d-clips"><svg class="ic"><use href="#i-film"/></svg>Clips</button>
     <button id="d-callouts"><svg class="ic"><use href="#i-target"/></svg>Callouts</button>
+    <button id="d-dev"><svg class="ic"><use href="#i-text"/></svg>Dev</button>
     <button id="d-edit">Edit</button>
   </div>
   <div id="grid"></div>
@@ -631,6 +670,47 @@
 <button id="tab" aria-label="Buttons"><svg class="ic"><use href="#i-chev-left"/></svg></button>
 <div id="strip"></div>
 
+<div id="dev"><div class="cx">
+  <div class="chead"><h2>Dev</h2><div class="chips" id="dv-tabs">
+    <button class="chip on" data-p="tasks">Tasks</button><button class="chip" data-p="git">Git</button><button class="chip" data-p="log">Logs</button>
+    <button class="chip" data-p="mc">Server</button><button class="chip" data-p="snip">Snippets</button></div>
+    <button id="dv-close" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></div>
+  <div class="chips" id="dv-projs"></div>
+  <div class="pane on" id="dp-tasks">
+    <div class="bar" id="dv-tasks"></div>
+    <pre class="con" id="dv-out"></pre>
+    <div class="bar"><span id="dv-state" class="sub" style="flex:1"></span><button id="dv-stop"><svg class="ic"><use href="#i-close"/></svg>Stop</button><button id="dv-edit"><svg class="ic"><use href="#i-pen"/></svg>Edit projects</button></div>
+  </div>
+  <div class="pane" id="dp-edit"><div class="form" id="dv-form"></div>
+    <div class="bar"><button id="dv-addproj"><svg class="ic"><use href="#i-plus"/></svg>Project</button><span style="flex:1"></span><span class="sub" id="dv-ferr"></span><button id="dv-fcancel">Cancel</button><button id="dv-fsave" class="primary">Save</button></div></div>
+  <div class="pane" id="dp-git">
+    <div class="card"><div class="big" id="dg-branch">–</div><div class="sub" id="dg-sub"></div></div>
+    <div class="bar"><button data-g="fetch"><svg class="ic"><use href="#i-download"/></svg>Fetch</button><button data-g="pull"><svg class="ic"><use href="#i-download"/></svg>Pull</button><button data-g="push"><svg class="ic"><use href="#i-launch"/></svg>Push</button><span class="sub" id="dg-msg"></span></div>
+    <div class="list" id="dg-list"></div>
+  </div>
+  <div class="pane" id="dp-log">
+    <div class="bar" id="dl-src"></div>
+    <pre class="con" id="dl-out"></pre>
+    <div class="bar"><button id="dl-follow" class="on"><svg class="ic"><use href="#i-eye"/></svg>Follow</button><button id="dl-clear"><svg class="ic"><use href="#i-trash"/></svg>Clear view</button><span class="sub" id="dl-msg"></span></div>
+  </div>
+  <div class="pane" id="dp-mc">
+    <div class="card"><div class="big" id="dm-big">–</div><div class="sub" id="dm-sub"></div></div>
+    <div class="bar"><button data-mc="save-all"><svg class="ic"><use href="#i-save"/></svg>Save world</button><button data-mc="weather clear">Clear weather</button><button data-mc="time set day"><svg class="ic"><use href="#i-sun"/></svg>Day</button><button id="dm-stop" class="danger">Stop server</button></div>
+    <pre class="con" id="dm-out"></pre>
+    <div class="bar"><input id="dm-cmd" placeholder="Command: say hi, whitelist add Name, op Name…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button id="dm-send">Send</button></div>
+    <details class="card"><summary class="sub">Connection</summary>
+      <div class="form" style="margin-top:8px"><input id="dm-host" placeholder="Server address (127.0.0.1 when it runs on this PC)" autocapitalize="off" spellcheck="false">
+      <input id="dm-port" placeholder="RCON port (25575)" inputmode="numeric"><input id="dm-pw" type="password" placeholder="rcon.password from server.properties">
+      <input id="dm-folder" placeholder="Server folder, for its log (C:\Servers\survival)" autocapitalize="off" spellcheck="false">
+      <div class="bar"><button id="dm-save">Save and test</button><span class="sub" id="dm-msg">In server.properties: enable-rcon=true, rcon.password=… then restart the server.</span></div></div></details>
+  </div>
+  <div class="pane" id="dp-snip">
+    <div class="bar"><input id="ds-q" placeholder="Search snippets" autocomplete="off" autocapitalize="off" spellcheck="false"><button id="ds-add"><svg class="ic"><use href="#i-plus"/></svg>Snippet</button></div>
+    <div class="form" id="ds-form" style="display:none"><input id="ds-name" placeholder="Name"><textarea id="ds-text" placeholder="Text or code" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+      <div class="bar"><button id="ds-del" class="danger">Delete</button><span style="flex:1"></span><button id="ds-cancel">Cancel</button><button id="ds-save" class="primary">Save</button></div></div>
+    <div class="list" id="ds-list"></div>
+  </div>
+</div></div>
 <div id="co"><div class="cx">
   <div class="chead"><h2>Callouts</h2><div class="row" id="co-maps"></div>
     <button id="co-close" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></div>
@@ -672,11 +752,12 @@
     <label>When tapped</label>
     <div class="seg" id="eb-type">
       <button data-t="keys"><svg class="ic"><use href="#i-keyboard"/></svg>Keys</button><button data-t="text"><svg class="ic"><use href="#i-text"/></svg>Text</button><button data-t="open"><svg class="ic"><use href="#i-launch"/></svg>Open</button>
-      <button data-t="profile"><svg class="ic"><use href="#i-swap"/></svg>Profile</button><button data-t="ha"><svg class="ic"><use href="#i-home"/></svg>Smart home</button><button data-t="obs"><svg class="ic"><use href="#i-broadcast"/></svg>OBS</button><button data-t="steps"><svg class="ic"><use href="#i-bolt"/></svg>Macro</button><button data-t="tile"><svg class="ic"><use href="#i-gauge"/></svg>Live tile</button>
+      <button data-t="profile"><svg class="ic"><use href="#i-swap"/></svg>Profile</button><button data-t="ha"><svg class="ic"><use href="#i-home"/></svg>Smart home</button><button data-t="obs"><svg class="ic"><use href="#i-broadcast"/></svg>OBS</button><button data-t="dev"><svg class="ic"><use href="#i-text"/></svg>Task</button><button data-t="mc"><svg class="ic"><use href="#i-grid"/></svg>Server</button><button data-t="steps"><svg class="ic"><use href="#i-bolt"/></svg>Macro</button><button data-t="tile"><svg class="ic"><use href="#i-gauge"/></svg>Live tile</button>
     </div>
     <div class="chips" id="eb-tile"></div>
     <input id="eb-value" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
     <select id="eb-prof"></select>
+    <select id="eb-dev"></select>
     <div id="eb-ha">
       <input id="eb-ha-ent" list="ha-ents" placeholder="light.desk, scene.movie, switch.fan…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
       <datalist id="ha-ents"></datalist>
@@ -1908,6 +1989,267 @@
   $('m-callouts').addEventListener('click', openCallouts);
   $('d-callouts').addEventListener('click', openCallouts);
 
+  // ---- Dev: build/test tasks with live output, Git, logs, Minecraft server, snippets (dev.py, mc.py)
+  const dv = { tab: 'tasks', projects: [], status: {}, proj: store.get('dv-proj', ''), task: '', n: 0, timer: null,
+    log: '', logPos: null, follow: true, snips: [], snipI: -1, edit: null };
+  const conLine = (box, text) => {
+    const d = document.createElement('div');
+    d.className = /\b(error|failed|failure|exception|fatal)\b/i.test(text) ? 'e' : /\bwarn(ing)?\b/i.test(text) ? 'w' : /\b(success(ful)?|passed|done)\b/i.test(text) ? 'k' : '';
+    d.textContent = text; box.appendChild(d);
+  };
+  const atBottom = box => box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  function trimCon(box, max = 2500) { while (box.childElementCount > max) box.firstElementChild.remove(); }
+  async function openDev() {
+    closeMenu(); $('dev').classList.add('open');
+    await devLoad(); devTab(dv.tab);
+    clearInterval(dv.timer); dv.timer = setInterval(devTick, 1000);
+  }
+  function closeDev() { $('dev').classList.remove('open'); clearInterval(dv.timer); dv.timer = null; }
+  async function devLoad() {
+    try { const j = await api('dev/projects'); dv.projects = j.projects; dv.status = j.status; }
+    catch (e) { dv.projects = []; }
+    if (!dv.projects.find(p => p.name === dv.proj)) dv.proj = dv.projects.length ? dv.projects[0].name : '';
+    renderProjs();
+  }
+  const curProj = () => dv.projects.find(p => p.name === dv.proj);
+  function renderProjs() {
+    const box = $('dv-projs'); box.innerHTML = '';
+    box.style.display = ['tasks', 'git'].includes(dv.tab) && dv.projects.length > 1 ? '' : 'none';
+    dv.projects.forEach(p => {
+      const c = document.createElement('button'); c.className = 'chip' + (p.name === dv.proj ? ' on' : ''); c.textContent = p.name;
+      c.addEventListener('click', () => { dv.proj = p.name; store.set('dv-proj', p.name); dv.task = ''; renderProjs(); devTab(dv.tab); });
+      box.appendChild(c);
+    });
+  }
+  function devTab(tab) {
+    dv.tab = tab;
+    document.querySelectorAll('#dv-tabs .chip').forEach(c => c.classList.toggle('on', c.dataset.p === tab));
+    document.querySelectorAll('#dev .pane').forEach(p => p.classList.toggle('on', p.id === 'dp-' + tab));
+    renderProjs();
+    if (tab === 'tasks') renderTasks();
+    if (tab === 'git') loadGit();
+    if (tab === 'log') renderLogSrc();
+    if (tab === 'mc') { loadMc(); fillMcConn(); }
+    if (tab === 'snip') loadSnips();
+    if (tab === 'edit') renderForm();
+  }
+  document.querySelectorAll('#dv-tabs .chip').forEach(c => c.addEventListener('click', () => devTab(c.dataset.p)));
+  function devTick() {
+    if (!$('dev').classList.contains('open') || document.hidden) return;
+    if (dv.tab === 'tasks') pollOutput();
+    if (dv.tab === 'log' && dv.follow) pollLog();
+    if (dv.tab === 'mc' && ++dv.mcN % 3 === 0) loadMc();
+  }
+  // tasks
+  function renderTasks() {
+    const p = curProj(), box = $('dv-tasks'); box.innerHTML = '';
+    if (!p) { $('dv-out').textContent = 'No projects yet. Tap Edit projects to add one: a folder and the commands you run there, like "gradlew build" or "npm test".'; $('dv-state').textContent = ''; return; }
+    if (!dv.task || !p.tasks.find(t => t.name === dv.task)) dv.task = (p.tasks.find(t => (dv.status[`${p.name}/${t.name}`] || {}).running) || p.tasks[0] || {}).name || '';
+    p.tasks.forEach(t => {
+      const st = dv.status[`${p.name}/${t.name}`], b = document.createElement('button');
+      b.className = 'task' + (st ? (st.running ? ' run' : st.code === 0 ? ' ok' : ' bad') : '') + (t.name === dv.task ? ' on' : '');
+      const dot = document.createElement('span'); dot.className = 'dot';
+      b.append(dot, t.name);
+      b.addEventListener('click', async () => {
+        if (dv.task !== t.name) { dv.task = t.name; dv.n = 0; $('dv-out').textContent = ''; renderTasks(); pollOutput(); return; }
+        if (st && st.running) return;
+        try { await api('dev/run', 'POST', { project: p.name, task: t.name }); dv.n = 0; $('dv-out').textContent = ''; }
+        catch (e) { toast(e.message); }
+        dv.status[`${p.name}/${t.name}`] = { running: true }; renderTasks(); pollOutput();
+      });
+      b.addEventListener('dblclick', e => e.preventDefault());
+      box.appendChild(b);
+    });
+    if (!p.tasks.length) $('dv-out').textContent = 'This project has no tasks yet. Tap Edit projects.';
+    pollOutput();
+  }
+  async function pollOutput() {
+    const p = curProj(); if (!p || !dv.task || dv.outBusy) return;
+    let j;
+    const task = dv.task;
+    dv.outBusy = true;
+    try { j = await api(`dev/output?project=${encodeURIComponent(p.name)}&task=${encodeURIComponent(task)}&since=${dv.n}`); }
+    catch (e) { return; }
+    finally { dv.outBusy = false; }
+    if (task !== dv.task) return;
+    const out = $('dv-out'), stick = atBottom(out);
+    if (!j.key) { if (!out.childElementCount) out.textContent = `Tap ${dv.task} again to run it.\n\n${(p.tasks.find(t => t.name === dv.task) || {}).cmd || ''}`; $('dv-state').textContent = ''; $('dv-stop').style.display = 'none'; return; }
+    if (dv.n === 0) { out.textContent = ''; const m = document.createElement('div'); m.className = 'm'; m.textContent = `> ${j.cmd}`; out.appendChild(m); }
+    if (j.from > dv.n && dv.n) { const m = document.createElement('div'); m.className = 'm'; m.textContent = '…'; out.appendChild(m); }
+    j.lines.slice(Math.max(0, dv.n - j.from)).forEach(l => conLine(out, l)); trimCon(out);
+    dv.n = j.n;
+    if (stick) out.scrollTop = out.scrollHeight;
+    $('dv-state').textContent = j.running ? `Running · ${Math.round(j.seconds)} s` : `${j.stopped ? 'Stopped' : j.code === 0 ? 'Finished' : `Failed (exit code ${j.code})`} after ${j.seconds} s · tap ${dv.task} again to run it again`;
+    $('dv-stop').style.display = j.running ? '' : 'none';
+    const key = `${p.name}/${dv.task}`, was = dv.status[key];
+    dv.status[key] = { running: j.running, code: j.stopped ? 0 : j.code, seconds: j.seconds };
+    if (!was || was.running !== j.running || was.code !== j.code) renderTaskDots();
+  }
+  function renderTaskDots() {
+    const p = curProj(); if (!p) return;
+    [...$('dv-tasks').children].forEach((b, i) => {
+      const t = p.tasks[i], st = t && dv.status[`${p.name}/${t.name}`];
+      b.classList.toggle('run', !!(st && st.running)); b.classList.toggle('ok', !!(st && !st.running && st.code === 0)); b.classList.toggle('bad', !!(st && !st.running && st.code !== 0 && st.code != null));
+    });
+  }
+  $('dv-stop').addEventListener('click', async () => { const p = curProj(); if (p && dv.task) await api('dev/stop', 'POST', { project: p.name, task: dv.task }).catch(e => toast(e.message)); });
+  // the project editor
+  $('dv-edit').addEventListener('click', () => { dv.edit = clone(dv.projects); if (!dv.edit.length) dv.edit.push({ name: 'My project', folder: '', log: '', tasks: [{ name: 'Build', cmd: '' }] }); devTab('edit'); });
+  function renderForm() {
+    const f = $('dv-form'); f.innerHTML = ''; $('dv-ferr').textContent = '';
+    const inp = (v, ph, set, cls) => { const i = document.createElement('input'); i.value = v || ''; i.placeholder = ph; i.autocapitalize = 'off'; i.spellcheck = false; i.addEventListener('input', () => set(i.value)); if (cls) i.className = cls; return i; };
+    dv.edit.forEach((p, pi) => {
+      const card = document.createElement('div'); card.className = 'card form';
+      const head = document.createElement('div'); head.className = 'trow';
+      const del = document.createElement('button'); del.textContent = 'Remove'; del.className = 'danger';
+      del.addEventListener('click', () => { dv.edit.splice(pi, 1); renderForm(); });
+      head.append(inp(p.name, 'Project name', v => { p.name = v; }), del);
+      card.append(head, inp(p.folder, 'Folder on the PC, like C:\\Code\\mymod', v => { p.folder = v; }),
+        inp(p.log, 'Log file to follow (optional), like run\\logs\\latest.log', v => { p.log = v; }));
+      p.tasks.forEach((t, ti) => {
+        const row = document.createElement('div'); row.className = 'trow';
+        const x = document.createElement('button'); x.appendChild(ico('trash'));
+        x.addEventListener('click', () => { p.tasks.splice(ti, 1); renderForm(); });
+        row.append(inp(t.name, 'Name', v => { t.name = v; }), inp(t.cmd, 'Command, like gradlew build or npm test', v => { t.cmd = v; }), x);
+        card.appendChild(row);
+      });
+      const add = document.createElement('button'); add.className = 'addstep'; add.type = 'button'; add.append(ico('plus'), 'Task');
+      add.addEventListener('click', () => { p.tasks.push({ name: '', cmd: '' }); renderForm(); });
+      card.appendChild(add); f.appendChild(card);
+    });
+  }
+  $('dv-addproj').addEventListener('click', () => { dv.edit.push({ name: '', folder: '', log: '', tasks: [{ name: 'Build', cmd: '' }] }); renderForm(); });
+  $('dv-fcancel').addEventListener('click', () => devTab('tasks'));
+  $('dv-fsave').addEventListener('click', async () => {
+    try { await putHostSettings({ dev_projects: dv.edit }); await devLoad(); devTab('tasks'); }
+    catch (e) { $('dv-ferr').textContent = e.message; }
+  });
+  // git
+  async function loadGit(msg) {
+    const p = curProj();
+    $('dg-msg').textContent = msg || '';
+    if (!p) { $('dg-branch').textContent = '–'; $('dg-sub').textContent = 'Add a project with a folder in Tasks > Edit projects.'; $('dg-list').innerHTML = ''; return; }
+    let g;
+    try { g = await api('dev/git?project=' + encodeURIComponent(p.name)); }
+    catch (e) { $('dg-branch').textContent = p.name; $('dg-sub').textContent = e.message; $('dg-list').innerHTML = ''; return; }
+    $('dg-branch').textContent = g.branch || '(no branch)';
+    $('dg-sub').textContent = [p.name, g.changed ? `${g.changed} changed` : 'nothing changed',
+      g.upstream ? (g.ahead || g.behind ? [g.ahead && `${g.ahead} to push`, g.behind && `${g.behind} to pull`].filter(Boolean).join(', ') : 'up to date') : 'no upstream branch'].join(' · ');
+    const box = $('dg-list'); box.innerHTML = '';
+    const row = (code, text) => { const d = document.createElement('div'); d.className = 'li'; const c = document.createElement('code'); c.textContent = code; const t = document.createElement('span'); t.textContent = text; d.append(c, t); box.appendChild(d); };
+    g.files.forEach(f => row(f.st.padEnd(2, ' '), f.path));
+    if (g.log.length) { const h = document.createElement('div'); h.className = 'sub'; h.style.marginTop = '8px'; h.textContent = 'Recent commits'; box.appendChild(h); }
+    g.log.forEach(c => row(c.hash, `${c.subject}  ·  ${c.author}, ${ago(new Date(c.time * 1000).toISOString())}`));
+  }
+  document.querySelectorAll('#dp-git [data-g]').forEach(b => b.addEventListener('click', async () => {
+    const p = curProj(); if (!p) return;
+    $('dg-msg').textContent = `git ${b.dataset.g}…`;
+    try { const j = await api('dev/git', 'POST', { project: p.name, do: b.dataset.g }); loadGit(j.ok); }
+    catch (e) { $('dg-msg').textContent = e.message; }
+  }));
+  // logs
+  function logSources() {
+    const out = dv.projects.filter(p => p.log).map(p => ({ id: 'p:' + p.name, name: p.name, q: 'project=' + encodeURIComponent(p.name) }));
+    if (hostSet && hostSet.mc_folder) out.push({ id: 'mc', name: 'Minecraft server', q: 'source=mc' });
+    return out;
+  }
+  async function renderLogSrc() {
+    if (!hostSet) await loadHostSettings();
+    const srcs = logSources(), box = $('dl-src'); box.innerHTML = '';
+    if (!srcs.find(x => x.id === dv.log)) { dv.log = srcs.length ? srcs[0].id : ''; dv.logPos = null; $('dl-out').textContent = ''; }
+    srcs.forEach(x => {
+      const c = document.createElement('button'); c.className = 'chip' + (x.id === dv.log ? ' on' : ''); c.textContent = x.name;
+      c.addEventListener('click', () => { dv.log = x.id; dv.logPos = null; $('dl-out').textContent = ''; renderLogSrc(); });
+      box.appendChild(c);
+    });
+    if (!srcs.length) $('dl-out').textContent = 'No logs yet. Add a log file to a project (Tasks > Edit projects), or the server folder in Server > Connection.';
+    else pollLog();
+  }
+  async function pollLog() {
+    const x = logSources().find(s => s.id === dv.log); if (!x || dv.logBusy) return;
+    dv.logBusy = true;
+    try {
+      const j = await api(`dev/log?${x.q}${dv.logPos != null ? '&since=' + dv.logPos : ''}`);
+      const out = $('dl-out'), stick = atBottom(out);
+      if (j.reset) { const m = document.createElement('div'); m.className = 'm'; m.textContent = '(the log started over)'; out.appendChild(m); }
+      if (j.text) j.text.replace(/\n$/, '').split('\n').forEach(l => conLine(out, l));
+      trimCon(out); dv.logPos = j.pos; $('dl-msg').textContent = '';
+      if (stick) out.scrollTop = out.scrollHeight;
+    } catch (e) { $('dl-msg').textContent = e.message; }
+    finally { dv.logBusy = false; }
+  }
+  $('dl-follow').addEventListener('click', () => { dv.follow = !dv.follow; $('dl-follow').classList.toggle('on', dv.follow); });
+  $('dl-clear').addEventListener('click', () => { $('dl-out').textContent = ''; });
+  // minecraft
+  dv.mcN = 0;
+  async function loadMc() {
+    let m;
+    try { m = await api('dev/mc'); } catch (e) { m = { online: false, error: e.message }; }
+    $('dm-big').textContent = m.online ? `${m.players}${m.max ? ' / ' + m.max : ''} online` : 'Not connected';
+    $('dm-sub').textContent = m.online ? [m.tps != null ? `${m.tps.toFixed(2)} TPS` : 'TPS: this server type doesn\'t report it', m.names.join(', ')].filter(Boolean).join(' · ') : m.error;
+  }
+  async function mcSend(cmd) {
+    const out = $('dm-out'), m = document.createElement('div'); m.className = 'm'; m.textContent = '> ' + cmd; out.appendChild(m);
+    try { const j = await api('dev/mc', 'POST', { cmd }); if (j.answer) j.answer.split('\n').forEach(l => conLine(out, l)); }
+    catch (e) { conLine(out, 'error: ' + e.message); }
+    trimCon(out, 500); out.scrollTop = out.scrollHeight; loadMc();
+  }
+  document.querySelectorAll('#dp-mc [data-mc]').forEach(b => b.addEventListener('click', () => mcSend(b.dataset.mc)));
+  $('dm-stop').addEventListener('click', e => armDelete(e.currentTarget, 'Tap again to stop', () => mcSend('stop')));
+  $('dm-send').addEventListener('click', () => { const c = $('dm-cmd').value.trim(); if (c) { mcSend(c); $('dm-cmd').value = ''; } });
+  $('dm-cmd').addEventListener('keydown', e => { if (e.key === 'Enter') $('dm-send').click(); });
+  async function fillMcConn() {
+    if (!hostSet) await loadHostSettings();
+    if (!hostSet) return;
+    $('dm-host').value = hostSet.mc_host || ''; $('dm-port').value = hostSet.mc_port || 25575; $('dm-folder').value = hostSet.mc_folder || '';
+    $('dm-pw').placeholder = hostSet.mc_password ? 'Password saved (type a new one to change it)' : 'rcon.password from server.properties';
+  }
+  $('dm-save').addEventListener('click', async () => {
+    const ch = { mc_host: $('dm-host').value.trim() || '127.0.0.1', mc_port: parseInt($('dm-port').value, 10) || 25575, mc_folder: $('dm-folder').value.trim() };
+    if ($('dm-pw').value) ch.mc_password = $('dm-pw').value;
+    try { await putHostSettings(ch); $('dm-pw').value = ''; await loadMc(); $('dm-msg').textContent = $('dm-big').textContent === 'Not connected' ? $('dm-sub').textContent : 'Connected.'; fillMcConn(); }
+    catch (e) { $('dm-msg').textContent = e.message; }
+  });
+  // snippets
+  async function loadSnips() { try { dv.snips = (await api('dev/snippets')).snippets; } catch (e) { dv.snips = []; } renderSnips(); }
+  function renderSnips() {
+    const q = $('ds-q').value.trim().toLowerCase(), box = $('ds-list'); box.innerHTML = '';
+    dv.snips.forEach((sn, i) => {
+      if (q && !(sn.name + ' ' + sn.text).toLowerCase().includes(q)) return;
+      const row = document.createElement('div'); row.className = 'snip';
+      const tx = document.createElement('div'); tx.className = 'tx';
+      const n = document.createElement('b'); n.textContent = sn.name || sn.text.split('\n')[0].slice(0, 40);
+      const pre = document.createElement('pre'); pre.textContent = sn.text; tx.append(n, pre);
+      const typeB = document.createElement('button'); typeB.textContent = 'Type';
+      typeB.addEventListener('click', async () => { try { await api('dev/snippet', 'POST', { text: sn.text, do: 'type' }); toast('Typed on the PC'); } catch (e) { toast(e.message); } });
+      const copyB = document.createElement('button'); copyB.textContent = 'Copy';
+      copyB.addEventListener('click', async () => { try { await api('dev/snippet', 'POST', { text: sn.text, do: 'copy' }); toast('On the PC\'s clipboard'); } catch (e) { toast(e.message); } });
+      const ed = document.createElement('button'); ed.appendChild(ico('pen'));
+      ed.addEventListener('click', () => snipForm(i));
+      row.append(tx, typeB, copyB, ed); box.appendChild(row);
+    });
+    if (!box.childElementCount) { const e = document.createElement('div'); e.className = 'sub'; e.textContent = dv.snips.length ? 'No snippet matches.' : 'No snippets yet. Save code, commands or text you type often, then type it on the PC or copy it to the PC\'s clipboard with one tap.'; box.appendChild(e); }
+  }
+  function snipForm(i) {
+    dv.snipI = i; const sn = i >= 0 ? dv.snips[i] : { name: '', text: '' };
+    $('ds-name').value = sn.name; $('ds-text').value = sn.text; $('ds-del').style.display = i >= 0 ? '' : 'none';
+    $('ds-form').style.display = ''; $('ds-list').style.display = 'none'; $('ds-text').focus();
+  }
+  function snipDone() { $('ds-form').style.display = 'none'; $('ds-list').style.display = ''; renderSnips(); }
+  async function snipSave(list) { try { dv.snips = (await api('dev/snippets', 'PUT', list)).snippets; snipDone(); } catch (e) { toast(e.message); } }
+  $('ds-add').addEventListener('click', () => snipForm(-1));
+  $('ds-cancel').addEventListener('click', snipDone);
+  $('ds-save').addEventListener('click', () => {
+    const list = clone(dv.snips), sn = { name: $('ds-name').value.trim(), text: $('ds-text').value };
+    if (dv.snipI >= 0) list[dv.snipI] = sn; else list.unshift(sn);
+    snipSave(list);
+  });
+  $('ds-del').addEventListener('click', e => armDelete(e.currentTarget, 'Tap again', () => { const list = clone(dv.snips); list.splice(dv.snipI, 1); snipSave(list); }));
+  $('ds-q').addEventListener('input', renderSnips);
+  $('m-dev').addEventListener('click', openDev);
+  $('d-dev').addEventListener('click', openDev);
+  $('dv-close').addEventListener('click', closeDev);
+
   $('m-clips').addEventListener('click', () => openClips(false));
   $('d-clips').addEventListener('click', () => openClips(false));
   $('cl-close').addEventListener('click', () => { closePlayer(); $('clips').classList.remove('open'); });
@@ -1946,7 +2288,7 @@
   // load with a graph of the last minute, memory, what's playing, the time.
   // Smart home buttons light up while their light or switch is on. The PC is
   // only asked while tiles are on screen.
-  const TILE_KINDS = { cpu: ['CPU', 'cpu'], gpu: ['GPU', 'gpu'], fps: ['Game FPS', 'gamepad'], ram: ['Memory', 'layers'], media: ['Now playing', 'music'], clock: ['Clock', 'clock'], obs: ['OBS', 'broadcast'], chat: ['Twitch chat', 'chat'] };
+  const TILE_KINDS = { cpu: ['CPU', 'cpu'], gpu: ['GPU', 'gpu'], fps: ['Game FPS', 'gamepad'], ram: ['Memory', 'layers'], media: ['Now playing', 'music'], clock: ['Clock', 'clock'], obs: ['OBS', 'broadcast'], chat: ['Twitch chat', 'chat'], mc: ['Minecraft server', 'grid'], git: ['Git', 'layers'] };
   const HA_ON = ['on', 'open', 'playing', 'unlocked', 'home'];
   let tileEls = [], haEls = [], obsEls = [], tileData = null, tileN = 0, tileBusy = false;
   const span = (cls, txt) => { const e = document.createElement('span'); e.className = cls; if (txt) e.textContent = txt; return e; };
@@ -2022,6 +2364,24 @@
           o.streaming && o.kbps != null && `${(o.kbps / 1000).toFixed(1)} Mb/s`,
           o.replay_saved != null && o.replay_saved < 5 && 'Replay saved'].filter(Boolean).join(' · ');
       }
+      return;
+    }
+    if (b.tile === 'mc') {
+      const m = d.mc;
+      if (!m || !m.online) { val(t, 'Off'); t.ts.textContent = m && /password|Settings/.test(m.error || '') ? 'Set up in Dev > Server' : 'Server not running'; }
+      else {
+        val(t, String(m.players), m.max ? `/ ${m.max}` : 'online');
+        t.ts.textContent = [m.tps != null && `${m.tps.toFixed(1)} TPS`, m.names.join(', ')].filter(Boolean).join(' · ') || 'Nobody online';
+        t.k.classList.toggle('hot', m.tps != null && m.tps < 15);
+      }
+      return;
+    }
+    if (b.tile === 'git') {
+      const g = d.git;
+      if (!g || g.error) { val(t, '–'); t.ts.textContent = g ? g.error : ''; return; }
+      val(t, g.branch || '(no branch)');
+      t.ts.textContent = [g.changed ? `${g.changed} changed` : 'clean', g.ahead && `${g.ahead} to push`, g.behind && `${g.behind} to pull`,
+        g.log && g.log[0] && g.log[0].subject].filter(Boolean).join(' · ');
       return;
     }
     if (b.tile === 'cpu') {
@@ -2208,7 +2568,7 @@
   let profiles = null, inDeck = false, editing = false, editName = null;
   let deckPoll = null, switching = false, reapply = false, offline = false;
   async function api(path, method = 'GET', body) {
-    const r = await fetch(`/api/${path}?pin=${encodeURIComponent(store.get('pin', ''))}`, {
+    const r = await fetch(`/api/${path}${path.includes('?') ? '&' : '?'}pin=${encodeURIComponent(store.get('pin', ''))}`, {
       method, headers: body ? { 'Content-Type': 'application/json' } : {},
       body: body ? JSON.stringify(body) : undefined });
     const j = await r.json().catch(() => ({}));
@@ -2444,6 +2804,8 @@
   };
   HINTS.ha = 'Pick a light, scene, script or switch. Tapping toggles it (scenes and scripts run). Set up Home Assistant in Settings > Buttons first.';
   HINTS.steps = 'Runs each step in order. Use Wait between steps that need a moment, like an app opening.';
+  HINTS.dev = 'Runs a build or test task from Dev on the PC. Its output shows in Dev on the iPad.';
+  HINTS.mc = 'A Minecraft server console command, like say, whitelist add or save-all. Set the server up in Dev > Server.';
   HINTS.obs = 'Set up OBS in Settings > Buttons first. The button lights up while OBS is live or recording, on that scene, or while that source is muted.';
   const TILE_HINTS = {
     cpu: 'CPU use with a graph of the last minute. For the temperature, run LibreHardwareMonitor on the PC with Options > Remote Web Server turned on.',
@@ -2454,10 +2816,12 @@
     clock: 'The time and date.',
     obs: 'Whether OBS is live or recording and for how long, the scene, and while live the dropped frames and bitrate. Set up OBS in Settings > Buttons.',
     chat: 'Your Twitch chat, live. It takes four spaces. Type your channel in Settings > Buttons > Twitch chat.',
+    mc: 'Players online and TPS of your Minecraft server. Set it up in Dev > Server.',
+    git: 'The branch, changed files and what to push or pull for the first project in Dev.',
   };
-  const PLACE = { keys: 'ctrl+shift+m', text: 'gg wp', open: 'obs64.exe', profile: '' };
-  const TYPES = ['tile', 'steps', 'ha', 'obs', 'keys', 'text', 'open', 'profile'];
-  const STEP_TYPES = { keys: 'Press keys', text: 'Type text', open: 'Open', wait: 'Wait (ms)', ha: 'Smart home', obs: 'OBS', profile: 'Profile' };
+  const PLACE = { keys: 'ctrl+shift+m', text: 'gg wp', open: 'obs64.exe', profile: '', mc: 'say Server restarting in 5 minutes' };
+  const TYPES = ['tile', 'steps', 'ha', 'obs', 'dev', 'mc', 'keys', 'text', 'open', 'profile'];
+  const STEP_TYPES = { keys: 'Press keys', text: 'Type text', open: 'Open', wait: 'Wait (ms)', ha: 'Smart home', obs: 'OBS', mc: 'Server command', profile: 'Profile' };
   const OBS_DO = { stream: ['Go live / end', 'broadcast', 'Go live'], record: ['Record', 'record', 'Record'],
     pause: ['Pause recording', 'pause', 'Pause rec'], replay: ['Save replay', 'clip', 'Save replay'],
     replay_buffer: ['Replay buffer on / off', 'save', 'Replay buffer'], scene: ['Switch scene', 'film', ''],
@@ -2476,7 +2840,7 @@
       sel.value = st.kind;
       const inp = document.createElement('input');
       inp.value = st.value; inp.autocapitalize = 'off'; inp.spellcheck = false;
-      inp.placeholder = { keys: 'ctrl+shift+m', text: 'brb', open: 'obs64.exe', wait: '500', ha: 'light.desk', obs: 'stream, record, replay, scene:Game, mute:Mic/Aux', profile: 'Gaming' }[st.kind];
+      inp.placeholder = { keys: 'ctrl+shift+m', text: 'brb', open: 'obs64.exe', wait: '500', ha: 'light.desk', obs: 'stream, record, replay, scene:Game, mute:Mic/Aux', mc: 'say Restarting in 1 minute', profile: 'Gaming' }[st.kind];
       if (st.kind === 'ha') inp.setAttribute('list', 'ha-ents');
       inp.addEventListener('input', () => { st.value = inp.value; });
       sel.addEventListener('change', () => { st.kind = sel.value; renderSteps(); });
@@ -2490,7 +2854,7 @@
       if ('wait' in st) return { kind: 'wait', value: String(st.wait) };
       if ('ha' in st) return { kind: 'ha', value: st.ha.entity || st.ha.service || '' };
       if ('obs' in st) return { kind: 'obs', value: st.obs.do + (st.obs.scene || st.obs.input ? ':' + (st.obs.scene || st.obs.input) : '') };
-      const k = ['keys', 'text', 'open', 'profile'].find(t => t in st) || 'keys';
+      const k = ['keys', 'text', 'open', 'profile', 'mc'].find(t => t in st) || 'keys';
       return { kind: k, value: String(st[k] || '') };
     });
   }
@@ -2541,6 +2905,15 @@
     $('eb-obs-name').placeholder = need === 'scene' ? 'Scene name, as in OBS' : 'Mic/Aux, Desktop Audio…';
     loadObsNames();
   }
+  async function fillDevSelect() {
+    const sel = $('eb-dev'); sel.innerHTML = '';
+    try {
+      const j = await api('dev/projects');
+      j.projects.forEach(p => p.tasks.forEach(t => { const o = document.createElement('option'); o.value = `${p.name}\n${t.name}`; o.textContent = `${p.name}: ${t.name}`; sel.appendChild(o); }));
+    } catch (e) { /* older host */ }
+    if (!sel.options.length) { const o = document.createElement('option'); o.value = ''; o.textContent = 'Add a project with tasks in Dev first'; sel.appendChild(o); }
+    if (eb.dev) sel.value = eb.dev;
+  }
   let eb = null;                                  // { name, i, type }
   function editButton(name, i) {
     const p = prof(name), b = i >= 0 ? p.buttons[i] : { icon: 'i:star', label: '' };
@@ -2552,7 +2925,8 @@
     $('eb-icon').value = eb.icon.startsWith('i:') ? '' : eb.icon; $('eb-label').value = b.label || '';
     iconInto($('eb-prev'), eb.icon);
     iconPicker($('eb-pick'), eb.icon, v => { eb.icon = v; $('eb-icon').value = ''; iconInto($('eb-prev'), v); });
-    $('eb-value').value = ['keys', 'text', 'open'].includes(eb.type) ? (b[eb.type] || '') : '';
+    $('eb-value').value = ['keys', 'text', 'open', 'mc'].includes(eb.type) ? (b[eb.type] || '') : '';
+    eb.dev = b.dev ? `${b.dev.project}\n${b.dev.task}` : '';
     const sel = $('eb-prof'); sel.innerHTML = '';
     profiles.profiles.forEach(q => { const o = document.createElement('option'); o.value = o.textContent = q.name; sel.appendChild(o); });
     sel.value = b.profile || (profiles.profiles.find(q => q.name !== name) || p).name;
@@ -2562,7 +2936,9 @@
   }
   function markType() {
     document.querySelectorAll('#eb-type [data-t]').forEach(x => x.classList.toggle('on', x.dataset.t === eb.type));
-    $('eb-value').style.display = ['keys', 'text', 'open'].includes(eb.type) ? '' : 'none';
+    $('eb-value').style.display = ['keys', 'text', 'open', 'mc'].includes(eb.type) ? '' : 'none';
+    $('eb-dev').style.display = eb.type === 'dev' ? '' : 'none';
+    if (eb.type === 'dev') fillDevSelect();
     $('eb-prof').style.display = eb.type === 'profile' ? '' : 'none';
     $('eb-ha').style.display = eb.type === 'ha' ? '' : 'none';
     $('eb-steps').style.display = eb.type === 'steps' ? '' : 'none';
@@ -2606,6 +2982,9 @@
     else if (eb.type === 'ha') {
       const ent = $('eb-ha-ent').value.trim(), svc = $('eb-ha-svc').value.trim();
       v = (ent || svc) ? { entity: ent, ...(svc ? { service: svc } : {}) } : '';
+    } else if (eb.type === 'dev') {
+      const [project, task] = ($('eb-dev').value || '').split('\n');
+      v = task ? { project, task } : '';
     } else if (eb.type === 'obs') {
       const need = OBS_NEED[eb.obs.do], n = $('eb-obs-name').value.trim();
       if (need && !n) { $('eb-err').textContent = need === 'scene' ? 'Type the scene to switch to.' : 'Type the sound source to mute.'; return; }
@@ -2613,7 +2992,7 @@
     } else v = $('eb-value').value.trim();
     if (!v || (Array.isArray(v) && !v.length)) { $('eb-err').textContent = 'Fill in what the button does.'; return; }
     const fallback = eb.type === 'steps' ? 'Macro' : eb.type === 'ha' ? (v.entity || v.service) : eb.type === 'tile' ? TILE_KINDS[v][0]
-      : eb.type === 'obs' ? (v.scene || (v.input ? `Mute ${v.input}` : OBS_DO[v.do][2])) : v;
+      : eb.type === 'obs' ? (v.scene || (v.input ? `Mute ${v.input}` : OBS_DO[v.do][2])) : eb.type === 'dev' ? v.task : v;
     const b = { label: $('eb-label').value.trim() || fallback, icon: eb.icon || 'i:star', [eb.type]: v };
     const data = clone(profiles), q = data.profiles.find(x => x.name === eb.name);
     if (eb.i >= 0) q.buttons[eb.i] = b; else q.buttons.push(b);

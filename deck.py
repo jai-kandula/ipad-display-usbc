@@ -15,7 +15,9 @@ A button runs one action:
                                  actions in order, with pauses (ms) between them
   {"obs": {"do": "stream" | "record" | "replay" | "scene" | "mute" | ...,
            "scene": "Game", "input": "Mic/Aux"}}   OBS Studio (see obs.py)
-  {"tile": "cpu" | "gpu" | "ram" | "media" | "clock" | "fps" | "obs" | "chat"}
+  {"dev": {"project": "Mod", "task": "Build"}}   run a task (see dev.py)
+  {"mc": "say Restarting in 5 minutes"}   a Minecraft server command (mc.py)
+  {"tile": "cpu" | "gpu" | "ram" | "media" | "clock" | "fps" | "obs" | "chat" | "mc" | "git"}
                                  a live tile that shows numbers from the PC
                                  (see stats.py), what OBS is doing, or your
                                  Twitch chat; tapping the media tile plays or
@@ -127,8 +129,8 @@ def save(data):
     return data
 
 
-STEP_KINDS = ("keys", "text", "open", "profile", "ha", "obs", "wait")
-TILES = ("cpu", "gpu", "ram", "media", "clock", "fps", "obs", "chat")
+STEP_KINDS = ("keys", "text", "open", "profile", "ha", "obs", "dev", "mc", "wait")
+TILES = ("cpu", "gpu", "ram", "media", "clock", "fps", "obs", "chat", "mc", "git")
 MAX_STEPS, MAX_WAIT_MS = 30, 10000
 
 
@@ -145,6 +147,12 @@ def _check(b, in_macro=False):
     if "obs" in b:
         import obs
         obs.check(b["obs"])
+    if "dev" in b:
+        d = b["dev"]
+        if not isinstance(d, dict) or not d.get("project") or not d.get("task"):
+            raise ValueError("a task button needs a project and a task")
+    if "mc" in b and not str(b["mc"]).strip():
+        raise ValueError("a Minecraft button needs a command")
     if "wait" in b:
         b["wait"] = max(0, min(MAX_WAIT_MS, int(b["wait"])))
     if "steps" in b:
@@ -230,6 +238,14 @@ def run(button, inp, switch_profile):
     if "obs" in button:
         import obs
         obs.do(button["obs"])
+        return
+    if "dev" in button:                   # run a build / test task (its output shows in Dev on the iPad)
+        import dev
+        dev.run(str(button["dev"]["project"]), str(button["dev"]["task"]))
+        return
+    if "mc" in button:                    # a Minecraft server console command
+        import mc
+        mc.command(str(button["mc"]))
         return
     if "keys" in button:
         mods, vk = parse_keys(button["keys"])

@@ -149,6 +149,16 @@ Buttons can drive OBS Studio directly (no hotkeys needed): go live or end the st
 
 The **Twitch chat** tile shows your chat live. Type your channel name in **Settings > Buttons > Twitch chat**. It reads chat straight from Twitch on the iPad (read-only, no login), so the laptop does nothing for it.
 
+### Dev: build and test, Git, logs, Minecraft server, snippets
+
+Tap **Dev** on the deck (or **☰ > Dev**). Everything here runs only when you open it or tap something.
+
+- **Tasks**: tap **Edit projects**, add a project (a name and its folder, like `C:\Code\mymod`) and its commands, like `gradlew build`, `gradlew runClient` or `npm test`. Tap a task to see it, tap it again to run it. Its output scrolls by live (errors in red, warnings in yellow), with a dot that turns green or red when it ends and a **Stop** button. A deck button can run a task too (button type **Task**).
+- **Git**: the branch, changed files, what there is to push or pull, the last commits, and **Fetch**, **Pull** (fast-forward only, so it never makes a merge) and **Push**. The **Git** live tile shows the first project.
+- **Logs**: follows a project's log file (set it in the project, like `run\logs\latest.log`) or the Minecraft server's log, live.
+- **Server**: your Minecraft server over RCON: who's online, TPS (Paper, Purpur, Spigot, Forge and NeoForge report it), Save world, Stop server (tap twice), and any console command. In the server's `server.properties` set `enable-rcon=true` and `rcon.password=...`, restart it, then fill in **Connection** on this screen (and the server folder, for its log). The **Minecraft server** live tile shows players and TPS; a deck button can send a command (button type **Server**).
+- **Snippets**: code, commands or text you use often. **Type** types it into the window in front on the PC; **Copy** puts it on the PC's clipboard.
+
 ### Siege callouts (your own map pictures)
 
 Tap **Callouts** on the deck (or **☰ > Callouts**) to see your map callout pictures on the iPad. Put them on the laptop in the `callouts` folder in this folder (the Callouts screen has a button that opens it): one folder per map, one picture per floor, for example `callouts\Bank\1 Basement.png`, `2 First floor.png`, `3 Second floor.png`, `4 Roof.png`. The number in front only sets the order. Pinch to zoom, drag to move, double-tap to see the whole floor. Draw on the map with the Pencil (or turn on **Draw with finger**) to plan a strat with your team; each floor keeps its own drawing until you tap **Clear**.
