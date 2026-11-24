@@ -328,6 +328,32 @@
   body.rec #fab::after { content: ''; position: absolute; right: -3px; top: -3px; width: 12px; height: 12px; border-radius: 50%;
     background: #ff4d5e; box-shadow: 0 0 0 2px #000; animation: recblink 1.4s infinite; }
   @keyframes recblink { 50% { opacity: .35; } }
+  /* clip browser */
+  #clips { position: fixed; inset: 0; z-index: 30; display: none; background: rgba(8,9,12,.97); }
+  #clips.open { display: block; }
+  #clips .cx { position: absolute; inset: 0; padding: calc(16px + env(safe-area-inset-top)) 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+  #clips .chead { display: flex; align-items: center; gap: 12px; }
+  #clips .chead h2 { margin: 0; font-size: 22px; flex: none; }
+  #clips .chead input { flex: 1; max-width: 360px; margin: 0; }
+  #clips .chead button { margin: 0 0 0 auto; width: 40px; height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center; }
+  #cl-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; align-content: start; }
+  .clip { margin: 0; padding: 0; border: 0; border-radius: 14px; overflow: hidden; text-align: left; background: #15171c; color: #e8ebf0;
+    box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+  .clip .th { aspect-ratio: 16 / 9; background: #0d0f13 center / cover; position: relative; display: grid; place-items: center; }
+  .clip .th svg.ic { width: 34px; height: 34px; color: #3a404c; }
+  .clip .th.has svg.ic { display: none; }
+  .clip .dur { position: absolute; right: 8px; bottom: 8px; padding: 2px 6px; border-radius: 6px; font-size: 12px; background: rgba(0,0,0,.7); }
+  .clip .src { position: absolute; left: 8px; top: 8px; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 600;
+    background: rgba(20,22,28,.8); color: #cfd5df; letter-spacing: .03em; }
+  .clip .ct { padding: 9px 11px 11px; } .clip .ct b { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .clip .ct small { color: #8f98a8; font-size: 12.5px; }
+  #cl-player { position: absolute; inset: 0; display: none; flex-direction: column; background: #000; }
+  #cl-player.open { display: flex; }
+  #cl-player video { flex: 1; min-height: 0; width: 100%; background: #000; }
+  .cl-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); background: #101217; }
+  .cl-bar span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .cl-bar button { width: auto; margin: 0; display: inline-flex; align-items: center; gap: 7px; }
+  .cl-bar svg.ic { width: 17px; height: 17px; }
   #toast { position: fixed; z-index: 25; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     padding: 9px 16px; border-radius: 18px; background: rgba(20,22,28,.85); font-size: 15px; pointer-events: none;
     opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
@@ -412,6 +438,7 @@
   </div>
   <div class="qlabel">View</div>
   <button class="qrow" id="m-zoom"><svg class="ic"><use href="#i-fit"/></svg>Fit whole screen</button>
+  <button class="qrow" id="m-clips"><svg class="ic"><use href="#i-film"/></svg>Clips<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
   <button class="qrow" id="m-rec"><svg class="ic"><use href="#i-record"/></svg><span id="m-rec-t">Record the iPad screen</span></button>
   <button class="qrow" id="m-tablet"><svg class="ic"><use href="#i-pen"/></svg><span id="m-tablet-t">Drawing tablet</span></button>
   <button class="qrow" id="m-apps"><svg class="ic"><use href="#i-window"/></svg>Apps on the iPad<svg class="ic chev"><use href="#i-chev-right"/></svg></button>
@@ -546,6 +573,7 @@
     <div id="chips"></div>
     <button id="d-prof" style="display:none"><svg class="ic"><use href="#i-sliders"/></svg>Profile</button>
     <button id="d-add" style="display:none"><svg class="ic"><use href="#i-plus"/></svg>Profile</button>
+    <button id="d-clips"><svg class="ic"><use href="#i-film"/></svg>Clips</button>
     <button id="d-edit">Edit</button>
   </div>
   <div id="grid"></div>
@@ -554,6 +582,19 @@
 <button id="tab" aria-label="Buttons"><svg class="ic"><use href="#i-chev-left"/></svg></button>
 <div id="strip"></div>
 
+<div id="clips"><div class="cx">
+  <div class="chead"><h2>Clips</h2><input id="cl-q" placeholder="Search" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="cl-close" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></div>
+  <div class="chips" id="cl-src"></div>
+  <div id="cl-grid"></div>
+  <div class="note" id="cl-msg"></div>
+</div>
+<div id="cl-player"><video id="cl-video" controls playsinline preload="metadata"></video>
+  <div class="cl-bar"><span id="cl-title"></span>
+    <button id="cl-pc"><svg class="ic"><use href="#i-monitor"/></svg>Play on PC</button>
+    <button id="cl-show"><svg class="ic"><use href="#i-folder"/></svg>Show in folder</button>
+    <button id="cl-back"><svg class="ic"><use href="#i-close"/></svg></button></div></div>
+</div>
 <div id="sheetbg"><div id="sheet">
   <div id="ed-btn">
     <h2>Button</h2>
@@ -1592,6 +1633,79 @@
     soundOn = !soundOn; store.set('sound', soundOn ? '1' : '0'); markSound();
     if (soundOn) soundUnlock(); else soundStop();
   });
+  // ---- clip browser: NVIDIA, Medal, Insights, Outplayed and any folder or app (clips.py)
+  let clipData = null, clipSrc = '', clipShown = null;
+  const pinQ = () => `pin=${encodeURIComponent(store.get('pin', ''))}`;
+  function ago(iso) {
+    const s = (Date.now() - new Date(iso).getTime()) / 1000;
+    return s < 3600 ? `${Math.max(1, Math.round(s / 60))} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago`
+      : s < 86400 * 30 ? `${Math.round(s / 86400)} days ago` : new Date(iso).toLocaleDateString();
+  }
+  async function openClips(fresh) {
+    closeMenu(); $('clips').classList.add('open'); $('cl-msg').textContent = 'Looking for clips…';
+    try { clipData = await (await fetch(`/api/clips?${pinQ()}${fresh ? '&fresh=1' : ''}`)).json(); }
+    catch (e) { $('cl-msg').textContent = 'Can\'t reach the PC.'; return; }
+    renderClips();
+  }
+  const thumbSeen = new IntersectionObserver(entries => entries.forEach(en => {
+    if (!en.isIntersecting) return;
+    const th = en.target; thumbSeen.unobserve(th);
+    const img = new Image();
+    img.onload = () => { th.style.backgroundImage = `url("${img.src}")`; th.classList.add('has'); };
+    img.src = `/api/clips/thumb?${pinQ()}&id=${th.dataset.id}`;
+  }), { root: $('cl-grid'), rootMargin: '300px' });
+  function renderClips() {
+    const src = $('cl-src'); src.innerHTML = '';
+    const names = [...new Set(clipData.clips.map(c => c.source))];
+    ['', ...names].forEach(n => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (n === clipSrc ? ' on' : '');
+      b.textContent = n || `All (${clipData.clips.length})`;
+      b.addEventListener('click', () => { clipSrc = n; renderClips(); });
+      src.appendChild(b);
+    });
+    const q = $('cl-q').value.trim().toLowerCase();
+    const list = clipData.clips.filter(c => (!clipSrc || c.source === clipSrc) &&
+      (!q || `${c.title} ${c.game} ${c.tags.join(' ')}`.toLowerCase().includes(q)));
+    const grid = $('cl-grid'); grid.innerHTML = '';
+    list.slice(0, 300).forEach(c => {
+      const b = document.createElement('button'); b.className = 'clip';
+      const th = document.createElement('div'); th.className = 'th'; th.appendChild(ico('film'));
+      th.dataset.id = c.id; thumbSeen.observe(th);        // the PC makes a picture only for clips on screen
+      const srcTag = document.createElement('span'); srcTag.className = 'src'; srcTag.textContent = c.source; th.appendChild(srcTag);
+      if (c.duration) { const d = document.createElement('span'); d.className = 'dur'; d.textContent = fmtTime(c.duration); th.appendChild(d); }
+      const ct = document.createElement('div'); ct.className = 'ct';
+      const t = document.createElement('b'); t.textContent = c.title;
+      const mb = c.size / 2 ** 20, size = mb >= 1 ? `${mb.toFixed(0)} MB` : `${Math.max(1, Math.round(c.size / 1024))} KB`;
+      const sm = document.createElement('small'); sm.textContent = [c.game, ago(c.created), size].filter(Boolean).join(' · ');
+      ct.append(t, sm); b.append(th, ct);
+      b.addEventListener('click', () => playClip(c));
+      grid.appendChild(b);
+    });
+    $('cl-msg').textContent = !clipData.clips.length
+      ? (clipData.sources.length ? 'No clips in ' + clipData.sources.map(s => s.name).join(', ') + ' yet.'
+        : 'No clip folders found. Add yours in settings.json under clip_sources (see clips.py).')
+      : list.length > 300 ? `Showing the newest 300 of ${list.length}.` : '';
+  }
+  function playClip(c) {
+    clipShown = c;
+    $('cl-title').textContent = [c.title, c.game].filter(Boolean).join(' · ');
+    const v = $('cl-video'); v.src = `/api/clips/video?${pinQ()}&id=${c.id}`;
+    $('cl-player').classList.add('open'); v.play().catch(() => {});
+  }
+  function closePlayer() { const v = $('cl-video'); v.pause(); v.removeAttribute('src'); v.load(); $('cl-player').classList.remove('open'); }
+  async function clipAction(what) {
+    if (!clipShown) return;
+    try { await api('clips/action', 'POST', { id: clipShown.id, do: what }); toast(what === 'play' ? 'Playing on the PC' : 'Shown in File Explorer'); }
+    catch (e) { toast(e.message); }
+  }
+  $('m-clips').addEventListener('click', () => openClips(false));
+  $('d-clips').addEventListener('click', () => openClips(false));
+  $('cl-close').addEventListener('click', () => { closePlayer(); $('clips').classList.remove('open'); });
+  $('cl-back').addEventListener('click', closePlayer);
+  $('cl-pc').addEventListener('click', () => { closePlayer(); clipAction('play'); });
+  $('cl-show').addEventListener('click', () => clipAction('reveal'));
+  $('cl-q').addEventListener('input', () => clipData && renderClips());
+
   let recording = false;
   function markRec() {
     document.body.classList.toggle('rec', recording);
