@@ -177,7 +177,7 @@
   #deckbar button.on { background: var(--grad); color: #fff; box-shadow: 0 3px 12px rgba(91,140,255,.3); }
   #deckbar #d-edit { color: #fff; }
   body.deckedit #deckbar #d-edit, .editing #deckbar #d-edit { background: var(--ok); color: #0b0c10; font-weight: 600; }
-  #grid { flex: 1; display: grid; gap: 12px; min-height: 0; overflow-y: auto; }
+  #grid { flex: 1; display: grid; gap: 12px; min-height: 0; overflow-y: auto; grid-auto-flow: row dense; }
   .key { position: relative; margin: 0; padding: 8px; border: 1px solid rgba(255,255,255,.05); border-radius: 20px; min-height: 0; overflow: hidden;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #e8ebf0;
     background: radial-gradient(120% 90% at 50% 0%, #232733 0%, #171a22 55%, #121419 100%);
@@ -1736,7 +1736,7 @@
   // load with a graph of the last minute, memory, what's playing, the time.
   // Smart home buttons light up while their light or switch is on. The PC is
   // only asked while tiles are on screen.
-  const TILE_KINDS = { cpu: ['CPU', 'cpu'], gpu: ['GPU', 'gpu'], ram: ['Memory', 'layers'], media: ['Now playing', 'music'], clock: ['Clock', 'clock'] };
+  const TILE_KINDS = { cpu: ['CPU', 'cpu'], gpu: ['GPU', 'gpu'], fps: ['Game FPS', 'gamepad'], ram: ['Memory', 'layers'], media: ['Now playing', 'music'], clock: ['Clock', 'clock'] };
   const HA_ON = ['on', 'open', 'playing', 'unlocked', 'home'];
   let tileEls = [], haEls = [], tileData = null, tileN = 0, tileBusy = false;
   const span = (cls, txt) => { const e = document.createElement('span'); e.className = cls; if (txt) e.textContent = txt; return e; };
@@ -1756,7 +1756,7 @@
       const th = span('th'); iconInto(th, b.icon && b.icon !== 'i:star' ? b.icon : 'i:' + TILE_KINDS[b.tile][1]);
       th.appendChild(span('', b.label || TILE_KINDS[b.tile][0]));
       t.tv = span('tv', '–'); t.ts = span('ts');
-      if (b.tile === 'cpu' || b.tile === 'gpu') {
+      if (b.tile === 'cpu' || b.tile === 'gpu' || b.tile === 'fps') {
         t.spark = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         t.spark.setAttribute('class', 'spark'); t.spark.setAttribute('viewBox', '0 0 59 100'); t.spark.setAttribute('preserveAspectRatio', 'none');
         k.appendChild(t.spark);
@@ -1802,6 +1802,13 @@
           g.mem_used != null && `${(g.mem_used / 1024).toFixed(1)} GB`].filter(Boolean).join(' · ');
         t.k.classList.toggle('hot', g.temp != null && g.temp >= 85);
       }
+    } else if (b.tile === 'fps') {
+      const f = d.fps;
+      if (!f || f.missing) { val(t, '–'); t.ts.textContent = f ? 'Needs RivaTuner (comes with MSI Afterburner)' : 'No game running'; }
+      else {
+        val(t, Math.round(f.fps), 'fps');
+        t.ts.textContent = `${f.frametime_ms.toFixed(1)} ms · ${f.app.replace(/\.exe$/i, '')}`;
+      }
     } else if (b.tile === 'ram') {
       const r = d.ram || {};
       if (r.total) {
@@ -1828,7 +1835,9 @@
       }
     }
     if (t.spark) {
-      const p = sparkPath((d.history || {})[b.tile]);
+      let h = (d.history || {})[b.tile];
+      if (b.tile === 'fps' && h && h.length) { const top = Math.max(60, ...h) * 1.1; h = h.map(v => 100 * v / top); }
+      const p = sparkPath(h);
       t.spark.innerHTML = p ? `<path class="a" d="${p.a}"/><path class="l" d="${p.l}"/>` : '';
     }
   }
@@ -2108,6 +2117,7 @@
   const TILE_HINTS = {
     cpu: 'CPU use with a graph of the last minute. For the temperature, run LibreHardwareMonitor on the PC with Options > Remote Web Server turned on.',
     gpu: 'NVIDIA GPU use, temperature, power and memory, with a graph of the last minute.',
+    fps: 'The game\'s frame rate and frame time, with a graph of the last minute. Needs RivaTuner Statistics Server running (it comes with MSI Afterburner); no admin rights needed.',
     ram: 'How much of the PC\'s memory is in use.',
     media: 'What\'s playing on the PC (Spotify, YouTube, any player), with the album art. Tap it to play or pause. It takes two spaces.',
     clock: 'The time and date.',

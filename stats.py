@@ -6,6 +6,7 @@ Everything is read only while an iPad is showing a tile (it asks every second
 or two); a minute after the last ask the readers go quiet again."""
 import ctypes
 import json
+import ntpath
 import os
 import shutil
 import subprocess
@@ -23,8 +24,8 @@ IDLE_AFTER = 60.0
 
 _lock = threading.Lock()
 data = {"cpu": {"load": None, "temp": None}, "ram": {"used": None, "total": None},
-        "gpu": None, "media": None}
-history = {"cpu": deque(maxlen=60), "gpu": deque(maxlen=60)}
+        "gpu": None, "media": None, "fps": None}
+history = {"cpu": deque(maxlen=60), "gpu": deque(maxlen=60), "fps": deque(maxlen=60)}
 _last_ask = 0.0
 _threads = {}
 _started = {}
@@ -165,6 +166,87 @@ def _media_loop():
         proc.kill()
 
 
+# ---------------------------------------------------------------- game FPS (RivaTuner)
+RTSS_SIG = 0x52545353              # 'RTSS'
+
+
+def parse_rtss(buf, pid=None):
+    """FPS of the game from RivaTuner Statistics Server's shared memory
+    (installed with MSI Afterburner; no admin rights needed). Picks the
+    entry for `pid` (the app in front) or the busiest one.
+    Returns {fps, frametime_ms, app} or None."""
+    import struct
+    if len(buf) < 32:
+        return None
+    sig, ver, esize, aoff, acount = struct.unpack_from("<5I", buf, 0)
+    if sig != RTSS_SIG or esize < 284 or ver < 0x00020000:
+        return None
+    best = None
+    for i in range(min(acount, 256)):
+        off = aoff + i * esize
+        if off + 284 > len(buf):
+            break
+        epid = struct.unpack_from("<I", buf, off)[0]
+        if not epid:
+            continue
+        name = buf[off + 4: off + 264].split(b"\0", 1)[0].decode("mbcs" if IS_WINDOWS else "latin-1", "replace")
+        flags, t0, t1, frames, ftime = struct.unpack_from("<5I", buf, off + 264)
+        if t1 <= t0 or not frames:
+            continue
+        e = {"fps": round(1000.0 * frames / (t1 - t0), 1), "frametime_ms": round(ftime / 1000.0, 2),
+             "app": ntpath.basename(name), "pid": epid}
+        if pid is not None and epid == pid:
+            return e
+        if best is None or e["fps"] > best["fps"]:
+            best = e
+    return best
+
+
+def _front_pid():
+    user32 = ctypes.windll.user32
+    pid = ctypes.c_uint32()
+    user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), ctypes.byref(pid))
+    return pid.value
+
+
+def _fps_loop():
+    if not IS_WINDOWS:
+        return
+    k32 = ctypes.windll.kernel32
+    k32.OpenFileMappingW.restype = ctypes.c_void_p
+    k32.MapViewOfFile.restype = ctypes.c_void_p
+    k32.MapViewOfFile.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_size_t]
+    k32.UnmapViewOfFile.argtypes = [ctypes.c_void_p]
+    k32.CloseHandle.argtypes = [ctypes.c_void_p]
+    while time.time() - _last_ask < IDLE_AFTER:
+        h = k32.OpenFileMappingW(0x0004, False, "RTSSSharedMemoryV2")       # FILE_MAP_READ
+        if not h:
+            with _lock:
+                data["fps"] = {"missing": True}
+            time.sleep(5.0)                    # RivaTuner isn't running: look again now and then
+            continue
+        try:
+            view = k32.MapViewOfFile(h, 0x0004, 0, 0, 0)
+            if view:
+                try:
+                    import struct
+                    head = ctypes.string_at(view, 20)
+                    _, _, esize, aoff, acount = struct.unpack("<5I", head)
+                    size = min(aoff + esize * min(acount, 256), 8 << 20)
+                    e = parse_rtss(ctypes.string_at(view, size), _front_pid())
+                finally:
+                    k32.UnmapViewOfFile(view)
+                with _lock:
+                    data["fps"] = e
+                    if e:
+                        history["fps"].append(e["fps"])
+        except Exception:
+            pass
+        finally:
+            k32.CloseHandle(h)
+        time.sleep(1.0)
+
+
 # ---------------------------------------------------------------- public
 def _ensure(name, fn):
     t = _threads.get(name)
@@ -179,7 +261,7 @@ def _ensure(name, fn):
 
 
 READERS = {"cpu": (("cpu", _cpu_loop), ("temp", _cpu_temp_loop)), "ram": (("cpu", _cpu_loop),),
-           "gpu": (("gpu", _gpu_loop),), "media": (("media", _media_loop),)}
+           "gpu": (("gpu", _gpu_loop),), "media": (("media", _media_loop),), "fps": (("fps", _fps_loop),)}
 
 
 def snapshot(want=("cpu", "ram", "gpu", "media")):
