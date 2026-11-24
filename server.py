@@ -2051,7 +2051,7 @@ def _serve_both(app, port, tls_ctx):
     from aiohttp.web_runner import GracefulExit
 
     async def serve():
-        runner = web.AppRunner(app, handle_signals=True)
+        runner = web.AppRunner(app, handle_signals=True, shutdown_timeout=2)
         await runner.setup()
         try:
             await web.TCPSite(runner, "0.0.0.0", port).start()
@@ -2066,9 +2066,32 @@ def _serve_both(app, port, tls_ctx):
         pass
 
 
+KEEP_SCREEN = False        # --keep-screen: never switch the iPad's virtual screen off
+
+
+def _screen_off_now(force=True):
+    """Switch the iPad's virtual screen off before the host stops. Done right
+    away instead of in an exit hook: Python only runs exit hooks after every
+    worker thread has finished, and a busy one could hold that up for good."""
+    if not IS_WINDOWS or KEEP_SCREEN:
+        return
+    try:
+        import vdd
+        if vdd.available():
+            vdd.turn_off(force=force)
+    except Exception as e:
+        print("[screen] couldn't switch the iPad screen off:", e, flush=True)
+
+
 def _quit_from_tray(app):
-    """Stop the host as Ctrl+C would (so the iPad screen is switched off too)."""
+    """Quit from the tray: the iPad screen goes off first, then the host stops
+    as Ctrl+C would, and if anything is slow to stop it is ended 5 s later."""
     from aiohttp.web_runner import GracefulExit
+    print("[tray] Quit: switching the iPad screen off and stopping.", flush=True)
+    _screen_off_now()
+    t = threading.Timer(5.0, lambda: os._exit(0))
+    t.daemon = True
+    t.start()
 
     def stop():
         raise GracefulExit()
@@ -2102,6 +2125,8 @@ def main():
     ap.add_argument("--keep-screen", action="store_true",
                     help="don't turn the iPad's virtual screen on/off automatically")
     args = ap.parse_args()
+    global KEEP_SCREEN
+    KEEP_SCREEN = bool(args.keep_screen)
     # The picture's thread waits for Python's lock whenever another thread
     # (an answer to the iPad's deck or tiles) holds it; hand it over every
     # 1 ms instead of 5 so those waits stay short. Costs nothing when idle.
@@ -2200,9 +2225,10 @@ def main():
     usb_bridge.start(app, args.port, on_plug)
     try:
         if tls_ctx is None:
-            web.run_app(app, host="0.0.0.0", port=args.port, print=None)
+            web.run_app(app, host="0.0.0.0", port=args.port, print=None, shutdown_timeout=2)
         else:
             _serve_both(app, args.port, tls_ctx)
+        _screen_off_now(force=False)     # stopped (Ctrl+C or Quit): screen off now, not at exit
     except OSError as e:
         if getattr(e, "errno", None) in (10048, 98, 48):
             sys.exit("\n The host is already running, either in another window or in the "
